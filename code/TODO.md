@@ -9,3 +9,6 @@ Cosas por hacer.
 - cambiar los `var` por `const` y `let`
 - evitar las líneas largas (> 80 caracteres)
 
+## Mejoras
+
+- Usar un *logger* para los mensajes
