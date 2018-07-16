@@ -1,10 +1,10 @@
 
-var functions = require('./functions.js');
-var config = require('./config.json');
-var PythonShell = require('python-shell');
+const functions = require('./functions.js');
+const config = require('./config.json');
+const PythonShell = require('python-shell');
 
 
-var pool = functions.createnewconnection();
+const pool = functions.createnewconnection();
 
 
     pool.getConnection(function(err, connection) {
@@ -33,7 +33,7 @@ var pool = functions.createnewconnection();
                                     console.log("empty BBDD");
                                     connection.release();
 
-                                    var options = {
+                                    const options = {
                                       mode: 'text',
                                       scriptPath: './ovirtpython'
                                     };
