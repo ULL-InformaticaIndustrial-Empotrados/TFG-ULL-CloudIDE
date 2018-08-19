@@ -47,7 +47,7 @@ Set.prototype.difference = function(setB) {
 }
 
 const puertos = new Set();
-const aux=config.puerto_inicial;
+let aux=config.puerto_inicial;
 for(let i = 0; i < config.numero_max_serverxuser * config.numero_max_users; i++){
   puertos.add(aux);
   aux += 1;
@@ -85,7 +85,8 @@ const promesa = new Promise(function(resolve, reject) {
                       if (err) {
                         return console.log(err.message);
                       }
-                      errores.push({"motivo" : row.motivo, "user" : row.usuario, "puerto" :row.puerto});
+                      errores.push({"motivo" : row.motivo, "user" : row.usuario,
+                          "puerto" :row.puerto});
                     });
                 } else {
                   console.log("si que existe");
@@ -112,22 +113,24 @@ promesaerrores.then(function(result) {
 
   if(servers.length != 0){
   async.forEach(servers, function(item, callback) {
-console.log(item);
-      socket_client_servers.set(item.ip_server, require('socket.io-client')('http://'+item.ip_server+':'+config.puerto_websocket_vms, {
+    console.log(item);
+    socket_client_servers.set(item.ip_server,
+      require('socket.io-client')('http://'+item.ip_server+':'+config.puerto_websocket_vms, {
       reconnection : true,
       reconnectionDelay:0,
       reconnectionDelay:1000}));
 
-      console.log("servidor añadido " + item.ip_server);
+    console.log("servidor añadido " + item.ip_server);
 
     const ip_server = item.ip_server;
     socket_client_servers.get(item.ip_server).on('disconnect', function(){
       pool.getConnection(function(err, connection) {
       connection.query(bloqueo_tablas, function(error, results, fields) {
-      connection.query("DELETE FROM Servidores WHERE ip_server='"+ip_server+"'", function(error, servers, fields) {
-        connection.query("UNLOCK TABLES", function(error, results, fields) {
-        connection.release();
-      });
+      connection.query("DELETE FROM Servidores WHERE ip_server='" + ip_server +
+        "'", function(error, servers, fields) {
+          connection.query("UNLOCK TABLES", function(error, results, fields) {
+          connection.release();
+        });
         console.log("servidor desconectado");
         socket_client_servers.get(item.ip_server).disconnect();
         socket_client_servers.delete(ip_server);
@@ -147,25 +150,26 @@ console.log(item);
     port = puertos_restantes[0];
     puertos_usados.add(port);
 
-
-
     setInterval(function(){
       console.log("interval " + JSON.stringify(data));
       if((array[0].user == data.user) && (array[0].motivo == data.motivo)){
       clearInterval(this);
-      const exec = require('child_process').exec, child, salida;
+      const exec = require('child_process').exec;
 
 
-      child = exec(config.path+'script.sh 1 ' + data.user+"-"+data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+      const child = exec(config.path + 'script.sh 1 ' + data.user + '-' +
+        data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' +
+        addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
         function (error, stdout, stderr) {
-      			console.log(stdout);
-      		    if (error !== null) {
-      		      console.log('exec error: ' + error);
-      		    }
-              functions.cleandockerimages();
-      	array.shift();
-      	console.log("pasamos al siguiente");
-          db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], function(err) {
+          console.log(stdout);
+          if (error !== null) {
+            console.log('exec error: ' + error);
+          }
+          functions.cleandockerimages();
+          array.shift();
+          console.log("pasamos al siguiente");
+          db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`,
+            [data.user, data.motivo, port], function(err) {
             if (err) {
               return console.log(err.message);
             }
@@ -173,15 +177,11 @@ console.log(item);
             const json = {"user" : data.user, "motivo" : data.motivo, "puerto" : port};
             socket_client_servers.get(ip_server).emit("loaded", json);
           });
-
-      });
+        });
 
       }
-      },1000);
-
-
-
-      });
+    },1000);
+    });
 
 
 
@@ -190,36 +190,41 @@ console.log(item);
 
         setInterval(function(){
         console.log("interval stop " +  JSON.stringify(data));
-        if((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)){
+        if((array[0].user == data.user) && (array[0].motivo == data.motivo) &&
+          (array[0].puerto == data.puerto)){
         clearInterval(this);
-        const exec = require('child_process').exec, child, salida;
+        const exec = require('child_process').exec;
 
 
-        child = exec(config.path+'script.sh 0 ' + data.user+"-"+data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+        const child = exec(config.path + 'script.sh 0 ' + data.user + '-' +
+          data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' +
+          addresses[0] + ' ' + config.ip_server_exterior + ' ' +
+          config.path_almacenamiento,
           function (error, stdout, stderr) {
-        			console.log(stdout);
-        		  if (error !== null) {
-        		    console.log('exec error: ' + error);
-        		  }
-              functions.cleandockerimages();
-          //puertos.add(data.puerto);
-          puertos_usados.delete(data.puerto);
-        	array.shift();
-        	console.log("pasamos al siguiente");
-          db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], function(err) {
-            if (err) {
-              return console.log(err.message);
+            console.log(stdout);
+            if (error !== null) {
+              console.log('exec error: ' + error);
             }
-            const json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
-            socket_client_servers.get(ip_server).emit("stopped", json);
-          });
+            functions.cleandockerimages();
+            //puertos.add(data.puerto);
+            puertos_usados.delete(data.puerto);
+          	array.shift();
+          	console.log("pasamos al siguiente");
+            db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`,
+                [data.user, data.motivo, data.puerto], function(err) {
+              if (err) {
+                return console.log(err.message);
+              }
+              const json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
+              socket_client_servers.get(ip_server).emit("stopped", json);
+            });
 
         });
 
-        }
-        },1000);
+      }
+    },1000);
 
-      });
+  });
 
 if(item == servers[servers.length-1]){
   if(errores.length != 0){
@@ -263,7 +268,8 @@ setInterval(function(){
     if(socket_client_servers.get(item.ip_server) == undefined){
       const ip_server = item.ip_server;
 
-      socket_client_servers.set(ip_server, require('socket.io-client')('http://'+item.ip_server+':'+config.puerto_websocket_vms, {
+      socket_client_servers.set(ip_server, require('socket.io-client')(
+        'http://'+item.ip_server+':'+config.puerto_websocket_vms, {
       reconnection : true,
       reconnectionDelay:0,
       reconnectionDelay:1000}));
@@ -271,17 +277,17 @@ setInterval(function(){
       socket_client_servers.get(ip_server).on('disconnect', function(){
         pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas, function(error, results, fields) {
-        connection.query("DELETE FROM Servidores WHERE ip_server='"+ip_server+"'", function(error, servers, fields) {
-          connection.query("UNLOCK TABLES", function(error, results, fields) {
-          connection.release();
+          connection.query("DELETE FROM Servidores WHERE ip_server='"+ip_server+"'",
+            function(error, servers, fields) {
+              connection.query("UNLOCK TABLES", function(error, results, fields) {
+                connection.release();
+              });
+              console.log("servidor desconectado");
+              socket_client_servers.get(item.ip_server).disconnect();
+              socket_client_servers.delete(ip_server);
+            });
+          });
         });
-          console.log("servidor desconectado");
-          socket_client_servers.get(item.ip_server).disconnect();
-          socket_client_servers.delete(ip_server);
-        });
-      });
-     });
-
       });
 
       socket_client_servers.get(ip_server).on("load", function(data){
@@ -294,25 +300,26 @@ setInterval(function(){
         port = puertos_restantes[0];
         puertos_usados.add(port);
 
-
-
         setInterval(function(){
           console.log("interval " + JSON.stringify(data));
           if((array[0].user == data.user) && (array[0].motivo == data.motivo)){
           clearInterval(this);
-          const exec = require('child_process').exec, child, salida;
+          const exec = require('child_process').exec;
 
-
-          child = exec(config.path+'script.sh 1 ' + data.user+"-"+data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+          const child = exec(config.path + 'script.sh 1 ' + data.user + "-" +
+              data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' +
+              addresses[0] + ' ' + config.ip_server_exterior + ' ' +
+              config.path_almacenamiento,
             function (error, stdout, stderr) {
-          			console.log(stdout);
-          		    if (error !== null) {
-          		      console.log('exec error: ' + error);
-          		    }
-                  functions.cleandockerimages();
-          	array.shift();
-          	console.log("pasamos al siguiente");
-              db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], function(err) {
+              console.log(stdout);
+              if (error !== null) {
+                console.log('exec error: ' + error);
+              }
+              functions.cleandockerimages();
+            	array.shift();
+            	console.log("pasamos al siguiente");
+              db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`,
+                  [data.user, data.motivo, port], function(err) {
                 if (err) {
                   return console.log(err.message);
                 }
@@ -323,12 +330,9 @@ setInterval(function(){
 
           });
 
-          }
-          },1000);
-
-
-
-      });
+        }
+      },1000);
+    });
 
 
 
@@ -337,36 +341,40 @@ setInterval(function(){
 
         setInterval(function(){
         console.log("interval stop " + JSON.stringify(data));
-        if((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)){
+        if((array[0].user == data.user) && (array[0].motivo == data.motivo) &&
+            (array[0].puerto == data.puerto)){
         clearInterval(this);
-        const exec = require('child_process').exec, child, salida;
+        const exec = require('child_process').exec;
 
-
-        child = exec(config.path+'script.sh 0 ' + data.user+"-"+data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+        const child = exec(config.path+'script.sh 0 ' + data.user+"-"+
+            data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' +
+            addresses[0] + ' ' + config.ip_server_exterior + ' ' +
+            config.path_almacenamiento,
           function (error, stdout, stderr) {
-        			console.log(stdout);
-        		  if (error !== null) {
-        		    console.log('exec error: ' + error);
-        		  }
-              functions.cleandockerimages();
-          //puertos.add(data.puerto);
-          puertos_usados.delete(data.puerto);
-        	array.shift();
-        	console.log("pasamos al siguiente");
-          db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], function(err) {
-            if (err) {
-              return console.log(err.message);
+            console.log(stdout);
+            if (error !== null) {
+              console.log('exec error: ' + error);
             }
-            const json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
-            socket_client_servers.get(ip_server).emit("stopped", json);
+            functions.cleandockerimages();
+            //puertos.add(data.puerto);
+            puertos_usados.delete(data.puerto);
+          	array.shift();
+          	console.log("pasamos al siguiente");
+            db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`,
+                  [data.user, data.motivo, data.puerto],
+            function(err) {
+              if (err) {
+                return console.log(err.message);
+              }
+              const json = {"user" : data.user, "motivo" : data.motivo,
+                  "puerto" : data.puerto};
+              socket_client_servers.get(ip_server).emit("stopped", json);
+            });
           });
-
-        });
-
         }
-        },1000);
+      },1000);
 
-      });
+    });
 
       console.log("Server añadido");
     }
