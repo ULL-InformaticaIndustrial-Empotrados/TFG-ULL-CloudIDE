@@ -25,7 +25,8 @@ vm_service.start(
                     ip=types.Ip(
                         version=types.IpVersion.V4,
                         address=sys.argv[2],
-                        netmask='255.255.255.0'
+                        netmask='255.255.255.0',
+                        gateway='10.6.134.50'
                     )
                 )
             ]
