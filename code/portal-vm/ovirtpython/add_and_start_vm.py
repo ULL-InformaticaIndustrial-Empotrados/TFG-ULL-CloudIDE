@@ -23,8 +23,9 @@ print "Adding VM"
 templates = templates_service.list(search='name=ULL-CloudIDE-backend-tpl')
 template_id = None
 for template in templates:
-    if template.version.version_number == 5:
-        template_id = template.id
+    print('Template version {}, id: {}'.format(template.version.version_number, template.id))
+    template_id = template.id
+    if template.version.version_number == 6:
         break
 
 
