@@ -1,3 +1,7 @@
+const logger = require('./logger.js');
+
+logger.info('Comienza la aplicacion portal');
+
 var express = require('express');
 var config = require('./config.json');
 var functions = require('./functions.js');
