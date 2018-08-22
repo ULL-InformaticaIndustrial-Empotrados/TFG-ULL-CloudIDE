@@ -20,8 +20,8 @@ var createnewconnection = function(){
     password: config.password_bbdd_mysql,
     database : config.database_bbdd_mysql,
     //debug : true,
-    acquireTimeout : 10000000000000000000000000000,
-    connectTimeout : 1000000000000000000000000000000000000000,
+    acquireTimeout : 60 * 60 * 1000,
+    connectTimeout : 60 * 60 * 1000,
     connectionLimit : 1,
     queueLimit : 0
   });
