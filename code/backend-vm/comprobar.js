@@ -1,3 +1,5 @@
+const logger = require('winston');
+
 var config = require('./config.json');
 var exec = require('child_process').exec, child;
 
@@ -5,15 +7,15 @@ var exec = require('child_process').exec, child;
 child = exec('./comprobarche.sh ' +config.rootpassword + ' ' + 8082,
   function (error, stdout, stderr) {
         if (error !== null) {
-          console.log('exec error: ' + error);
+          logger.error(`comprobarche error: "${error}"`);
         }
-        console.log(stdout);
+        logger.debug(stdout);
 
         if(stdout == "no existe\n"){
-          console.log("no tiene nada");
+          logger.debug(`comprobarche: no tiene nada`);
         }
         else{
-          console.log("si que existe");
+          logger.debug(`comprobarche si que existe`);
         }
 
 });

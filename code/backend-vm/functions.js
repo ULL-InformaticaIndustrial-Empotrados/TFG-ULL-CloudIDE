@@ -1,3 +1,5 @@
+const logger = require('winston');
+
 var os = require('os');
 var config = require('./config.json');
 
@@ -10,7 +12,7 @@ for (var k in interfaces) {
         var address = interfaces[k][k2];
         if (address.family === 'IPv4' && !address.internal) {
             addresses.push(address.address);
-            console.log(address.address);
+            logger.info(`IP local encontrada: "${address.address}"`);
         }
     }
 }
@@ -22,13 +24,12 @@ var internet = function(modo, ip_source, ip_dest, port, callback){
 
   child = exec(config.path+'internet.sh ' + config.rootpassword + " " + config.ip_server_interior,
     function (error, stdout, stderr) {
-      // Imprimimos en pantalla con console.log
       salida = stdout;
       // controlamos el error
       if (error !== null) {
-        console.log('exec error: ' + error);
+        logger.warn(`Error intenet: "${error}"`);
       }
-      console.log("Salida estándar internet: " + salida);
+      logger.debug(`internet salida estandar: "${salida}"`);
     });
 
 }
@@ -38,13 +39,12 @@ var network = function(ip){
 
   child = exec(config.path+'network.sh ' + config.rootpassword + " " + ip,
     function (error, stdout, stderr) {
-      // Imprimimos en pantalla con console.log
       salida = stdout;
       // controlamos el error
       if (error !== null) {
-        console.log('exec error: ' + error);
+        logger.warn(`Error network: "${error}"`);
       }
-      console.log("Salida estándar internet: " + salida);
+      logger.debug(`network salida estandar: "${salida}"`);
     });
 
 }
@@ -54,13 +54,12 @@ var cleandockerimages = function(){
 
   child = exec(config.path+'cleandockerimages.sh ' + config.rootpassword,
     function (error, stdout, stderr) {
-      // Imprimimos en pantalla con console.log
       salida = stdout;
       // controlamos el error
       if (error !== null) {
-        console.log('exec error: ' + error);
+        logger.warn(`Error cleandockerimages: "${error}"`);
       }
-      console.log("Salida estándar internet: " + salida);
+      logger.debug(`cleandockerimages salida estandar: "${salida}"`);
     });
 
 }

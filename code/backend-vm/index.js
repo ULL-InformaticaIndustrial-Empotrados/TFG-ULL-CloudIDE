@@ -1,3 +1,7 @@
+const logger = require('./logger.js');
+
+logger.info(`Comienza la aplicacion backend`);
+
 var config = require('./config.json');
 var functions = require('./functions.js');
 var MySqlAsync = require('mysql');
@@ -25,10 +29,10 @@ var createnewconnection = function(){
     connectionLimit : 1,
     queueLimit : 0
   });
-  console.log("una conexion creada");
+  logger.debug(`una conexion creada`);
 
   connectionAsync.on('release', function (connection) {
-  console.log('Connection %d released', connection.threadId);
+    logger.debug(`Connection ${connection.threadId} released`);
 });
 
   return connectionAsync;
@@ -40,7 +44,7 @@ var pool = createnewconnection();
 
 
 
-console.log(addresses[0]);
+logger.debug(`Dirección: "${addresses[0]}"`);
 
 
 
@@ -70,12 +74,12 @@ db.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
   if (err) {
     throw err;
   }
-  console.log("longitud de filas " + rows.length);
+  logger.info(`longitud de filas "${rows.length}"`);
 
   var promesaerrores = new Promise(function(resolve, reject) {
     if( rows.length != 0){
   rows.forEach((row) => {
-    console.log(row.puerto);
+    logger.info(`Puerto: "${row.puerto}"`);
 
 
     var exec = require('child_process').exec, child;
@@ -84,22 +88,22 @@ db.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
     child = exec(config.path+'comprobarche.sh ' +config.rootpassword + ' ' + row.puerto,
       function (error, stdout, stderr) {
             if (error !== null) {
-              console.log('exec error: ' + error);
+              logger.warn(`Error comprobarche: "${error}"`);
             }
-            console.log(stdout);
+            logger.debug(`comprobarche salida estandar: "${stdout}"`);
 
             if(stdout == "no existe\n"){
-              console.log("no tiene nada");
+              logger.info(`no tiene nada`);
               db.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto], function(err) {
                 if (err) {
-                  return console.log(err.message);
+                  return logger.info(err.message);
                 }
                 errores.push({"motivo" : row.motivo, "user" : row.usuario, "puerto" :row.puerto});
               });
 
             }
             else{
-              console.log("si que existe");
+              logger.info(`si que existe`);
               puertos_usados.add(row.puerto);
             }
 
@@ -127,13 +131,13 @@ promesaerrores.then(function(result) {
 
   if(servers.length != 0){
   async.forEach(servers, function(item, callback) {
-console.log(item);
+logger.info(item);
       socket_client_servers.set(item.ip_server, require('socket.io-client')('http://'+item.ip_server+':'+config.puerto_websocket_vms, {
       reconnection : true,
       reconnectionDelay:0,
       reconnectionDelay:1000}));
 
-      console.log("servidor añadido " + item.ip_server);
+      logger.info(`servidor añadido "${item.ip_server}"`);
 
     var ip_server = item.ip_server;
     socket_client_servers.get(item.ip_server).on('disconnect', function(){
@@ -143,7 +147,7 @@ console.log(item);
         connection.query("UNLOCK TABLES", function(error, results, fields) {
         connection.release();
       });
-        console.log("servidor desconectado");
+        logger.info(`servidor desconectado`);
         socket_client_servers.get(item.ip_server).disconnect();
         socket_client_servers.delete(ip_server);
       });
@@ -153,7 +157,7 @@ console.log(item);
 
 
     socket_client_servers.get(ip_server).on("load", function(data){
-    console.log("recibido load" + JSON.stringify(data));
+    logger.info(`recibido load "${JSON.stringify(data)}"`);
     array.push(data);
     var port = 0;
 
@@ -165,7 +169,7 @@ console.log(item);
 
 
     setInterval(function(){
-      console.log("interval " + JSON.stringify(data));
+      logger.info(`interval "${JSON.stringify(data)}"`);
       if((array[0].user == data.user) && (array[0].motivo == data.motivo)){
       clearInterval(this);
       var exec = require('child_process').exec, child, salida;
@@ -173,16 +177,16 @@ console.log(item);
 
       child = exec(config.path+'script.sh 1 ' + data.user+"-"+data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
         function (error, stdout, stderr) {
-      			console.log(stdout);
+            logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
       		    if (error !== null) {
-      		      console.log('exec error: ' + error);
+                logger.warn(`Error script.sh 1: "${error}"`);
       		    }
               functions.cleandockerimages();
       	array.shift();
-      	console.log("pasamos al siguiente");
+      	logger.info(`pasamos al siguiente`);
           db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], function(err) {
             if (err) {
-              return console.log(err.message);
+              return logger.info(err.message);
             }
 
             var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : port};
@@ -204,7 +208,7 @@ console.log(item);
         array.push(data);
 
         setInterval(function(){
-        console.log("interval stop " +  JSON.stringify(data));
+        logger.debug(`interval stop "${JSON.stringify(data)}"`);
         if((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)){
         clearInterval(this);
         var exec = require('child_process').exec, child, salida;
@@ -212,18 +216,18 @@ console.log(item);
 
         child = exec(config.path+'script.sh 0 ' + data.user+"-"+data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
           function (error, stdout, stderr) {
-        			console.log(stdout);
+              logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
         		  if (error !== null) {
-        		    console.log('exec error: ' + error);
+                logger.warn(`Error script.sh 0: "${error}"`);
         		  }
               functions.cleandockerimages();
           //puertos.add(data.puerto);
           puertos_usados.delete(data.puerto);
         	array.shift();
-        	console.log("pasamos al siguiente");
+        	logger.info(`pasamos al siguiente`);
           db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], function(err) {
             if (err) {
-              return console.log(err.message);
+              return logger.info(err.message);
             }
             var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
             socket_client_servers.get(ip_server).emit("stopped", json);
@@ -240,7 +244,7 @@ if(item == servers[servers.length-1]){
   if(errores.length != 0){
     async.forEach(errores, function(item, callback) {
     socket_client_servers.values().next().value.emit("stopped", item);
-    console.log("enviando stop " + JSON.stringify(item));
+    logger.info(`enviando stop "${JSON.stringify(item)}"`);
     //errores.shift();
   });
   errores = [];
@@ -272,7 +276,7 @@ setInterval(function(){
     connection.query("UNLOCK TABLES", function(error, results, fields) {
     connection.release();
   });
-  console.log("buscando servidores...");
+  logger.info(`buscando servidores...`);
   async.forEach(servers, function(item, callback) {
 
     if(socket_client_servers.get(item.ip_server) == undefined){
@@ -290,7 +294,7 @@ setInterval(function(){
           connection.query("UNLOCK TABLES", function(error, results, fields) {
           connection.release();
         });
-          console.log("servidor desconectado");
+          logger.info(`servidor desconectado`);
           socket_client_servers.get(item.ip_server).disconnect();
           socket_client_servers.delete(ip_server);
         });
@@ -300,7 +304,7 @@ setInterval(function(){
       });
 
       socket_client_servers.get(ip_server).on("load", function(data){
-        console.log("recibido load" + JSON.stringify(data));
+        logger.info(`recibido load "${JSON.stringify(data)}"`);
         array.push(data);
         var port = 0;
 
@@ -312,7 +316,7 @@ setInterval(function(){
 
 
         setInterval(function(){
-          console.log("interval " + JSON.stringify(data));
+          logger.info(`interval "${JSON.stringify(data)}"`);
           if((array[0].user == data.user) && (array[0].motivo == data.motivo)){
           clearInterval(this);
           var exec = require('child_process').exec, child, salida;
@@ -320,16 +324,16 @@ setInterval(function(){
 
           child = exec(config.path+'script.sh 1 ' + data.user+"-"+data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
             function (error, stdout, stderr) {
-          			console.log(stdout);
-          		    if (error !== null) {
-          		      console.log('exec error: ' + error);
+              logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
+      		        if (error !== null) {
+                    logger.warn(`Error script.sh 1: "${error}"`);
           		    }
                   functions.cleandockerimages();
           	array.shift();
-          	console.log("pasamos al siguiente");
+          	logger.info(`pasamos al siguiente`);
               db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], function(err) {
                 if (err) {
-                  return console.log(err.message);
+                  return logger.info(err.message);
                 }
 
                 var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : port};
@@ -351,7 +355,7 @@ setInterval(function(){
         array.push(data);
 
         setInterval(function(){
-        console.log("interval stop " + JSON.stringify(data));
+        logger.info(`interval stop "${JSON.stringify(data)}"`);
         if((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)){
         clearInterval(this);
         var exec = require('child_process').exec, child, salida;
@@ -359,18 +363,18 @@ setInterval(function(){
 
         child = exec(config.path+'script.sh 0 ' + data.user+"-"+data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
           function (error, stdout, stderr) {
-        			console.log(stdout);
-        		  if (error !== null) {
-        		    console.log('exec error: ' + error);
+              logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
+      		    if (error !== null) {
+                logger.warn(`Error script.sh 0: "${error}"`);
         		  }
               functions.cleandockerimages();
           //puertos.add(data.puerto);
           puertos_usados.delete(data.puerto);
         	array.shift();
-        	console.log("pasamos al siguiente");
+        	logger.info(`pasamos al siguiente`);
           db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], function(err) {
             if (err) {
-              return console.log(err.message);
+              return logger.info(err.message);
             }
             var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
             socket_client_servers.get(ip_server).emit("stopped", json);
@@ -383,14 +387,14 @@ setInterval(function(){
 
       });
 
-      console.log("Server añadido");
+      logger.info(`Server añadido`);
     }
 
     if(item == servers[servers.length-1]){
       if(errores.length != 0){
         async.forEach(errores, function(item, callback) {
         socket_client_servers.values().next().value.emit("stopped", item);
-        console.log("enviando stop " + JSON.stringify(item));
+        logger.info(`enviando stop "${JSON.stringify(item)}"`);
         //errores.shift();
       });
       errores = [];
