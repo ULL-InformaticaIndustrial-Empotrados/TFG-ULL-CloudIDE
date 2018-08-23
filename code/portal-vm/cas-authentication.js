@@ -88,7 +88,7 @@ function CASAuthentication(options) {
                     }
                 }
                 catch (err) {
-                    logger.error(`CAS authentication failed: ${err}`);
+                    logger.error(`CAS authentication failed: "${err}"`);
                     return callback(new Error('CAS authentication failed.'));
                 }
             });
@@ -135,7 +135,7 @@ function CASAuthentication(options) {
                     }
                 }
                 catch (err) {
-                    logger.error(`CAS authentication failed: ${err}`);
+                    logger.error(`CAS authentication failed: "${err}"`);
                     return callback(new Error('CAS authentication failed.'));
                 }
             });
@@ -271,7 +271,7 @@ CASAuthentication.prototype.logout = function(req, res, next) {
       if (this.destroy_session) {
           req.session.destroy(function(err) {
               if (err) {
-                  logger.error(err);
+                  logger.error(`CAS destroy_session error: "${err}"`);
               }
           });
       }
@@ -358,7 +358,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
         response.on('end', function() {
             this._validate(body, function(err, user, attributes) {
                 if (err) {
-                    logger.error(err);
+                    logger.error(`CAS _validate error: "${err}"`);
                     res.sendStatus(401);
                 }
                 else {
@@ -371,7 +371,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
             }.bind(this));
         }.bind(this));
         response.on('error', function(err) {
-            logger.error(`Response error from CAS:  ${err}`);
+            logger.error(`Response error from CAS:  "${err}"`);
             res.sendStatus(401);
         }.bind(this));
     }.bind(this));

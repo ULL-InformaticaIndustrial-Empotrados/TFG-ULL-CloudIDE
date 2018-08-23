@@ -6,19 +6,19 @@ module.exports = {
     var exec = require('child_process').exec, child;
 
      if(modo == "añadirtodo"){ //añadirtodo -> 1, eliminar -> 4, añadirsolo -> 3
-       logger.debug(`Añadir todo de la ip de origen ${ip_source}`);
+       logger.debug(`Añadir todo de la ip de origen "${ip_source}"`);
        modo = 1;
      }
       if(modo == "añadircomienzo"){
-       logger.debug(`Añadir comienzo de la ip de origen ${ip_source}`);
+       logger.debug(`Añadir comienzo de la ip de origen "${ip_source}"`);
        modo = 2;
      }
      if(modo == "eliminarsolo"){
-       logger.debug(`Eliminar solo de la ip de origen ${ip_source}`);
+       logger.debug(`Eliminar solo de la ip de origen "${ip_source}"`);
        modo = 4;
      }
       if(modo == "añadirsolo"){
-       logger.debug(`Añadir solo de la ip de origen ${ip_source}`);
+       logger.debug(`Añadir solo de la ip de origen "${ip_source}"`);
        modo = 3;
      }
 
@@ -26,9 +26,9 @@ module.exports = {
       function (error, stdout, stderr) {
         // controlamos el error
         if (error !== null) {
-          logger.error(`dnat.sh exec error: ${error}`);
+          logger.error(`dnat.sh exec error: "${error}"`);
         }
-        logger.debug(`dnat.sh exec salida ${stdout}`);
+        logger.debug(`dnat.sh exec salida: "${stdout}"`);
 
         if(callback != null){
           callback();
@@ -39,16 +39,16 @@ module.exports = {
 
 
   deletednat : function(ip_source, callback){
-    logger.debug(`Eliminar todo de la ip de origen ${ip_source}`);
+    logger.debug(`Eliminar todo de la ip de origen "${ip_source}"`);
     var exec = require('child_process').exec, child;
 
     child = exec('./sh/deletednat0.sh '+ ip_source +" "+config.password_root,
       function (error, stdout, stderr) {
         // controlamos el error
         if (error !== null) {
-          logger.error(`deletednat0.sh exec error: ${error}`);
+          logger.error(`deletednat0.sh exec error: "${error}"`);
         }
-        logger.debug(`deletednat0.sh exec salida ${stdout}`);
+        logger.debug(`deletednat0.sh exec salida: "${stdout}"`);
 
         if(callback != null){
           callback();
@@ -65,9 +65,9 @@ module.exports = {
       function (error, stdout, stderr) {
         // controlamos el error
         if (error !== null) {
-          logger.error(`inicializar.sh exec error: ${error}`);
+          logger.error(`inicializar.sh exec error: "${error}"`);
         }
-        logger.debug(`inicializar.sh exec salida ${stdout}`);
+        logger.debug(`inicializar.sh exec salida: "${stdout}"`);
     });
   },
 
@@ -79,9 +79,9 @@ module.exports = {
       function (error, stdout, stderr) {
         // controlamos el error
         if (error !== null) {
-          logger.error(`tcpkillestablished.sh exec error: ${error}`);
+          logger.error(`tcpkillestablished.sh exec error: "${error}"`);
         }
-        logger.debug(`tcpkillestablished.sh exec salida ${stdout}`);
+        logger.debug(`tcpkillestablished.sh exec salida: "${stdout}"`);
     });
   }
 

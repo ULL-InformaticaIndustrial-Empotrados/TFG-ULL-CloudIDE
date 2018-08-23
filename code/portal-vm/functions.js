@@ -24,7 +24,7 @@ module.exports = {
             var address = interfaces[k][k2];
             if (address.family === 'IPv4' && !address.internal) {
                 addresses.push(address.address);
-                logger.info(`IP local encontrada: ${address.address}`);
+                logger.info(`IP local encontrada: "${address.address}"`);
             }
         }
     }
@@ -64,7 +64,7 @@ module.exports = {
           if (error !== null) {
             logger.warn(`Error eliminardirectoriosolo: "${error}"`);
           }
-          logger.debug(`eliminardirectoriosolo salida estandar: ${salida}`);
+          logger.debug(`eliminardirectoriosolo salida estandar: "${salida}"`);
           logger.info(`eliminardirectoriosolo se ha eleminado "${usuario}"`);
           callback();
       });
@@ -81,7 +81,7 @@ module.exports = {
           if (error !== null) {
             logger.warn(`Error eliminardirectoriotodo: "${error}"`);
           }
-          logger.debug(`eliminardirectoriotodo salida estandar: ${salida}`);
+          logger.debug(`eliminardirectoriotodo salida estandar: "${salida}"`);
           logger.info(`eliminardirectoriotodo se ha eleminado`);
           callback();
       });

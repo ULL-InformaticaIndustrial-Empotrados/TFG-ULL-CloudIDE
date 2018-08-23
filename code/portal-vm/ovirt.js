@@ -16,7 +16,7 @@ module.exports = {
       PythonShell.run('add_and_start_vm.py', options, function (err, results) {
         if (err) throw err;
         // results is an array consisting of messages collected during execution
-        logger.debug(`add_and_start_vm.py results: ${results}`);
+        logger.debug(`add_and_start_vm.py results: "${results}"`);
         callback();
       });
 
@@ -33,7 +33,7 @@ module.exports = {
       PythonShell.run('stop_and_remove_vm.py', options, function (err, results) {
         if (err) throw err;
         // results is an array consisting of messages collected during execution
-        logger.debug(`stop_and_remove_vm.py results: ${results}`);
+        logger.debug(`stop_and_remove_vm.py results: "${results}"`);
         callback();
       });
 
