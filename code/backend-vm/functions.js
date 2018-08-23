@@ -19,36 +19,6 @@ for (var k in interfaces) {
 return addresses;
 }
 
-var internet = function(modo, ip_source, ip_dest, port, callback){
-  var exec = require('child_process').exec, child, salida;
-
-  child = exec(config.path+'internet.sh ' + config.rootpassword + " " + config.ip_server_interior,
-    function (error, stdout, stderr) {
-      salida = stdout;
-      // controlamos el error
-      if (error !== null) {
-        logger.warn(`Error intenet: "${error}"`);
-      }
-      logger.debug(`internet salida estandar: "${salida}"`);
-    });
-
-}
-
-var network = function(ip){
-  var exec = require('child_process').exec, child, salida;
-
-  child = exec(config.path+'network.sh ' + config.rootpassword + " " + ip,
-    function (error, stdout, stderr) {
-      salida = stdout;
-      // controlamos el error
-      if (error !== null) {
-        logger.warn(`Error network: "${error}"`);
-      }
-      logger.debug(`network salida estandar: "${salida}"`);
-    });
-
-}
-
 var cleandockerimages = function(){
   var exec = require('child_process').exec, child, salida;
 
@@ -64,7 +34,5 @@ var cleandockerimages = function(){
 
 }
 
-module.exports.network = network;
 module.exports.cleandockerimages = cleandockerimages;
 module.exports.getiplocal = getiplocal;
-module.exports.internet = internet;

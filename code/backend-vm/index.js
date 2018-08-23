@@ -12,9 +12,9 @@ async = require("async");
 var array = [];
 var socket_client_servers = new Map();
 var addresses = functions.getiplocal();
-functions.internet();
+
 functions.cleandockerimages();
-functions.network(addresses[0]);
+
 var bloqueo_tablas = "LOCK TABLES VMS WRITE, VMS as v1 READ, Servidores WRITE, Servidores as s1 READ, Firewall WRITE, Firewall as f1 READ, Pendientes WRITE, Pendientes as p1 READ, Asignaciones WRITE, Asignaciones as a1 READ, Cola WRITE, Cola as c1 READ";
 
 var createnewconnection = function(){
