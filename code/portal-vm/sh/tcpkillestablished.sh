@@ -1,4 +1,4 @@
-echo $1 | sudo -S su
+#!/bin/bash
 
 tcpkill host $2 and portrange 8082-8089 and portrange 32768-65535  &
 
