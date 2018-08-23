@@ -1,3 +1,4 @@
+const logger = require('winston');
 var url           = require('url'),
     http          = require('http'),
     https         = require('https'),
@@ -87,7 +88,7 @@ function CASAuthentication(options) {
                     }
                 }
                 catch (err) {
-                    console.log(err);
+                    logger.error(`CAS authentication failed: ${err}`);
                     return callback(new Error('CAS authentication failed.'));
                 }
             });
@@ -134,7 +135,7 @@ function CASAuthentication(options) {
                     }
                 }
                 catch (err) {
-                    console.log(err);
+                    logger.error(`CAS authentication failed: ${err}`);
                     return callback(new Error('CAS authentication failed.'));
                 }
             });
@@ -270,7 +271,7 @@ CASAuthentication.prototype.logout = function(req, res, next) {
       if (this.destroy_session) {
           req.session.destroy(function(err) {
               if (err) {
-                  console.log(err);
+                  logger.error(err);
               }
           });
       }
@@ -357,7 +358,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
         response.on('end', function() {
             this._validate(body, function(err, user, attributes) {
                 if (err) {
-                    console.log(err);
+                    logger.error(err);
                     res.sendStatus(401);
                 }
                 else {
@@ -370,7 +371,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
             }.bind(this));
         }.bind(this));
         response.on('error', function(err) {
-            console.log('Response error from CAS: ', err);
+            logger.error(`Response error from CAS:  ${err}`);
             res.sendStatus(401);
         }.bind(this));
     }.bind(this));

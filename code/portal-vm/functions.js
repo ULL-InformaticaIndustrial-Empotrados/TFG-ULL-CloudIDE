@@ -1,3 +1,5 @@
+const logger = require('winston');
+
 var os = require('os');
 var MySqlAsync = require('mysql');
 var config = require('./config.json');
@@ -22,7 +24,7 @@ module.exports = {
             var address = interfaces[k][k2];
             if (address.family === 'IPv4' && !address.internal) {
                 addresses.push(address.address);
-                console.log(address.address);
+                logger.info(`IP local encontrada: ${address.address}`);
             }
         }
     }
@@ -42,11 +44,11 @@ module.exports = {
         connectionLimit : 5,
         queueLimit : 0
       });
-      console.log("una conexion creada");
+      logger.debug(`creada conexion MySQL`);
 
       connectionAsync.on('release', function (connection) {
-      console.log('Connection %d released', connection.threadId);
-    });
+        logger.debug(`Connection MySQL "${connection.threadId}" released`);
+      });
 
       return connectionAsync;
     },
@@ -60,10 +62,10 @@ module.exports = {
           salida = stdout;
           // controlamos el error
           if (error !== null) {
-            console.log('exec error: ' + error);
+            logger.warn(`Error eliminardirectoriosolo: "${error}"`);
           }
-          console.log("Salida estándar: " + salida);
-          console.log("Se ha eliminado");
+          logger.debug(`eliminardirectoriosolo salida estandar: ${salida}`);
+          logger.info(`eliminardirectoriosolo se ha eleminado "${usuario}"`);
           callback();
       });
     },
@@ -77,10 +79,10 @@ module.exports = {
           salida = stdout;
           // controlamos el error
           if (error !== null) {
-            console.log('exec error: ' + error);
+            logger.warn(`Error eliminardirectoriotodo: "${error}"`);
           }
-          console.log("Salida estándar: " + salida);
-          console.log("Se ha eliminado");
+          logger.debug(`eliminardirectoriotodo salida estandar: ${salida}`);
+          logger.info(`eliminardirectoriotodo se ha eleminado`);
           callback();
       });
     },

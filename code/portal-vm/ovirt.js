@@ -1,3 +1,4 @@
+const logger = require('winston');
 var os = require('os');
 var config = require('./config.json');
 var PythonShell = require('python-shell');
@@ -15,7 +16,7 @@ module.exports = {
       PythonShell.run('add_and_start_vm.py', options, function (err, results) {
         if (err) throw err;
         // results is an array consisting of messages collected during execution
-        console.log('results: %j', results);
+        logger.debug(`add_and_start_vm.py results: ${results}`);
         callback();
       });
 
@@ -32,7 +33,7 @@ module.exports = {
       PythonShell.run('stop_and_remove_vm.py', options, function (err, results) {
         if (err) throw err;
         // results is an array consisting of messages collected during execution
-        console.log('results: %j', results);
+        logger.debug(`stop_and_remove_vm.py results: ${results}`);
         callback();
       });
 

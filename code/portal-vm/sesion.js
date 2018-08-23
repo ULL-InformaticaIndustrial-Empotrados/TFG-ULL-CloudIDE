@@ -1,3 +1,4 @@
+const logger = require('winston');
 var config = require('./config.json');
 
 module.exports = {
@@ -12,7 +13,7 @@ var redisStore = require('connect-redis')(session);
 var client  = redis.createClient(6379, config.host_redis);
 
 client.on("connect",function(){
-  console.log("redis conected");
+  logger.info(`redis conected`);
 
 });
 
