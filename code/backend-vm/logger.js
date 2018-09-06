@@ -12,9 +12,15 @@ logger.configure({
     myFormat
   ),
   transports: [
-    new logger.transports.Console(),
+    new logger.transports.Console({
+      level: 'warn',
+      silent: false,
+    }),
+    new logger.transports.File({
+      filename: '/var/log/cloudidebackend/backend.log',
+      level: 'debug',
+    }),
   ],
-  level: 'debug',
 });
 
 
