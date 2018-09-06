@@ -1,0 +1,14 @@
+[Unit]
+Description=CloudIDEBackend
+After=syslog.target network.target mnt-cloudIDE.mount
+
+[Service]
+User=root
+# Environment="PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/usr/local/anaconda3/bin"
+# WorkingDirectory=/var/lib/cloudide
+ExecStart=/mnt/cloudIDE/TFG-ULL-CloudIDE/scripts/actualizaArrancaBackend.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
