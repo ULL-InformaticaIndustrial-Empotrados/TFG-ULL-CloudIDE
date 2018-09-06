@@ -22,7 +22,7 @@ return addresses;
 var cleandockerimages = function(){
   var exec = require('child_process').exec, child, salida;
 
-  child = exec(config.path+'cleandockerimages.sh ' + config.rootpassword,
+  child = exec(__dirname + '/cleandockerimages.sh ' + config.rootpassword,
     function (error, stdout, stderr) {
       salida = stdout;
       // controlamos el error

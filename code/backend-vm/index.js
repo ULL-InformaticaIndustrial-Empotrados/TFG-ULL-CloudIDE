@@ -6,7 +6,8 @@ var config = require('./config.json');
 var functions = require('./functions.js');
 var MySqlAsync = require('mysql');
 var sqlite3 = require('sqlite3').verbose();
-var db = new sqlite3.Database(config.path+'cloudIDE.db');
+// TODO Poner la base de datos en otro sitio
+var db = new sqlite3.Database(__dirname + 'cloudIDE.db');
 async = require("async");
 
 var array = [];
@@ -85,7 +86,7 @@ db.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
     var exec = require('child_process').exec, child;
 
 
-    child = exec(config.path+'comprobarche.sh ' +config.rootpassword + ' ' + row.puerto,
+    child = exec(__dirname + 'comprobarche.sh ' +config.rootpassword + ' ' + row.puerto,
       function (error, stdout, stderr) {
             if (error !== null) {
               logger.warn(`Error comprobarche: "${error}"`);
@@ -175,7 +176,7 @@ logger.info(item);
       var exec = require('child_process').exec, child, salida;
 
 
-      child = exec(config.path+'script.sh 1 ' + data.user+"-"+data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+      child = exec(__dirname + 'script.sh 1 ' + data.user+"-"+data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
         function (error, stdout, stderr) {
             logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
       		    if (error !== null) {
@@ -214,7 +215,7 @@ logger.info(item);
         var exec = require('child_process').exec, child, salida;
 
 
-        child = exec(config.path+'script.sh 0 ' + data.user+"-"+data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+        child = exec(__dirname + 'script.sh 0 ' + data.user+"-"+data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
           function (error, stdout, stderr) {
               logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
         		  if (error !== null) {
@@ -322,7 +323,7 @@ setInterval(function(){
           var exec = require('child_process').exec, child, salida;
 
 
-          child = exec(config.path+'script.sh 1 ' + data.user+"-"+data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+          child = exec(__dirname + 'script.sh 1 ' + data.user+"-"+data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
             function (error, stdout, stderr) {
               logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
       		        if (error !== null) {
@@ -361,7 +362,7 @@ setInterval(function(){
         var exec = require('child_process').exec, child, salida;
 
 
-        child = exec(config.path+'script.sh 0 ' + data.user+"-"+data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+        child = exec(__dirname + 'script.sh 0 ' + data.user+"-"+data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
           function (error, stdout, stderr) {
               logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
       		    if (error !== null) {

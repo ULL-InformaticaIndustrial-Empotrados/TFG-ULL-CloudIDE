@@ -12,5 +12,4 @@
   "puerto_inicial" : 8082,
   "rootpassword" : "***",
   "path_almacenamiento" : "/mnt/cloudIDE/",
-  "path" : "/home/usuario/client/"
 }
