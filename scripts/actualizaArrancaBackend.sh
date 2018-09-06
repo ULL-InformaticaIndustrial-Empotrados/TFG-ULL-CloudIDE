@@ -11,6 +11,7 @@ rsync -a -v \
    --exclude node_modules \
    --exclude memory \
    --exclude presentation \
+   --exclude code/backend-vm/package-lock.json \
    $ORIGEN/$CARPETA $DESTINO/
 
 cd $DESTINO/$CARPETA/$BACKEND
