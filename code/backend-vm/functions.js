@@ -1,38 +1,38 @@
 const logger = require('winston');
 
-var os = require('os');
-var config = require('./config.json');
+const os = require('os');
 
-var getiplocal = function(){
-
-var interfaces = os.networkInterfaces();
-var addresses = [];
-for (var k in interfaces) {
-    for (var k2 in interfaces[k]) {
-        var address = interfaces[k][k2];
-        if (address.family === 'IPv4' && !address.internal) {
-            addresses.push(address.address);
-            logger.info(`IP local encontrada: "${address.address}"`);
-        }
+const getiplocal = function () {
+  const interfaces = os.networkInterfaces();
+  const addresses = [];
+  for (let k in interfaces) {
+    for (let k2 in interfaces[k]) {
+      const address = interfaces[k][k2];
+      if (address.family === 'IPv4' && !address.internal) {
+        addresses.push(address.address);
+        logger.info(`IP local encontrada: "${address.address}"`);
+      }
     }
-}
-return addresses;
-}
+  }
 
-var cleandockerimages = function(){
-  var exec = require('child_process').exec, child, salida;
+  return addresses;
+};
 
-  child = exec(__dirname + '/cleandockerimages.sh ' + config.rootpassword,
+const cleandockerimages = function () {
+  const exec = require('child_process').exec;
+
+  const child = exec(__dirname + '/cleandockerimages.sh',
     function (error, stdout, stderr) {
-      salida = stdout;
+
       // controlamos el error
       if (error !== null) {
         logger.warn(`Error cleandockerimages: "${error}"`);
       }
-      logger.debug(`cleandockerimages salida estandar: "${salida}"`);
+
+      logger.debug(`cleandockerimages salida estandar: "${stdout}"`);
     });
 
-}
+};
 
 module.exports.cleandockerimages = cleandockerimages;
 module.exports.getiplocal = getiplocal;
