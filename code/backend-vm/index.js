@@ -46,7 +46,7 @@ const pool = createNewConnection();
 
 logger.debug(`Dirección: "${addresses[0]}"`);
 
-Set.prototype.difference = (setB) => {
+Set.prototype.difference = function (setB) {
   const difference = new Set(this);
   for (let elem of setB) {
     difference.delete(elem);
@@ -56,7 +56,7 @@ Set.prototype.difference = (setB) => {
 };
 
 const puertos = new Set();
-const aux = config.puerto_inicial;
+let aux = config.puerto_inicial;
 for (let i = 0; i < config.numero_max_serverxuser * config.numero_max_users; i++) {
   puertos.add(aux);
   aux += 1;
@@ -164,7 +164,7 @@ const promesa = new Promise((resolve, reject) => {
                       if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
                         clearInterval(this);
                         const exec = require('child_process').exec;
-                        const child = exec(__dirname + 'script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+                        const child = exec(__dirname + '/script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
                           (error, stdout, stderr) => {
                             logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
                             if (error !== null) {
@@ -195,7 +195,7 @@ const promesa = new Promise((resolve, reject) => {
                       if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
                         clearInterval(this);
                         const exec = require('child_process').exec;
-                        const child = exec(__dirname + 'script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+                        const child = exec(__dirname + '/script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
                           (error, stdout, stderr) => {
                             logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
                             if (error !== null) {
@@ -299,7 +299,7 @@ promesa.then(() => {
                   if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
                     clearInterval(this);
                     const exec = require('child_process').exec;
-                    const child = exec(__dirname + 'script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+                    const child = exec(__dirname + '/script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
                       (error, stdout, stderr) => {
                         logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
                         if (error !== null) {
@@ -331,7 +331,7 @@ promesa.then(() => {
                   if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
                     clearInterval(this);
                     const exec = require('child_process').exec;
-                    const child = exec(__dirname + 'script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+                    const child = exec(__dirname + '/script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
                       (error, stdout, stderr) => {
                         logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
                         if (error !== null) {
