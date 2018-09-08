@@ -164,13 +164,23 @@ const promesa = new Promise((resolve, reject) => {
                       logger.info(`interval load 162 "${JSON.stringify(data)}"`);
                       if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
                         clearInterval(this);
-                        const comando = __dirname + '/script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento;
+                        const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
+                            -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
+                            -v /var/run/docker.sock:/var/run/docker.sock \
+                            -v ${config.path_almacenamiento}${data.user}-${data.motivo}:/data \
+                            -e CHE_PORT=${port} \
+                            -e CHE_HOST=${addresses[0]} \
+                            -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
+                            --restart no \
+                            eclipse/che:6.0.0-M4 start \
+                            --skip:preflight \
+                            `
                         logger.debug(`Invocamos: "${comando}"`);
                         const child = exec(comando,
                           (error, stdout, stderr) => {
-                            logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
+                            logger.debug(`Arranque contenedor salida estandar: "${stdout}"`);
                             if (error !== null) {
-                              logger.warn(`Error script.sh 1: "${error}"`);
+                              logger.warn(`Error Arranque contenedor: "${error}"`);
                             }
 
                             functions.cleandockerimages();
@@ -202,9 +212,9 @@ const promesa = new Promise((resolve, reject) => {
                         logger.debug(`Invocamos: "${comando}"`);
                         const child = exec(comando,
                           (error, stdout, stderr) => {
-                            logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
+                            logger.debug(`Parada contenedor salida estandar: "${stdout}"`);
                             if (error !== null) {
-                              logger.warn(`Error script.sh 0: "${error}"`);
+                              logger.warn(`Error Parada contenedor: "${error}"`);
                             }
 
                             functions.cleandockerimages();
@@ -301,13 +311,23 @@ promesa.then(() => {
                   logger.info(`interval load 300 "${JSON.stringify(data)}"`);
                   if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
                     clearInterval(this);
-                    const comando = __dirname + '/script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento;
+                    const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
+                        -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
+                        -v ${config.path_almacenamiento}${data.user}-${data.motivo}:/data \
+                        -e CHE_PORT=${port} \
+                        -e CHE_HOST=${addresses[0]} \
+                        -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
+                        --restart no \
+                        eclipse/che:6.0.0-M4 start \
+                        --skip:preflight \
+                        `
                     logger.debug(`Invocamos: "${comando}"`);
                     const child = exec(comando,
                       (error, stdout, stderr) => {
-                        logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
+                        logger.debug(`Arranque contenedor salida estandar: "${stdout}"`);
                         if (error !== null) {
-                          logger.warn(`Error script.sh 1: "${error}"`);
+                          logger.warn(`Error arranque contenedor: "${error}"`);
                         }
 
                         functions.cleandockerimages();
@@ -339,9 +359,9 @@ promesa.then(() => {
                     logger.debug(`Invocamos: "${comando}"`);
                     const child = exec(comando,
                       (error, stdout, stderr) => {
-                        logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
+                        logger.debug(`Parada contenedor salida estandar: "${stdout}"`);
                         if (error !== null) {
-                          logger.warn(`Error script.sh 0: "${error}"`);
+                          logger.warn(`Error parada contenedor: "${error}"`);
                         }
 
                         functions.cleandockerimages();
