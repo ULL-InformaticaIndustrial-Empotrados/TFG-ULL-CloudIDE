@@ -151,7 +151,7 @@ const promesa = new Promise((resolve, reject) => {
                   });
 
                   socketClientServers.get(ipServer).on('load', (data) => {
-                    logger.info(`recibido load "${JSON.stringify(data)}"`);
+                    logger.info(`recibido load 154 "${JSON.stringify(data)}"`);
                     array.push(data);
                     let port = 0;
                     let puertosRestantes = puertos.difference(puertosUsados);
@@ -159,12 +159,14 @@ const promesa = new Promise((resolve, reject) => {
                     port = puertosRestantes[0];
                     puertosUsados.add(port);
 
-                    setInterval(() => {
-                      logger.info(`interval "${JSON.stringify(data)}"`);
+                    setInterval(function () {
+                      logger.info(`interval load 162 "${JSON.stringify(data)}"`);
                       if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
                         clearInterval(this);
                         const exec = require('child_process').exec;
-                        const child = exec(__dirname + '/script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+                        const comando = __dirname + '/script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento;
+                        logger.debug(`Invocamos: "${comando}"`);
+                        const child = exec(comando,
                           (error, stdout, stderr) => {
                             logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
                             if (error !== null) {
@@ -184,18 +186,22 @@ const promesa = new Promise((resolve, reject) => {
                             });
                           }
                         );
-                      }
+                      } else
+                        logger.debug(`interval 162: no es nuestro usuario o motivo`);
                     }, 1000);
                   });  // de on load
 
                   socketClientServers.get(ipServer).on('stop', (data) => {
+                    logger.info(`recibido stop 194 "${JSON.stringify(data)}"`);
                     array.push(data);
-                    setInterval(() => {
-                      logger.debug(`interval stop "${JSON.stringify(data)}"`);
+                    setInterval(function () {
+                      logger.debug(`interval stop 197 "${JSON.stringify(data)}"`);
                       if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
                         clearInterval(this);
                         const exec = require('child_process').exec;
-                        const child = exec(__dirname + '/script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+                        const comando = __dirname + '/script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento;
+                        logger.debug(`Invocamos: "${comando}"`);
+                        const child = exec(comando,
                           (error, stdout, stderr) => {
                             logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
                             if (error !== null) {
@@ -247,8 +253,6 @@ const promesa = new Promise((resolve, reject) => {
 
 //// FIN SERIALIZE
 
-// AFHC me quedo aquí
-
 promesa.then(() => {
   setInterval(() => {
     pool.getConnection((err, connection) => {
@@ -285,7 +289,7 @@ promesa.then(() => {
               });
 
               socketClientServers.get(ipServer).on('load', (data) => {
-                logger.info(`recibido load "${JSON.stringify(data)}"`);
+                logger.info(`recibido load 292 "${JSON.stringify(data)}"`);
                 array.push(data);
                 let port = 0;
 
@@ -294,12 +298,14 @@ promesa.then(() => {
                 port = puertosRestantes[0];
                 puertosUsados.add(port);
 
-                setInterval(() => {
-                  logger.info(`interval "${JSON.stringify(data)}"`);
+                setInterval(function () {
+                  logger.info(`interval load 300 "${JSON.stringify(data)}"`);
                   if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
                     clearInterval(this);
                     const exec = require('child_process').exec;
-                    const child = exec(__dirname + '/script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+                    const comando = __dirname + '/script.sh 1 ' + data.user + '-' + data.motivo + ' ' + port + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento;
+                    logger.debug(`Invocamos: "${comando}"`);
+                    const child = exec(comando,
                       (error, stdout, stderr) => {
                         logger.debug(`script.sh 1 salida estandar: "${stdout}"`);
                         if (error !== null) {
@@ -324,14 +330,17 @@ promesa.then(() => {
               });  //de on load
 
               socketClientServers.get(ipServer).on('stop', (data) => {
+                logger.info(`recibido stop 332 "${JSON.stringify(data)}"`);
                 array.push(data);
 
-                setInterval(() => {
-                  logger.info(`interval stop "${JSON.stringify(data)}"`);
+                setInterval(function () {
+                  logger.info(`interval stop 337 "${JSON.stringify(data)}"`);
                   if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
                     clearInterval(this);
                     const exec = require('child_process').exec;
-                    const child = exec(__dirname + '/script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento,
+                    const commando = __dirname + '/script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento;
+                    logger.debug(`Invocamos: "${comando}"`);
+                    const child = exec(comando,
                       (error, stdout, stderr) => {
                         logger.debug(`script.sh 0 salida estandar: "${stdout}"`);
                         if (error !== null) {
