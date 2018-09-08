@@ -2,6 +2,8 @@ const logger = require('winston');
 
 const os = require('os');
 
+const { exec } = require('child_process');
+
 const getiplocal = function () {
   const interfaces = os.networkInterfaces();
   const addresses = [];
@@ -19,7 +21,6 @@ const getiplocal = function () {
 };
 
 const cleandockerimages = function () {
-  const exec = require('child_process').exec;
 
   const child = exec(__dirname + '/cleandockerimages.sh',
     function (error, stdout, stderr) {
