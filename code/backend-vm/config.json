@@ -12,4 +12,5 @@
   "puerto_inicial" : 8082,
   "rootpassword" : "***",
   "path_almacenamiento" : "/mnt/cloudIDE/",
+  "path_db" : "/var/lib/cloudide/"
 }

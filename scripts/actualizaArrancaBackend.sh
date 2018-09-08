@@ -20,6 +20,7 @@ rsync -a -v \
    --exclude memory \
    --exclude presentation \
    --exclude code/backend-vm/package-lock.json \
+   --exclude scripts/cloudidebackend.service \
    $ORIGEN/$CARPETA $DESTINO/
 
 cd $DESTINO/$CARPETA/$BACKEND
@@ -29,6 +30,9 @@ then
     echo Invocamos npm ================
     npm install
 fi
+
+# Carpeta para la base de datos sglite3
+make -p /var/lib/cloudide
 
 echo ==============================
 echo Comienza node

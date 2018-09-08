@@ -1,6 +1,7 @@
 #!/bin/bash
 
-docker rm $(docker ps -aq) #limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
+#limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
+docker rm $(docker ps -aq) &>/dev/null
 existe=$(docker ps -qf "name=ULLcloudIDE-$2")
 #echo ${#existe}
 if [ "${#existe}" = "0" ]; then

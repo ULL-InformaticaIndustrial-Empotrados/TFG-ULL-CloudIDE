@@ -6,11 +6,12 @@ const config = require('./config.json');
 const functions = require('./functions.js');
 const MySqlAsync = require('mysql');
 const sqlite3 = require('sqlite3').verbose();
+// TODO Poner la base de datos en otro sitio
+const db = new sqlite3.Database(config.path_db + 'cloudIDE.db');
+db.serialize();  // Ponemos queris en modo serializado
 
 const { exec } = require('child_process');
 
-// TODO Poner la base de datos en otro sitio
-const db = new sqlite3.Database(__dirname + 'cloudIDE.db');
 async = require('async');
 
 const array = [];
@@ -68,191 +69,189 @@ const puertosUsados = new Set();
 const errores = new Array();
 
 const promesa = new Promise((resolve, reject) => {
-  db.serialize(() => {
-    db.run('CREATE TABLE IF NOT EXISTS Asignaciones (usuario TEXT, motivo TEXT, puerto INTEGER)');
+  db.run('CREATE TABLE IF NOT EXISTS Asignaciones (usuario TEXT, motivo TEXT, puerto INTEGER)');
 
-    db.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
-      if (err) {
-        throw err;
+  db.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
+    if (err) {
+      throw err;
+    }
+
+    logger.info(`longitud de filas "${rows.length}"`);
+
+    const promesaErrores = new Promise((resolve, reject) => {
+      if (rows.length == 0) {
+        resolve();
+        return;
       }
+      rows.forEach((row) => {
+        logger.info(`Comprobando puerto: "${row.puerto}"`);
+        const child = exec(__dirname + '/comprobarche.sh ' + config.rootpassword + ' ' + row.puerto,
+          (error, stdout, stderr) => {
+            if (error !== null) {
+              logger.warn(`Error comprobarche: "${error}"`);
+            }
 
-      logger.info(`longitud de filas "${rows.length}"`);
+            logger.debug(`comprobarche salida estandar: "${stdout}"`);
 
-      const promesaErrores = new Promise((resolve, reject) => {
-        if (rows.length != 0) {
-          rows.forEach((row) => {
-            logger.info(`Puerto: "${row.puerto}"`);
-            const child = exec(__dirname + 'comprobarche.sh ' + config.rootpassword + ' ' + row.puerto,
-              (error, stdout, stderr) => {
-                if (error !== null) {
-                  logger.warn(`Error comprobarche: "${error}"`);
+            if (stdout == 'no existe\n') {
+              logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
+              db.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
+                (err) => {
+                  if (err) {
+                    return logger.info(err.message);
+                  }
+
+                  errores.push({ motivo: row.motivo, user: row.usuario, puerto: row.puerto, });
                 }
+              );
+            } else {
+              logger.info(`si que existe`);
+              puertosUsados.add(row.puerto);
+            }
 
-                logger.debug(`comprobarche salida estandar: "${stdout}"`);
-
-                if (stdout == 'no existe\n') {
-                  logger.info(`no tiene nada`);
-                  db.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
-                    (err) => {
-                      if (err) {
-                        return logger.info(err.message);
-                      }
-
-                      errores.push({ motivo: row.motivo, user: row.usuario, puerto: row.puerto, });
-                    }
-                  );
-                } else {
-                  logger.info(`si que existe`);
-                  puertosUsados.add(row.puerto);
-                }
-
-                if (row == rows[rows.length - 1]) { //es el ultimo
-                  resolve();
-                }
-              }
-            );
-          });
-        } else {
-          resolve();
-        }
+            if (row == rows[rows.length - 1]) { //es el ultimo
+              resolve();
+            }
+          }
+        );
       });
+    });
 
-      promesaErrores.then((result) => {
-        pool.getConnection((err, connection) => {
-          connection.query(bloqueoTablas, (error, results, fields) => {
-            connection.query('SELECT * FROM Servidores AS s1', (error, servers, fields) => {
-              connection.query('UNLOCK TABLES', (error, results, fields) => {
-                connection.release();
-              });
+    promesaErrores.then((result) => {
+      pool.getConnection((err, connection) => {
+        connection.query(bloqueoTablas, (error, results, fields) => {
+          connection.query('SELECT * FROM Servidores AS s1', (error, servers, fields) => {
+            connection.query('UNLOCK TABLES', (error, results, fields) => {
+              connection.release();
+            });
 
-              if (servers.length != 0) {
-                async.forEach(servers, (item, callback) => {
-                  logger.debug(`Considerando servidor encontrado: ${item}`);
-                  socketClientServers.set(item.ip_server, require('socket.io-client')('http://' + item.ip_server + ':' + config.puerto_websocket_vms, {
-                    reconnection: true,
-                    reconnectionDelay: 0,
-                    reconnectionDelay: 1000,
-                  }));
-                  logger.info(`servidor añadido "${item.ip_server}"`);
+            if (servers.length != 0) {
+              async.forEach(servers, (item, callback) => {
+                logger.debug(`Considerando servidor encontrado: ${item}`);
+                socketClientServers.set(item.ip_server, require('socket.io-client')('http://' + item.ip_server + ':' + config.puerto_websocket_vms, {
+                  reconnection: true,
+                  reconnectionDelay: 0,
+                  reconnectionDelay: 1000,
+                }));
+                logger.info(`servidor añadido "${item.ip_server}"`);
 
-                  const ipServer = item.ip_server;
-                  socketClientServers.get(item.ip_server).on('disconnect', () => {
-                    pool.getConnection((err, connection) => {
-                      connection.query(bloqueoTablas, (error, results, fields) => {
-                        connection.query(`DELETE FROM Servidores WHERE ip_server='${ipServer}'`, (error, servers, fields) => {
-                          connection.query('UNLOCK TABLES', (error, results, fields) => {
-                            connection.release();
-                          });
-                          logger.info(`servidor desconectado`);
-                          socketClientServers.get(item.ip_server).disconnect();
-                          socketClientServers.delete(ipServer);
+                const ipServer = item.ip_server;
+                socketClientServers.get(item.ip_server).on('disconnect', () => {
+                  pool.getConnection((err, connection) => {
+                    connection.query(bloqueoTablas, (error, results, fields) => {
+                      connection.query(`DELETE FROM Servidores WHERE ip_server='${ipServer}'`, (error, servers, fields) => {
+                        connection.query('UNLOCK TABLES', (error, results, fields) => {
+                          connection.release();
                         });
+                        logger.info(`servidor desconectado`);
+                        socketClientServers.get(item.ip_server).disconnect();
+                        socketClientServers.delete(ipServer);
                       });
                     });
                   });
-
-                  socketClientServers.get(ipServer).on('load', (data) => {
-                    logger.info(`recibido load 154 "${JSON.stringify(data)}"`);
-                    array.push(data);
-                    let port = 0;
-                    let puertosRestantes = puertos.difference(puertosUsados);
-                    puertosRestantes = Array.from(puertosRestantes);
-                    port = puertosRestantes[0];
-                    puertosUsados.add(port);
-
-                    setInterval(function () {
-                      logger.info(`interval load 162 "${JSON.stringify(data)}"`);
-                      if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
-                        clearInterval(this);
-                        const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
-                            -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
-                            -v /var/run/docker.sock:/var/run/docker.sock \
-                            -v ${config.path_almacenamiento}${data.user}-${data.motivo}:/data \
-                            -e CHE_PORT=${port} \
-                            -e CHE_HOST=${addresses[0]} \
-                            -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
-                            --restart no \
-                            eclipse/che:6.0.0-M4 start \
-                            --skip:preflight \
-                            `
-                        logger.debug(`Invocamos: "${comando}"`);
-                        const child = exec(comando,
-                          (error, stdout, stderr) => {
-                            logger.debug(`Arranque contenedor salida estandar: "${stdout}"`);
-                            if (error !== null) {
-                              logger.warn(`Error Arranque contenedor: "${error}"`);
-                            }
-
-                            functions.cleandockerimages();
-                            array.shift();
-                            logger.debug(`pasamos al siguiente`);
-                            db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], (err) => {
-                              if (err) {
-                                return logger.info(`Error al insertar en Asiganciones: ${err.message}`);
-                              }
-
-                              const json = { user: data.user, motivo: data.motivo, puerto: port, };
-                              socketClientServers.get(ipServer).emit('loaded', json);
-                            });
-                          }
-                        );
-                      } else
-                        logger.debug(`interval 162: no es nuestro usuario o motivo`);
-                    }, 1000);
-                  });  // de on load
-
-                  socketClientServers.get(ipServer).on('stop', (data) => {
-                    logger.info(`recibido stop 194 "${JSON.stringify(data)}"`);
-                    array.push(data);
-                    setInterval(function () {
-                      logger.debug(`interval stop 197 "${JSON.stringify(data)}"`);
-                      if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
-                        clearInterval(this);
-                        const comando = `/usr/bin/docker stop ULLcloudIDE-${data.puerto}`
-                        logger.debug(`Invocamos: "${comando}"`);
-                        const child = exec(comando,
-                          (error, stdout, stderr) => {
-                            logger.debug(`Parada contenedor salida estandar: "${stdout}"`);
-                            if (error !== null) {
-                              logger.warn(`Error Parada contenedor: "${error}"`);
-                            }
-
-                            functions.cleandockerimages();
-
-                            //puertos.add(data.puerto);
-                            puertosUsados.delete(data.puerto);
-                            array.shift();
-                            logger.info(`pasamos al siguiente`);
-                            db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
-                              if (err) {
-                                return logger.info(`Error al borrar de Asignaciones ${err.message}`);
-                              }
-
-                              const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
-                              socketClientServers.get(ipServer).emit('stopped', json);
-                            });
-                          }
-                        );
-                      }
-                    }, 1000);
-                  });  // del on stop
-
-                  if (item == servers[servers.length - 1]) {
-                    if (errores.length != 0) {
-                      async.forEach(errores, (item, callback) => {
-                        socketClientServers.values().next().value.emit('stopped', item);
-                        logger.info(`enviando stop "${JSON.stringify(item)}"`);
-
-                        //errores.shift();
-                      });
-                      errores = [];
-                    }
-                  }
                 });
-              }
 
-              resolve();
-            });
+                socketClientServers.get(ipServer).on('load', (data) => {
+                  logger.info(`recibido load 154 "${JSON.stringify(data)}"`);
+                  array.push(data);
+                  let port = 0;
+                  let puertosRestantes = puertos.difference(puertosUsados);
+                  puertosRestantes = Array.from(puertosRestantes);
+                  port = puertosRestantes[0];
+                  puertosUsados.add(port);
+
+                  setInterval(function () {
+                    logger.info(`interval load 162 "${JSON.stringify(data)}"`);
+                    if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
+                      clearInterval(this);
+                      const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
+                          -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
+                          -v /var/run/docker.sock:/var/run/docker.sock \
+                          -v ${config.path_almacenamiento}${data.user}-${data.motivo}:/data \
+                          -e CHE_PORT=${port} \
+                          -e CHE_HOST=${addresses[0]} \
+                          -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
+                          --restart no \
+                          eclipse/che:6.0.0-M4 start \
+                          --skip:preflight \
+                          `
+                      logger.debug(`Invocamos: "${comando}"`);
+                      const child = exec(comando,
+                        (error, stdout, stderr) => {
+                          logger.debug(`Arranque contenedor salida estandar: "${stdout}"`);
+                          if (error !== null) {
+                            logger.warn(`Error Arranque contenedor: "${error}"`);
+                          }
+
+                          functions.cleandockerimages();
+                          array.shift();
+                          logger.debug(`pasamos al siguiente`);
+                          db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], (err) => {
+                            if (err) {
+                              return logger.info(`Error al insertar en Asiganciones: ${err.message}`);
+                            }
+
+                            const json = { user: data.user, motivo: data.motivo, puerto: port, };
+                            socketClientServers.get(ipServer).emit('loaded', json);
+                          });
+                        }
+                      );
+                    } else
+                      logger.debug(`interval 162: no es nuestro usuario o motivo`);
+                  }, 1000);
+                });  // de on load
+
+                socketClientServers.get(ipServer).on('stop', (data) => {
+                  logger.info(`recibido stop 194 "${JSON.stringify(data)}"`);
+                  array.push(data);
+                  setInterval(function () {
+                    logger.debug(`interval stop 197 "${JSON.stringify(data)}"`);
+                    if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
+                      clearInterval(this);
+                      const comando = `/usr/bin/docker stop ULLcloudIDE-${data.puerto}`
+                      logger.debug(`Invocamos: "${comando}"`);
+                      const child = exec(comando,
+                        (error, stdout, stderr) => {
+                          logger.debug(`Parada contenedor salida estandar: "${stdout}"`);
+                          if (error !== null) {
+                            logger.warn(`Error Parada contenedor: "${error}"`);
+                          }
+
+                          functions.cleandockerimages();
+
+                          //puertos.add(data.puerto);
+                          puertosUsados.delete(data.puerto);
+                          array.shift();
+                          logger.info(`pasamos al siguiente`);
+                          db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
+                            if (err) {
+                              return logger.info(`Error al borrar de Asignaciones ${err.message}`);
+                            }
+
+                            const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
+                            socketClientServers.get(ipServer).emit('stopped', json);
+                          });
+                        }
+                      );
+                    }
+                  }, 1000);
+                });  // del on stop
+
+                if (item == servers[servers.length - 1]) {
+                  if (errores.length != 0) {
+                    async.forEach(errores, (item, callback) => {
+                      socketClientServers.values().next().value.emit('stopped', item);
+                      logger.info(`enviando stop "${JSON.stringify(item)}"`);
+
+                      //errores.shift();
+                    });
+                    errores = [];
+                  }
+                }
+              });
+            }
+
+            resolve();
           });
         });
       });
