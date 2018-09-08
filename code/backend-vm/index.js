@@ -198,7 +198,16 @@ const promesa = new Promise((resolve, reject) => {
                       logger.debug(`interval stop 197 "${JSON.stringify(data)}"`);
                       if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
                         clearInterval(this);
-                        const comando = __dirname + '/script.sh 0 ' + data.user + '-' + data.motivo + ' ' + data.puerto + ' ' + config.rootpassword + ' ' + addresses[0] + ' ' + config.ip_server_exterior + ' ' + config.path_almacenamiento;
+                        const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
+                            -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
+                            -v /var/run/docker.sock:/var/run/docker.sock \
+                            -v ${config.path_almacenamiento}${data.user}-${data.motivo}:/data \
+                            -e CHE_PORT=${data.puerto} \
+                            -e CHE_HOST=${addresses[0]} \
+                            -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
+                            eclipse/che:6.0.0-M4 stop \
+                            --skip:preflight`
+
                         logger.debug(`Invocamos: "${comando}"`);
                         const child = exec(comando,
                           (error, stdout, stderr) => {
