@@ -32,7 +32,7 @@ then
 fi
 
 # Carpeta para la base de datos sglite3
-make -p /var/lib/cloudide
+mkdir -p /var/lib/cloudide
 
 echo ==============================
 echo Comienza node
