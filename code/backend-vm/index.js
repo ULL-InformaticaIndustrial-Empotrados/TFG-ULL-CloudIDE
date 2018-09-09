@@ -10,7 +10,7 @@ const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database(config.path_db + 'cloudIDE.db');
 db.serialize();  // Ponemos queris en modo serializado
 
-const { exec } = require('child_process');
+const { exec } = require('child-process-promise');
 
 async = require('async');
 
@@ -85,15 +85,11 @@ const promesa = new Promise((resolve, reject) => {
       }
       rows.forEach((row) => {
         logger.info(`Comprobando puerto: "${row.puerto}"`);
-        const child = exec(__dirname + '/comprobarche.sh ' + config.rootpassword + ' ' + row.puerto,
-          (error, stdout, stderr) => {
-            if (error !== null) {
-              logger.warn(`Error comprobarche: "${error}"`);
-            }
+        exec(__dirname + '/comprobarche.sh ' + config.rootpassword + ' ' + row.puerto)
+          .then((result) => {
+            logger.debug(`comprobarche salida estandar: "${result.stdout}"`);
 
-            logger.debug(`comprobarche salida estandar: "${stdout}"`);
-
-            if (stdout == 'no existe\n') {
+            if (result.stdout == 'no existe\n') {
               logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
               db.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
                 (err) => {
@@ -113,7 +109,10 @@ const promesa = new Promise((resolve, reject) => {
               resolve();
             }
           }
-        );
+        )
+        .catch((err) => {
+          logger.warn(`Error comprobarche: "${error}"`);
+        });
       });
     });
 
@@ -176,13 +175,9 @@ const promesa = new Promise((resolve, reject) => {
                           --skip:preflight \
                           `
                       logger.debug(`Invocamos: "${comando}"`);
-                      const child = exec(comando,
-                        (error, stdout, stderr) => {
-                          logger.debug(`Arranque contenedor salida estandar: "${stdout}"`);
-                          if (error !== null) {
-                            logger.warn(`Error Arranque contenedor: "${error}"`);
-                          }
-
+                      exec(comando)
+                        .then((result) => {
+                          logger.debug(`Arranque contenedor salida estandar: "${result.stdout}"`);
                           functions.cleandockerimages();
                           array.shift();
                           logger.debug(`pasamos al siguiente`);
@@ -194,8 +189,8 @@ const promesa = new Promise((resolve, reject) => {
                             const json = { user: data.user, motivo: data.motivo, puerto: port, };
                             socketClientServers.get(ipServer).emit('loaded', json);
                           });
-                        }
-                      );
+                        })
+                        .catch((error) => logger.warn(`Error Arranque contenedor: "${error}"`));
                     } else
                       logger.debug(`interval 162: no es nuestro usuario o motivo`);
                   }, 1000);
@@ -210,12 +205,9 @@ const promesa = new Promise((resolve, reject) => {
                       clearInterval(this);
                       const comando = `/usr/bin/docker stop ULLcloudIDE-${data.puerto}`
                       logger.debug(`Invocamos: "${comando}"`);
-                      const child = exec(comando,
-                        (error, stdout, stderr) => {
-                          logger.debug(`Parada contenedor salida estandar: "${stdout}"`);
-                          if (error !== null) {
-                            logger.warn(`Error Parada contenedor: "${error}"`);
-                          }
+                      exec(comando)
+                        .then((result) => {
+                          logger.debug(`Parada contenedor salida estandar: "${result.stdout}"`);
 
                           functions.cleandockerimages();
 
@@ -231,8 +223,8 @@ const promesa = new Promise((resolve, reject) => {
                             const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
                             socketClientServers.get(ipServer).emit('stopped', json);
                           });
-                        }
-                      );
+                        })
+                        .catch((error) => logger.warn(`Error Parada contenedor: "${error}"`));
                     }
                   }, 1000);
                 });  // del on stop
@@ -322,12 +314,9 @@ promesa.then(() => {
                         --skip:preflight \
                         `
                     logger.debug(`Invocamos: "${comando}"`);
-                    const child = exec(comando,
-                      (error, stdout, stderr) => {
-                        logger.debug(`Arranque contenedor salida estandar: "${stdout}"`);
-                        if (error !== null) {
-                          logger.warn(`Error arranque contenedor: "${error}"`);
-                        }
+                    exec(comando)
+                      .then((result) => {
+                        logger.debug(`Arranque contenedor salida estandar: "${result.stdout}"`);
 
                         functions.cleandockerimages();
                         array.shift();
@@ -340,8 +329,8 @@ promesa.then(() => {
                           const json = { user: data.user, motivo: data.motivo, puerto: port, };
                           socketClientServers.get(ipServer).emit('loaded', json);
                         });
-                      }
-                    );
+                      })
+                      .catch((error) => logger.warn(`Error arranque contenedor: "${error}"`));
                   }
                 }, 1000);
               });  //de on load
@@ -356,12 +345,9 @@ promesa.then(() => {
                     clearInterval(this);
                     const comando = `/usr/bin/docker stop ULLcloudIDE-${data.puerto}`
                     logger.debug(`Invocamos: "${comando}"`);
-                    const child = exec(comando,
-                      (error, stdout, stderr) => {
-                        logger.debug(`Parada contenedor salida estandar: "${stdout}"`);
-                        if (error !== null) {
-                          logger.warn(`Error parada contenedor: "${error}"`);
-                        }
+                    exec(comando)
+                      .then((result) => {
+                        logger.debug(`Parada contenedor salida estandar: "${result.stdout}"`);
 
                         functions.cleandockerimages();
 
@@ -377,8 +363,8 @@ promesa.then(() => {
                           const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
                           socketClientServers.get(ipServer).emit('stopped', json);
                         });
-                      }
-                    );
+                      })
+                      .catch((error) => logger.warn(`Error parada contenedor: "${error}"`));
                   }
                 }, 1000);
               }); //del on stop
