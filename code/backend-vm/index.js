@@ -85,11 +85,13 @@ const promesa = new Promise((resolve, reject) => {
       }
       rows.forEach((row) => {
         logger.info(`Comprobando puerto: "${row.puerto}"`);
-        exec(__dirname + '/comprobarche.sh ' + config.rootpassword + ' ' + row.puerto)
+        const comando = `/usr/bin/docker ps -qf "name=ULLcloudIDE-${row.puerto}"`;
+        logger.debug(`Ejecutando comando "${comando}"`);
+        exec(comando)
           .then((result) => {
             logger.debug(`comprobarche salida estandar: "${result.stdout}"`);
 
-            if (result.stdout == 'no existe\n') {
+            if (result.stdout == '') {
               logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
               db.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
                 (err) => {
@@ -101,7 +103,7 @@ const promesa = new Promise((resolve, reject) => {
                 }
               );
             } else {
-              logger.info(`si que existe`);
+              logger.info(`si que existe: ${result.stdout}`);
               puertosUsados.add(row.puerto);
             }
 
