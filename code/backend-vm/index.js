@@ -6,7 +6,7 @@ const config = require('./config.json');
 const functions = require('./functions.js');
 const MySqlAsync = require('mysql');
 const sqlite3 = require('sqlite3').verbose();
-// TODO Poner la base de datos en otro sitio
+
 const db = new sqlite3.Database(config.path_db + 'cloudIDE.db');
 db.serialize();  // Ponemos queris en modo serializado
 
