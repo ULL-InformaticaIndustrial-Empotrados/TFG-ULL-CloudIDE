@@ -71,6 +71,12 @@ const errores = new Array();
 const promesa = new Promise((resolve, reject) => {
   db.run('CREATE TABLE IF NOT EXISTS Asignaciones (usuario TEXT, motivo TEXT, puerto INTEGER)');
 
+  // limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
+  const comando = `/usr/bin/docker rm $(/usr/bin/docker ps -aq) &>/dev/null`;
+  logger.debug(`Limpiando ids Docker comando "${comando}"`);
+  exec(comando)
+    .catch((err) => logger.warn(`Error limpiando IDs: "${error}"`));
+
   db.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
     if (err) {
       throw err;
@@ -89,7 +95,7 @@ const promesa = new Promise((resolve, reject) => {
         logger.debug(`Ejecutando comando "${comando}"`);
         exec(comando)
           .then((result) => {
-            logger.debug(`comprobarche salida estandar: "${result.stdout}"`);
+            logger.debug(`Comprobar puerto salida estandar: "${result.stdout}"`);
 
             if (result.stdout == '') {
               logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
@@ -113,7 +119,7 @@ const promesa = new Promise((resolve, reject) => {
           }
         )
         .catch((err) => {
-          logger.warn(`Error comprobarche: "${error}"`);
+          logger.warn(`Error comprobando puerto: "${error}"`);
         });
       });
     });
