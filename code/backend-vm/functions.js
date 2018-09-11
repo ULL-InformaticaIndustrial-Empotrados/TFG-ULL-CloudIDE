@@ -35,7 +35,7 @@ const cleandockerimages = function () {
         logger.debug(`Borrando imagenes docker "${result.stdout}"`);
         return exec(`/usr/bin/docker rmi ${result.stdout}`);
       } else
-        logger.debug(`No hay imagenes que borrar`);
+        return { stdout: `No hay imagenes que borrar`, };
     })
     .then((result) => {
       if (result)  // puede no haberse ejecutado rmi
