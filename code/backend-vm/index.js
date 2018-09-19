@@ -16,39 +16,49 @@ async = require('async');
 
 const array = [];
 const socketClientServers = new Map();
+
 const addresses = functions.getiplocal();
+logger.debug(`Dirección: "${addresses[0]}"`);
 
 functions.cleandockerimages();
 
-const bloqueoTablas = 'LOCK TABLES VMS WRITE, VMS as v1 READ, Servidores WRITE, Servidores as s1 READ, Firewall WRITE, Firewall as f1 READ, Pendientes WRITE, Pendientes as p1 READ, Asignaciones WRITE, Asignaciones as a1 READ, Cola WRITE, Cola as c1 READ';
+const bloqueoTablas = `
+  LOCK TABLES VMS WRITE,
+    VMS as v1 READ,
+    Servidores WRITE,
+    Servidores as s1 READ,
+    Firewall WRITE,
+    Firewall as f1 READ,
+    Pendientes WRITE,
+    Pendientes as p1 READ,
+    Asignaciones WRITE,
+    Asignaciones as a1 READ,
+    Cola WRITE,
+    Cola as c1 READ';
+`;
 
-const createNewConnection = () => {
-  const connectionAsync = MySqlAsync.createPool({
-    host: config.host_bbdd_mysql,
-    user: config.user_bbdd_mysql,
-    password: config.password_bbdd_mysql,
-    database: config.database_bbdd_mysql,
+const pool = mysql.createPool({
+  host: config.host_bbdd_mysql,
+  user: config.user_bbdd_mysql,
+  password: config.password_bbdd_mysql,
+  database: config.database_bbdd_mysql,
 
-    //debug : true,
+  //debug : true,
 
-    acquireTimeout: 60 * 60 * 1000,
-    connectTimeout: 60 * 60 * 1000,
-    connectionLimit: 1,
-    queueLimit: 0,
-  });
-  logger.debug(`una conexion creada`);
+  acquireTimeout: 60 * 60 * 1000,
+  connectTimeout: 60 * 60 * 1000,
+  connectionLimit: 1,
+  queueLimit: 0,
+});
 
-  connectionAsync.on('release', (connection) => {
-    logger.debug(`Connection ${connection.threadId} released`);
-  });
+logger.debug(`Creado pool de conexiones MySQL`);
 
-  return connectionAsync;
-};
+pool.on('release', (connection) => {
+  logger.debug(`Connection ${connection.threadId} released`);
+});
 
-const pool = createNewConnection();
 
-logger.debug(`Dirección: "${addresses[0]}"`);
-
+// Añadimos el método diferencia de conjunto
 Set.prototype.difference = function (setB) {
   const difference = new Set(this);
   for (let elem of setB) {
@@ -58,6 +68,7 @@ Set.prototype.difference = function (setB) {
   return difference;
 };
 
+// Creamos conjunto de puertos y lo rellenamos
 const puertos = new Set();
 let aux = config.puerto_inicial;
 for (let i = 0; i < config.numero_max_serverxuser * config.numero_max_users; i++) {
