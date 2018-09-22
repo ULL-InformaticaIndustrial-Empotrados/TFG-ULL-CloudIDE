@@ -103,6 +103,17 @@ function arrancaChe(user, motivo, port) {
   .catch((error) => logger.warn(`Error Arranque contenedor: "${error}"`));
 }
 
+
+// Devuelve promesa para la parada del servidor Che
+function paraChe(port) {
+  const comando = `/usr/bin/docker stop ULLcloudIDE-${port}`
+  logger.debug(`Preparamos comando parada che: "${comando}"`);
+  return exec(comando)
+  .then((result) => {
+    logger.debug(`Parada contenedor salida estandar: "${result.stdout}"`);
+  })
+}
+
 // ////////////////////////////////////////////////////
 const promesa = new Promise((resolve, reject) => {
   db.run('CREATE TABLE IF NOT EXISTS Asignaciones (usuario TEXT, motivo TEXT, puerto INTEGER)');
@@ -236,28 +247,25 @@ const promesa = new Promise((resolve, reject) => {
                     logger.debug(`interval stop 197 "${JSON.stringify(data)}"`);
                     if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
                       clearInterval(this);
-                      const comando = `/usr/bin/docker stop ULLcloudIDE-${data.puerto}`
-                      logger.debug(`Invocamos: "${comando}"`);
-                      exec(comando)
-                        .then((result) => {
-                          logger.debug(`Parada contenedor salida estandar: "${result.stdout}"`);
+                      paraChe(data.puerto)
+                      .then(() => {
+                        logger.debug(`Parado docker ${data.puerto}`);
+                        functions.cleandockerimages();
 
-                          functions.cleandockerimages();
+                        //puertos.add(data.puerto);
+                        puertosUsados.delete(data.puerto);
+                        array.shift();
+                        logger.info(`pasamos al siguiente`);
+                        db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
+                          if (err) {
+                            return logger.info(`Error al borrar de Asignaciones ${err.message}`);
+                          }
 
-                          //puertos.add(data.puerto);
-                          puertosUsados.delete(data.puerto);
-                          array.shift();
-                          logger.info(`pasamos al siguiente`);
-                          db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
-                            if (err) {
-                              return logger.info(`Error al borrar de Asignaciones ${err.message}`);
-                            }
-
-                            const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
-                            socketClientServers.get(ipServer).emit('stopped', json);
-                          });
-                        })
-                        .catch((error) => logger.warn(`Error Parada contenedor: "${error}"`));
+                          const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
+                          socketClientServers.get(ipServer).emit('stopped', json);
+                        });
+                      })
+                      .catch((error) => logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`));
                     }
                   }, 1000);
                 });  // del on stop
