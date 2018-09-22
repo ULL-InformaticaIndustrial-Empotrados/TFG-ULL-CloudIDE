@@ -4,7 +4,7 @@ logger.info(`Comienza la aplicacion backend`);
 
 const config = require('./config.json');
 const functions = require('./functions.js');
-const MySqlAsync = require('mysql');
+const mysql = require('mysql');
 const sqlite3 = require('sqlite3').verbose();
 
 const db = new sqlite3.Database(config.path_db + 'cloudIDE.db');
@@ -79,6 +79,31 @@ for (let i = 0; i < config.numero_max_serverxuser * config.numero_max_users; i++
 const puertosUsados = new Set();
 const errores = new Array();
 
+
+// FUNCIONES AUXILIARES  /////////////////////////////////////
+
+// Devuelve promesa para creación de servidor Che
+function arrancaChe(user, motivo, port) {
+  const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
+      -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      -v ${config.path_almacenamiento}${user}-${motivo}:/data \
+      -e CHE_PORT=${port} \
+      -e CHE_HOST=${addresses[0]} \
+      -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
+      --restart no \
+      eclipse/che:6.0.0-M4 start \
+      --skip:preflight \
+      `
+  logger.debug(`Preparamos: "${comando}"`);
+  return exec(comando)
+  .then((result) => {
+    logger.debug(`Arranque contenedor salida estandar: "${result.stdout}"`);
+  })
+  .catch((error) => logger.warn(`Error Arranque contenedor: "${error}"`));
+}
+
+// ////////////////////////////////////////////////////
 const promesa = new Promise((resolve, reject) => {
   db.run('CREATE TABLE IF NOT EXISTS Asignaciones (usuario TEXT, motivo TEXT, puerto INTEGER)');
 
@@ -182,34 +207,23 @@ const promesa = new Promise((resolve, reject) => {
                     logger.info(`interval load 162 "${JSON.stringify(data)}"`);
                     if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
                       clearInterval(this);
-                      const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
-                          -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
-                          -v /var/run/docker.sock:/var/run/docker.sock \
-                          -v ${config.path_almacenamiento}${data.user}-${data.motivo}:/data \
-                          -e CHE_PORT=${port} \
-                          -e CHE_HOST=${addresses[0]} \
-                          -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
-                          --restart no \
-                          eclipse/che:6.0.0-M4 start \
-                          --skip:preflight \
-                          `
-                      logger.debug(`Invocamos: "${comando}"`);
-                      exec(comando)
-                        .then((result) => {
-                          logger.debug(`Arranque contenedor salida estandar: "${result.stdout}"`);
-                          functions.cleandockerimages();
-                          array.shift();
-                          logger.debug(`pasamos al siguiente`);
-                          db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], (err) => {
-                            if (err) {
-                              return logger.info(`Error al insertar en Asiganciones: ${err.message}`);
-                            }
+                      arrancaChe(data.user, data.motivo, port)
+                      .then(() => {
+                        logger.debug(`Arrancado docker para ${data.user}-${data.motivo}`);
+                      })
+                      .then(() => {
+                        functions.cleandockerimages();
+                        array.shift();
+                        logger.debug(`pasamos al siguiente`);
+                        db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], (err) => {
+                          if (err) {
+                            return logger.info(`Error al insertar en Asiganciones: ${err.message}`);
+                          }
 
-                            const json = { user: data.user, motivo: data.motivo, puerto: port, };
-                            socketClientServers.get(ipServer).emit('loaded', json);
-                          });
-                        })
-                        .catch((error) => logger.warn(`Error Arranque contenedor: "${error}"`));
+                          const json = { user: data.user, motivo: data.motivo, puerto: port, };
+                          socketClientServers.get(ipServer).emit('loaded', json);
+                        });
+                      })
                     } else
                       logger.debug(`interval 162: no es nuestro usuario o motivo`);
                   }, 1000);
