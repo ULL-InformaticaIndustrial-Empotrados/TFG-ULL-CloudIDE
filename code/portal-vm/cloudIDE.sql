@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 4.5.4.1deb2ubuntu2
+-- version 4.5.4.1deb2ubuntu2.1
 -- http://www.phpmyadmin.net
 --
 -- Servidor: localhost
--- Tiempo de generación: 25-04-2018 a las 16:55:17
--- Versión del servidor: 5.7.21-0ubuntu0.16.04.1
--- Versión de PHP: 7.0.28-0ubuntu0.16.04.1
+-- Tiempo de generación: 22-09-2018 a las 13:30:23
+-- Versión del servidor: 5.7.23-0ubuntu0.16.04.1
+-- Versión de PHP: 7.0.32-0ubuntu0.16.04.1
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
@@ -48,7 +48,6 @@ CREATE TABLE `Banco_ip` (
 --
 
 INSERT INTO `Banco_ip` (`ip`) VALUES
-('10.6.134.51'),
 ('10.6.134.52'),
 ('10.6.134.53'),
 ('10.6.134.54'),
@@ -314,10 +313,40 @@ CREATE TABLE `Matriculados` (
 INSERT INTO `Matriculados` (`usuario`, `motivo`) VALUES
 ('albham', 'InformáticaIndustrial'),
 ('albham', 'Empotrados'),
-('albpro', 'ejemplo'),
-('alu0100825510', 'ejemplo'),
-('alu0100825510', 'sdfdsf'),
-('alu0100825510', 'sdfgfdg');
+('alu0100945850', 'pl1718'),
+('alu0100888447', 'pl1718'),
+('alu0100836400', 'pl1718'),
+('alu0100969535', 'pl1718'),
+('alu0100783315', 'pl1718'),
+('alu0100845808', 'pl1718'),
+('alu0100965667', 'pl1718'),
+('alu0100792218', 'pl1718'),
+('alu0100966589', 'pl1718'),
+('alu0100611519', 'pl1718'),
+('alu0100898026', 'pl1718'),
+('alu0100949568', 'pl1718'),
+('alu0100913033', 'pl1718'),
+('alu0100967111', 'pl1718'),
+('alu0100970876', 'pl1718'),
+('alu0100973792', 'pl1718'),
+('alu0100777758', 'pl1718'),
+('alu0100921038', 'pl1718'),
+('alu0100819786', 'pl1718'),
+('alu0100846768', 'pl1718'),
+('alu0100909678', 'pl1718'),
+('alu0100946499', 'pl1718'),
+('alu0100895605', 'pl1718'),
+('alu0100904932', 'pl1718'),
+('alu0100886306', 'pl1718'),
+('alu0100283433', 'pl1718'),
+('alu0100947441', 'pl1718'),
+('alu0100818130', 'pl1718'),
+('alu0100973914', 'pl1718'),
+('sriosr', 'ssi'),
+('vblanco', 'ssi'),
+('crguezl', 'pl1718'),
+('alu0100825510', 'pruebatfg'),
+('albham', 'nuevo01');
 
 -- --------------------------------------------------------
 
@@ -369,6 +398,16 @@ CREATE TABLE `Pendientes` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `Profesores`
+--
+
+CREATE TABLE `Profesores` (
+  `usuario` varchar(200) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'usuario considerado profesor'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `Servicios`
 --
 
@@ -384,9 +423,10 @@ CREATE TABLE `Servicios` (
 INSERT INTO `Servicios` (`motivo`, `usuario`) VALUES
 ('InformáticaIndustrial', 'albham'),
 ('Empotrados', 'albham'),
-('ejemplo', 'albpro'),
-('sdfdsf', 'albpro'),
-('sdfgfdg', 'albpro');
+('pl1718', 'crguezl'),
+('ssi', 'vblanco'),
+('pruebatfg', 'albpro'),
+('nuevo01', 'albham');
 
 -- --------------------------------------------------------
 
@@ -415,9 +455,42 @@ CREATE TABLE `Ultima_conexion` (
 --
 
 INSERT INTO `Ultima_conexion` (`usuario`, `motivo`, `fecha`) VALUES
-('albham', 'InformáticaIndustrial', '2018-04-03 11:30:04'),
-('albham', 'Empotrados', NULL),
-('albpro', 'ejemplo', '2018-04-25 13:47:02');
+('albham', 'InformáticaIndustrial', '2018-09-09 10:31:22'),
+('albham', 'Empotrados', '2018-09-08 20:17:10'),
+('alu0100945850', 'pl1718', NULL),
+('alu0100888447', 'pl1718', NULL),
+('alu0100836400', 'pl1718', NULL),
+('alu0100969535', 'pl1718', NULL),
+('alu0100783315', 'pl1718', NULL),
+('alu0100845808', 'pl1718', NULL),
+('alu0100965667', 'pl1718', NULL),
+('alu0100792218', 'pl1718', NULL),
+('alu0100966589', 'pl1718', NULL),
+('alu0100611519', 'pl1718', NULL),
+('alu0100898026', 'pl1718', NULL),
+('alu0100949568', 'pl1718', NULL),
+('alu0100913033', 'pl1718', NULL),
+('alu0100967111', 'pl1718', NULL),
+('alu0100970876', 'pl1718', NULL),
+('alu0100973792', 'pl1718', NULL),
+('alu0100777758', 'pl1718', NULL),
+('alu0100921038', 'pl1718', NULL),
+('alu0100819786', 'pl1718', NULL),
+('alu0100846768', 'pl1718', NULL),
+('alu0100909678', 'pl1718', NULL),
+('alu0100946499', 'pl1718', NULL),
+('alu0100895605', 'pl1718', NULL),
+('alu0100904932', 'pl1718', NULL),
+('alu0100886306', 'pl1718', NULL),
+('alu0100283433', 'pl1718', NULL),
+('alu0100947441', 'pl1718', NULL),
+('alu0100818130', 'pl1718', NULL),
+('alu0100973914', 'pl1718', NULL),
+('sriosr', 'ssi', NULL),
+('vblanco', 'ssi', '2018-06-05 11:50:32'),
+('crguezl', 'pl1718', '2018-06-05 11:49:15'),
+('alu0100825510', 'pruebatfg', '2018-07-12 12:41:26'),
+('albham', 'nuevo01', '2018-09-11 12:44:13');
 
 -- --------------------------------------------------------
 
@@ -429,6 +502,16 @@ CREATE TABLE `VMS` (
   `prioridad` int(11) DEFAULT NULL,
   `ip_vm` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Índices para tablas volcadas
+--
+
+--
+-- Indices de la tabla `Profesores`
+--
+ALTER TABLE `Profesores`
+  ADD PRIMARY KEY (`usuario`);
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
