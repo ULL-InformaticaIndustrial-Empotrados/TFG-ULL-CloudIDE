@@ -30,7 +30,21 @@ firewall.inicializar(); //borramos iptables anteriores
 var regexp = /\balu\d{10}\b/; //Expresion regular para saber si el usuario es un alumno o un profesor
 
 
-
+// Funcion-promesa para determinar rol del usuario
+function getRoll(user) {
+  return new Promise((resolve, reject) => {
+    const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
+    logger.debug(`Obetemos roll con consulta: "${consulta}"`);
+    pool.query(consulta, (error, result, fields) => {
+        logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 4)}`);
+        if (result[0].total == 1)
+          resolve('profesor');
+        else
+          resolve('alumno');
+      }
+    )
+  });
+}
 
 
 
@@ -1914,13 +1928,12 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
 
   //req.session.user = req.session["cas_userinfo"].username;
   req.session.ip_origen = ip_origen;
-  if(regexp.test(req.session.user) == true){
-    req.session.rol = "alumno";
-  }
-  else{
-    req.session.rol = "profesor";
-  }
-
+  getRoll(req.session.user)
+  .then((rol) => {
+    logger.info(`Usuario considerado "${rol}"`);
+    req.session.rol = rol;
+  })
+  .then(() => {
     conexion.query("INSERT INTO Firewall (usuario, ip_origen) VALUES ('"+req.session.user+"','"+ip_origen+"')",function(error, results, fields) {
 
       //Actualizamos iptables
@@ -1966,6 +1979,7 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
 
       });
   });
+});
 });
 });
 });
