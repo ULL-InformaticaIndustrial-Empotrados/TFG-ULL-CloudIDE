@@ -373,28 +373,26 @@ promesa.then(() => {
                   logger.info(`interval stop 337 "${JSON.stringify(data)}"`);
                   if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
                     clearInterval(this);
-                    const comando = `/usr/bin/docker stop ULLcloudIDE-${data.puerto}`
-                    logger.debug(`Invocamos: "${comando}"`);
-                    exec(comando)
-                      .then((result) => {
-                        logger.debug(`Parada contenedor salida estandar: "${result.stdout}"`);
+                    paraChe(data.puerto)
+                    .then(() => {
+                      logger.debug(`Parada contenedor salida estandar: "${result.stdout}"`);
 
-                        functions.cleandockerimages();
+                      functions.cleandockerimages();
 
-                        //puertos.add(data.puerto);
-                        puertosUsados.delete(data.puerto);
-                        array.shift();
-                        logger.info(`pasamos al siguiente`);
-                        db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
-                          if (err) {
-                            return logger.info(`Error borrando de Asignaciones: ${err.message}`);
-                          }
+                      //puertos.add(data.puerto);
+                      puertosUsados.delete(data.puerto);
+                      array.shift();
+                      logger.info(`pasamos al siguiente`);
+                      db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
+                        if (err) {
+                          return logger.info(`Error borrando de Asignaciones: ${err.message}`);
+                        }
 
-                          const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
-                          socketClientServers.get(ipServer).emit('stopped', json);
-                        });
-                      })
-                      .catch((error) => logger.warn(`Error parada contenedor: "${error}"`));
+                        const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
+                        socketClientServers.get(ipServer).emit('stopped', json);
+                      });
+                    })
+                    .catch((error) => logger.warn(`Error parada contenedor ${data.puerto}: "${error}"`));
                   }
                 }, 1000);
               }); //del on stop
