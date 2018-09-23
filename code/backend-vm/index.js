@@ -10,8 +10,8 @@ const sqlite3 = require('sqlite3').verbose();
 const io = require('socket.io-client');
 
 
-const db = new sqlite3.Database(config.path_db + 'cloudIDE.db');
-db.serialize();  // Ponemos queris en modo serializado
+const db3 = new sqlite3.Database(config.path_db + 'cloudIDE.db');
+db3.serialize();  // Ponemos queris en modo serializado
 
 const { exec } = require('child-process-promise');
 
@@ -169,7 +169,7 @@ function configuraServidor(item) {
             functions.cleandockerimages();
             array.shift();
             logger.debug(`pasamos al siguiente`);
-            db.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], (err) => {
+            db3.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], (err) => {
               if (err) {
                 return logger.info(`Error al insertar en Asiganciones: ${err.message}`);
               }
@@ -199,7 +199,7 @@ function configuraServidor(item) {
             puertosUsados.delete(data.puerto);
             array.shift();
             logger.info(`pasamos al siguiente`);
-            db.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
+            db3.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
               if (err) {
                 return logger.info(`Error al borrar de Asignaciones ${err.message}`);
               }
@@ -220,8 +220,8 @@ function configuraServidor(item) {
 
 
 // ////////////////////////////////////////////////////
-const promesa = new Promise((resolve, reject) => {
-  db.run('CREATE TABLE IF NOT EXISTS Asignaciones (usuario TEXT, motivo TEXT, puerto INTEGER)');
+const inicializacion = new Promise((resolve, reject) => {
+  db3.run('CREATE TABLE IF NOT EXISTS Asignaciones (usuario TEXT, motivo TEXT, puerto INTEGER)');
 
   // limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
   const comando = `/usr/bin/docker rm $(/usr/bin/docker ps -aq) &>/dev/null`;
@@ -229,7 +229,7 @@ const promesa = new Promise((resolve, reject) => {
   exec(comando)
   .catch((err) => logger.warn(`Error limpiando IDs: "${error}"`));
 
-  db.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
+  db3.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
     if (err) {
       throw err;
     }
@@ -251,7 +251,7 @@ const promesa = new Promise((resolve, reject) => {
 
             if (result.stdout == '') {
               logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
-              db.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
+              db3.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
                 (err) => {
                   if (err) {
                     return logger.info(err.message);
@@ -297,7 +297,7 @@ const promesa = new Promise((resolve, reject) => {
 
 //// FIN SERIALIZE
 
-promesa.then(() => {
+inicializacion.then(() => {
   setInterval(() => {
     pool.query('SELECT * FROM Servidores AS s1')
     .then((servers) => {
