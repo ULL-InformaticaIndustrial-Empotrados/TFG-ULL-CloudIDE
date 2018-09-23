@@ -7,6 +7,9 @@ const functions = require('./functions.js');
 const mysql = require('promise-mysql');
 const sqlite3 = require('sqlite3').verbose();
 
+const io = require('socket.io-client');
+
+
 const db = new sqlite3.Database(config.path_db + 'cloudIDE.db');
 db.serialize();  // Ponemos queris en modo serializado
 
@@ -178,7 +181,7 @@ const promesa = new Promise((resolve, reject) => {
           logger.debug(`Hay ${servers.length} servidores en la BD`);
           async.forEach(servers, (item, callback) => {
             logger.debug(`Considerando servidor encontrado: ${JSON.stringify(item)}`);
-            socketClientServers.set(item.ip_server, require('socket.io-client')('http://' + item.ip_server + ':' + config.puerto_websocket_vms, {
+            socketClientServers.set(item.ip_server, io.connect(`http://${item.ip_server}:${config.puerto_websocket_vms}`, {
               reconnection: true,
               reconnectionDelay: 0,
               reconnectionDelay: 1000,
@@ -297,10 +300,11 @@ promesa.then(() => {
         if (socketClientServers.get(item.ip_server) == undefined) {
           const ipServer = item.ip_server;
 
-          socketClientServers.set(ipServer, require('socket.io-client')('http://' + item.ip_server + ':' + config.puerto_websocket_vms, {
-            reconnection: true,
-            reconnectionDelay: 0,
-            reconnectionDelay: 1000,
+          socketClientServers.set(ipServer,
+            io.connect(`http://${item.ip_server}:${config.puerto_websocket_vms}`, {
+              reconnection: true,
+              reconnectionDelay: 0,
+              reconnectionDelay: 1000,
           }));
 
           socketClientServers.get(ipServer).on('disconnect', () => {
