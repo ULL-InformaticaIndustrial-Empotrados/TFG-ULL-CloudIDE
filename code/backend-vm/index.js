@@ -5,13 +5,16 @@ logger.info(`Comienza la aplicacion backend`);
 const config = require('./config.json');
 const functions = require('./functions.js');
 const mysql = require('promise-mysql');
-const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require('sqlite-async');
 
 const io = require('socket.io-client');
 
-
-const db3 = new sqlite3.Database(config.path_db + 'cloudIDE.db');
-db3.serialize();  // Ponemos queris en modo serializado
+let db3;
+sqlite3.open(config.path_db + 'cloudIDE.db');
+.then(db => {
+  db3 = db;
+  db3.db.serialize();  // Ponemos queris en modo serializado
+});
 
 const { exec } = require('child-process-promise');
 
@@ -169,14 +172,13 @@ function configuraServidor(item) {
             functions.cleandockerimages();
             array.shift();
             logger.debug(`pasamos al siguiente`);
-            db3.run(`INSERT INTO Asignaciones(usuario, motivo, puerto) VALUES(?,?,?)`, [data.user, data.motivo, port], (err) => {
-              if (err) {
-                return logger.info(`Error al insertar en Asiganciones: ${err.message}`);
-              }
-
-              const json = { user: data.user, motivo: data.motivo, puerto: port, };
-              socketClientServers.get(ipServer).emit('loaded', json);
-            });
+            db3.run(`INSERT INTO Asignaciones(usuario, motivo, puerto)
+              VALUES(${data.user},${data.motivo}, ${port})`)
+            .catch((error) => {
+              logger.warn(`Error al insertar en Asiganciones: "${err.message}"`);
+            })
+            const json = { user: data.user, motivo: data.motivo, puerto: port, };
+            socketClientServers.get(ipServer).emit('loaded', json);
           });
         } else
           logger.debug(`interval 162: no es nuestro usuario o motivo`);
@@ -184,7 +186,7 @@ function configuraServidor(item) {
     });  // de on load
 
     socket.on('stop', (data) => {
-      logger.info(`recibido stop 194 "${JSON.stringify(data)}"`);
+      logger.info(`recibido stop "${JSON.stringify(data)}"`);
       array.push(data);
       setInterval(function () {
         logger.debug(`interval stop "${JSON.stringify(data)}"`);
@@ -199,14 +201,14 @@ function configuraServidor(item) {
             puertosUsados.delete(data.puerto);
             array.shift();
             logger.info(`pasamos al siguiente`);
-            db3.run(`DELETE FROM Asignaciones WHERE usuario=? AND motivo=? AND puerto=?`, [data.user, data.motivo, data.puerto], (err) => {
-              if (err) {
-                return logger.info(`Error al borrar de Asignaciones ${err.message}`);
-              }
-
-              const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
-              socket.emit('stopped', json);
+            db3.run(`DELETE FROM Asignaciones
+              WHERE usuario=${data.user} AND motivo=${data.motivo} AND puerto=${data.puerto}`)
+            .catch((err) => {
+              logger.warn(`Error al borrar de Asignaciones "${err.message}"`);
             });
+
+            const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
+            socket.emit('stopped', json);
           })
           .catch((error) => logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`));
         }
@@ -221,7 +223,6 @@ function configuraServidor(item) {
 
 // ////////////////////////////////////////////////////
 const inicializacion = new Promise((resolve, reject) => {
-  db3.run('CREATE TABLE IF NOT EXISTS Asignaciones (usuario TEXT, motivo TEXT, puerto INTEGER)');
 
   // limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
   const comando = `/usr/bin/docker rm $(/usr/bin/docker ps -aq) &>/dev/null`;
@@ -229,11 +230,13 @@ const inicializacion = new Promise((resolve, reject) => {
   exec(comando)
   .catch((err) => logger.warn(`Error limpiando IDs: "${error}"`));
 
-  db3.all(`SELECT * FROM Asignaciones`, [], (err, rows) => {
-    if (err) {
-      throw err;
-    }
-
+  // Miramos asignaciones que puedan quedar de ejecuciones anteriores
+  db3.run(`CREATE TABLE IF NOT EXISTS Asignaciones
+    (usuario TEXT, motivo TEXT, puerto INTEGER)`)
+  .then(() => {
+    return db3.all(`SELECT * FROM Asignaciones`)
+  })
+  .then((rows) => {
     logger.info(`longitud de filas "${rows.length}"`);
 
     const promesaErrores = new Promise((resolve, reject) => {
