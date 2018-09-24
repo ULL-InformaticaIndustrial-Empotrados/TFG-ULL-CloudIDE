@@ -9,12 +9,7 @@ const sqlite3 = require('sqlite-async');
 
 const io = require('socket.io-client');
 
-let db3;
-sqlite3.open(config.path_db + 'cloudIDE.db');
-.then(db => {
-  db3 = db;
-  db3.db.serialize();  // Ponemos queris en modo serializado
-});
+var db3;  // Contendrá la BD una vez abierta
 
 const { exec } = require('child-process-promise');
 
@@ -174,9 +169,12 @@ function configuraServidor(item) {
             logger.debug(`pasamos al siguiente`);
             db3.run(`INSERT INTO Asignaciones(usuario, motivo, puerto)
               VALUES(${data.user},${data.motivo}, ${port})`)
+            .then(() => {
+              logger.debug(`Guardado en Asignaciones (${data.user},${data.motivo}, ${port})`);
+            })
             .catch((error) => {
               logger.warn(`Error al insertar en Asiganciones: "${err.message}"`);
-            })
+            });
             const json = { user: data.user, motivo: data.motivo, puerto: port, };
             socketClientServers.get(ipServer).emit('loaded', json);
           });
@@ -203,6 +201,9 @@ function configuraServidor(item) {
             logger.info(`pasamos al siguiente`);
             db3.run(`DELETE FROM Asignaciones
               WHERE usuario=${data.user} AND motivo=${data.motivo} AND puerto=${data.puerto}`)
+            .then(() => {
+              logger.debug(`Borrado en Asignaciones (${data.user},${data.motivo}, ${data.puerto})`);
+            })
             .catch((err) => {
               logger.warn(`Error al borrar de Asignaciones "${err.message}"`);
             });
@@ -216,70 +217,103 @@ function configuraServidor(item) {
     });  // del on stop
     logger.info(`Servidor ${ipServer} configurado`);
     resolve();
-  };
+  });
 }
 
 
 
 // ////////////////////////////////////////////////////
-const inicializacion = new Promise((resolve, reject) => {
+function inicializacion() {
+  return new Promise((resolve, reject) => {
 
-  // limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
-  const comando = `/usr/bin/docker rm $(/usr/bin/docker ps -aq) &>/dev/null`;
-  logger.debug(`Limpiando ids Docker comando "${comando}"`);
-  exec(comando)
-  .catch((err) => logger.warn(`Error limpiando IDs: "${error}"`));
+    // limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
+    const comando = `/usr/bin/docker rm $(/usr/bin/docker ps -aq) &>/dev/null`;
+    logger.debug(`Limpiando ids Docker comando "${comando}"`);
+    exec(comando)
+    .catch((err) => logger.warn(`Error limpiando IDs: "${error}"`));
 
-  // Miramos asignaciones que puedan quedar de ejecuciones anteriores
-  db3.run(`CREATE TABLE IF NOT EXISTS Asignaciones
-    (usuario TEXT, motivo TEXT, puerto INTEGER)`)
-  .then(() => {
-    return db3.all(`SELECT * FROM Asignaciones`)
-  })
-  .then((rows) => {
-    logger.info(`longitud de filas "${rows.length}"`);
+    logger.debug(`Miramos asignaciones que puedan quedar de ejecuciones anteriores`);
+    db3.run(`CREATE TABLE IF NOT EXISTS Asignaciones
+      (usuario TEXT, motivo TEXT, puerto INTEGER)`)
+    .then(() => {
+      return db3.all(`SELECT * FROM Asignaciones`)
+    })
+    .then((rows) => {
+      logger.info(`longitud de filas Asignaciones "${rows.length}"`);
 
-    const promesaErrores = new Promise((resolve, reject) => {
-      if (rows.length == 0) {
-        resolve();
-        return;
-      }
-      rows.forEach((row) => {
-        logger.info(`Comprobando puerto: "${row.puerto}"`);
-        const comando = `/usr/bin/docker ps -qf "name=ULLcloudIDE-${row.puerto}"`;
-        logger.debug(`Ejecutando comando "${comando}"`);
-        exec(comando)
-          .then((result) => {
-            logger.debug(`Comprobar puerto salida estandar: "${result.stdout}"`);
+      new Promise((resolve, reject) => {
+        if (rows.length == 0) {
+          resolve();
+          return;
+        }
+        rows.forEach((row) => {
+          logger.info(`Comprobando puerto: "${row.puerto}"`);
+          const comando = `/usr/bin/docker ps -qf "name=ULLcloudIDE-${row.puerto}"`;
+          logger.debug(`Ejecutando comando "${comando}"`);
+          exec(comando)
+            .then((result) => {
+              logger.debug(`Comprobar puerto salida estandar: "${result.stdout}"`);
 
-            if (result.stdout == '') {
-              logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
-              db3.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
-                (err) => {
-                  if (err) {
-                    return logger.info(err.message);
+              if (result.stdout == '') {
+                logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
+                db3.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
+                  (err) => {
+                    if (err) {
+                      return logger.info(err.message);
+                    }
+
+                    errores.push({ motivo: row.motivo, user: row.usuario, puerto: row.puerto, });
                   }
+                );
+              } else {
+                logger.info(`si que existe: ${result.stdout}`);
+                puertosUsados.add(row.puerto);
+              }
 
-                  errores.push({ motivo: row.motivo, user: row.usuario, puerto: row.puerto, });
-                }
-              );
-            } else {
-              logger.info(`si que existe: ${result.stdout}`);
-              puertosUsados.add(row.puerto);
+              if (row == rows[rows.length - 1]) { //es el ultimo
+                resolve();
+              }
             }
-
-            if (row == rows[rows.length - 1]) { //es el ultimo
-              resolve();
-            }
-          }
-        )
-        .catch((err) => {
-          logger.warn(`Error comprobando puerto: "${error}"`);
+          )
+          .catch((err) => {
+            logger.warn(`Error comprobando puerto: "${error}"`);
+          });
         });
+      })
+      .then(() => {
+        pool.query('SELECT * FROM Servidores AS s1')
+        .then((servers) => {
+          logger.info(`Hay ${servers.length} servidores...`);
+          Promise.all(servers.map(configuraServidor))
+          .then(() => {
+            for (const error of errores) {
+              for (const [srv,sckt] of socketClientServers) {
+                sckt.emit('stopped', error);
+                logger.info(`enviado a ${srv} stop "${JSON.stringify(error)}"`);
+              }
+            }
+          });
+        });
+        resolve();
       });
     });
+  });
+};
 
-    promesaErrores.then(() => {
+//// FIN SERIALIZE
+
+sqlite3.open(config.path_db + 'cloudIDE.db')
+.then(db => {
+  db3 = db;
+  logger.debug(`Tenemos la BD sqlite3`);
+  db3.db.serialize();  // Ponemos queris en modo serializado
+})
+.then(() => {
+  if (db3 == undefined) {
+    logger.debug(`db3 esta indefinido`);
+  }
+  inicializacion().then(() => {
+    setInterval(() => {
       pool.query('SELECT * FROM Servidores AS s1')
       .then((servers) => {
         logger.info(`Hay ${servers.length} servidores...`);
@@ -293,30 +327,13 @@ const inicializacion = new Promise((resolve, reject) => {
           }
         });
       });
-      resolve();
-    });
+    }, config.tiempo_actualizacion);
   });
+})
+.catch( err => {
+  logger.warn(`Error en la inicialización: "${err}"`);
 });
 
-//// FIN SERIALIZE
-
-inicializacion.then(() => {
-  setInterval(() => {
-    pool.query('SELECT * FROM Servidores AS s1')
-    .then((servers) => {
-      logger.info(`Hay ${servers.length} servidores...`);
-      Promise.all(servers.map(configuraServidor))
-      .then(() => {
-        for (const error of errores) {
-          for (const [srv,sckt] of socketClientServers) {
-            sckt.emit('stopped', error);
-            logger.info(`enviado a ${srv} stop "${JSON.stringify(error)}"`);
-          }
-        }
-      });
-    });
-  }, config.tiempo_actualizacion);
-});
 
 setInterval(() => {
   functions.cleandockerimages();
