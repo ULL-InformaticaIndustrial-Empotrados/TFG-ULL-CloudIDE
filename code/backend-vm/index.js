@@ -253,6 +253,24 @@ function compruebaAsignacion(row) {
   });
 }
 
+// Funcion para comprobar los servidores existentes
+
+function compruebaServidores() {
+  pool.query('SELECT * FROM Servidores AS s1')
+  .then((servers) => {
+    logger.info(`Hay ${servers.length} servidores...`);
+    Promise.all(servers.map(configuraServidor))
+    .then(() => {
+      for (const error of errores) {
+        for (const [srv,sckt] of socketClientServers) {
+          sckt.emit('stopped', error);
+          logger.info(`enviado a ${srv} stop "${JSON.stringify(error)}"`);
+        }
+      }
+      errores = [];
+    });
+  });
+}
 
 // ////////////////////////////////////////////////////
 function inicializacion() {
@@ -272,22 +290,7 @@ function inicializacion() {
   .then((rows) => {
     logger.info(`longitud de filas Asignaciones "${rows.length}"`);
     Promise.all(rows.map(compruebaAsignacion))
-    .then(() => {
-      pool.query('SELECT * FROM Servidores AS s1')
-      .then((servers) => {
-        logger.info(`Hay ${servers.length} servidores...`);
-        Promise.all(servers.map(configuraServidor))
-        .then(() => {
-          for (const error of errores) {
-            for (const [srv,sckt] of socketClientServers) {
-              sckt.emit('stopped', error);
-              logger.info(`enviado a ${srv} stop "${JSON.stringify(error)}"`);
-            }
-          }
-          errores = [];
-        });
-      });
-    });
+    .then(compruebaServidores);
   });
 };
 
@@ -304,21 +307,7 @@ sqlite3.open(config.path_db + 'cloudIDE.db')
     logger.debug(`db3 esta indefinido`);
   }
   inicializacion().then(() => {
-    setInterval(() => {
-      pool.query('SELECT * FROM Servidores AS s1')
-      .then((servers) => {
-        logger.info(`Hay ${servers.length} servidores...`);
-        Promise.all(servers.map(configuraServidor))
-        .then(() => {
-          for (const error of errores) {
-            for (const [srv,sckt] of socketClientServers) {
-              sckt.emit('stopped', error);
-              logger.info(`enviado a ${srv} stop "${JSON.stringify(error)}"`);
-            }
-          }
-        });
-      });
-    }, config.tiempo_actualizacion);
+    setInterval(compruebaServidores, config.tiempo_actualizacion);
   });
 })
 .catch( err => {
