@@ -166,17 +166,19 @@ function configuraServidor(item) {
           .then(() => {
             functions.cleandockerimages();
             array.shift();
-            logger.debug(`pasamos al siguiente`);
-            db3.run(`INSERT INTO Asignaciones(usuario, motivo, puerto)
-              VALUES(${data.user},${data.motivo}, ${port})`)
+            logger.debug(`Informamos al servidor ${ipServer}`);
+            const json = { user: data.user, motivo: data.motivo, puerto: port, };
+            socketClientServers.get(ipServer).emit('loaded', json);
+            const consulta = `INSERT INTO Asignaciones(usuario, motivo, puerto)
+              VALUES('${data.user}', '${data.motivo}', ${port})`;
+            logger.debug(`Guardamos en Asignaciones con "${consulta}"`);
+            db3.run(consulta)
             .then(() => {
               logger.debug(`Guardado en Asignaciones (${data.user},${data.motivo}, ${port})`);
             })
             .catch((error) => {
-              logger.warn(`Error al insertar en Asiganciones: "${err.message}"`);
+              logger.warn(`Error al insertar en Asiganciones: "${error}"`);
             });
-            const json = { user: data.user, motivo: data.motivo, puerto: port, };
-            socketClientServers.get(ipServer).emit('loaded', json);
           });
         } else
           logger.debug(`interval 162: no es nuestro usuario o motivo`);
@@ -200,7 +202,7 @@ function configuraServidor(item) {
             array.shift();
             logger.info(`pasamos al siguiente`);
             db3.run(`DELETE FROM Asignaciones
-              WHERE usuario=${data.user} AND motivo=${data.motivo} AND puerto=${data.puerto}`)
+              WHERE usuario='${data.user}' AND motivo='${data.motivo}' AND puerto=${data.puerto}`)
             .then(() => {
               logger.debug(`Borrado en Asignaciones (${data.user},${data.motivo}, ${data.puerto})`);
             })
