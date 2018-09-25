@@ -78,7 +78,7 @@ for (let i = 0; i < config.numero_max_serverxuser * config.numero_max_users; i++
 }
 
 const puertosUsados = new Set();
-const errores = new Array();
+var errores = new Array();
 
 
 // FUNCIONES AUXILIARES  /////////////////////////////////////
@@ -222,81 +222,70 @@ function configuraServidor(item) {
   });
 }
 
+// Funcion-promesa que comprueba si asignación existe
+
+function compruebaAsignacion(row) {
+  logger.info(`Comprobando puerto: "${row.puerto}"`);
+  const comando = `/usr/bin/docker ps -qf "name=ULLcloudIDE-${row.puerto}"`;
+  logger.debug(`Ejecutando comando "${comando}"`);
+  return exec(comando)
+  .then((result) => {
+    logger.debug(`Comprobar puerto salida estandar: "${result.stdout}"`);
+
+    if (result.stdout == '') {
+      logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
+      errores.push({ motivo: row.motivo, user: row.usuario, puerto: row.puerto, });
+      db3.run(`DELETE FROM Asignaciones WHERE puerto=${row.puerto}`)
+      .then(() => {
+        logger.debug(`Borrada asignación de puerto ${row.puerto}`);
+      })
+      .catch((err) => {
+        logger.warn(`Error al borrar la asignación inicial de puerto ${row.puerto}`);
+      });
+    } else {
+      logger.info(`si que existe Asignación: ${result.stdout}`);
+      puertosUsados.add(row.puerto);
+    }
+
+  })
+  .catch((err) => {
+    logger.warn(`Error comprobando puerto ${row.puerto}: "${error}"`);
+  });
+}
 
 
 // ////////////////////////////////////////////////////
 function inicializacion() {
-  return new Promise((resolve, reject) => {
 
-    // limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
-    const comando = `/usr/bin/docker rm $(/usr/bin/docker ps -aq) &>/dev/null`;
-    logger.debug(`Limpiando ids Docker comando "${comando}"`);
-    exec(comando)
-    .catch((err) => logger.warn(`Error limpiando IDs: "${error}"`));
+  // limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
+  const comando = `/usr/bin/docker rm $(/usr/bin/docker ps -aq) &>/dev/null`;
+  logger.debug(`Limpiando ids Docker comando "${comando}"`);
+  exec(comando)
+  .catch((err) => logger.warn(`Error limpiando IDs: "${error}"`));
 
-    logger.debug(`Miramos asignaciones que puedan quedar de ejecuciones anteriores`);
-    db3.run(`CREATE TABLE IF NOT EXISTS Asignaciones
-      (usuario TEXT, motivo TEXT, puerto INTEGER)`)
+  logger.debug(`Miramos asignaciones que puedan quedar de ejecuciones anteriores`);
+  return db3.run(`CREATE TABLE IF NOT EXISTS Asignaciones
+    (usuario TEXT, motivo TEXT, puerto INTEGER)`)
+  .then(() => {
+    return db3.all(`SELECT * FROM Asignaciones`)
+  })
+  .then((rows) => {
+    logger.info(`longitud de filas Asignaciones "${rows.length}"`);
+    Promise.all(rows.map(compruebaAsignacion))
     .then(() => {
-      return db3.all(`SELECT * FROM Asignaciones`)
-    })
-    .then((rows) => {
-      logger.info(`longitud de filas Asignaciones "${rows.length}"`);
-
-      new Promise((resolve, reject) => {
-        if (rows.length == 0) {
-          resolve();
-          return;
-        }
-        rows.forEach((row) => {
-          logger.info(`Comprobando puerto: "${row.puerto}"`);
-          const comando = `/usr/bin/docker ps -qf "name=ULLcloudIDE-${row.puerto}"`;
-          logger.debug(`Ejecutando comando "${comando}"`);
-          exec(comando)
-            .then((result) => {
-              logger.debug(`Comprobar puerto salida estandar: "${result.stdout}"`);
-
-              if (result.stdout == '') {
-                logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
-                db3.run(`DELETE FROM Asignaciones WHERE puerto=?`, [row.puerto],
-                  (err) => {
-                    if (err) {
-                      return logger.info(err.message);
-                    }
-
-                    errores.push({ motivo: row.motivo, user: row.usuario, puerto: row.puerto, });
-                  }
-                );
-              } else {
-                logger.info(`si que existe: ${result.stdout}`);
-                puertosUsados.add(row.puerto);
-              }
-
-              if (row == rows[rows.length - 1]) { //es el ultimo
-                resolve();
-              }
+      pool.query('SELECT * FROM Servidores AS s1')
+      .then((servers) => {
+        logger.info(`Hay ${servers.length} servidores...`);
+        Promise.all(servers.map(configuraServidor))
+        .then(() => {
+          for (const error of errores) {
+            for (const [srv,sckt] of socketClientServers) {
+              sckt.emit('stopped', error);
+              logger.info(`enviado a ${srv} stop "${JSON.stringify(error)}"`);
             }
-          )
-          .catch((err) => {
-            logger.warn(`Error comprobando puerto: "${error}"`);
-          });
+          }
+          errores = [];
         });
-      })
-      .then(() => {
-        pool.query('SELECT * FROM Servidores AS s1')
-        .then((servers) => {
-          logger.info(`Hay ${servers.length} servidores...`);
-          Promise.all(servers.map(configuraServidor))
-          .then(() => {
-            for (const error of errores) {
-              for (const [srv,sckt] of socketClientServers) {
-                sckt.emit('stopped', error);
-                logger.info(`enviado a ${srv} stop "${JSON.stringify(error)}"`);
-              }
-            }
-          });
-        });
-        resolve();
       });
     });
   });
