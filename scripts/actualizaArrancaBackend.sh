@@ -28,7 +28,7 @@ cd $DESTINO/$CARPETA/$BACKEND
 if [ $Actualiza -eq 1 ]
 then
     echo Invocamos npm ================
-    npm install
+    npm install --production
 fi
 
 # Carpeta para la base de datos sglite3
