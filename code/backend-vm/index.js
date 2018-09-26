@@ -181,7 +181,7 @@ function configuraServidor(item) {
             });
           });
         } else
-          logger.debug(`interval 162: no es nuestro usuario o motivo`);
+          logger.debug(`interval load: no es nuestro usuario o motivo`);
       }, 1000);
     });  // de on load
 
@@ -214,7 +214,8 @@ function configuraServidor(item) {
             socket.emit('stopped', json);
           })
           .catch((error) => logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`));
-        }
+        } else
+          logger.debug(`interval stop: no es nuestro usuario o motivo`);
       }, 1000);
     });  // del on stop
     logger.info(`Servidor ${ipServer} configurado`);
