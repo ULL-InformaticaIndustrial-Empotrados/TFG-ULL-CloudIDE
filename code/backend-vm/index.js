@@ -1,19 +1,19 @@
-const logger = require('./logger.js');
+const mysql = require(`promise-mysql`);
+const sqlite3 = require(`sqlite-async`);
+
+const io = require(`socket.io-client`);
+
+const { exec } = require(`child-process-promise`);
+
+const logger = require(`./logger.js`);
 
 logger.info(`Comienza la aplicacion backend`);
 
-const config = require('./config.json');
-const functions = require('./functions.js');
-const mysql = require('promise-mysql');
-const sqlite3 = require('sqlite-async');
+const config = require(`./config.json`);
+const functions = require(`./functions.js`);
 
-const io = require('socket.io-client');
+let db3; // Contendrá la BD una vez abierta
 
-var db3;  // Contendrá la BD una vez abierta
-
-const { exec } = require('child-process-promise');
-
-async = require('async');
 
 const socketClientServers = new Map();
 
@@ -22,28 +22,13 @@ logger.debug(`Dirección: "${addresses[0]}"`);
 
 functions.cleandockerimages();
 
-const bloqueoTablas = `
-  LOCK TABLES VMS WRITE,
-    VMS as v1 READ,
-    Servidores WRITE,
-    Servidores as s1 READ,
-    Firewall WRITE,
-    Firewall as f1 READ,
-    Pendientes WRITE,
-    Pendientes as p1 READ,
-    Asignaciones WRITE,
-    Asignaciones as a1 READ,
-    Cola WRITE,
-    Cola as c1 READ';
-`;
-
 const pool = mysql.createPool({
   host: config.host_bbdd_mysql,
   user: config.user_bbdd_mysql,
   password: config.password_bbdd_mysql,
   database: config.database_bbdd_mysql,
 
-  //debug : true,
+  // debug : true,
 
   acquireTimeout: 60 * 60 * 1000,
   connectTimeout: 60 * 60 * 1000,
@@ -53,7 +38,7 @@ const pool = mysql.createPool({
 
 logger.debug(`Creado pool de conexiones MySQL`);
 
-pool.on('release', (connection) => {
+pool.on(`release`, (connection) => {
   logger.debug(`Connection ${connection.threadId} released`);
 });
 
@@ -61,7 +46,7 @@ pool.on('release', (connection) => {
 // Añadimos el método diferencia de conjunto
 Set.prototype.difference = function (setB) {
   const difference = new Set(this);
-  for (let elem of setB) {
+  for (const elem of setB) {
     difference.delete(elem);
   }
 
@@ -71,13 +56,13 @@ Set.prototype.difference = function (setB) {
 // Creamos conjunto de puertos y lo rellenamos
 const puertos = new Set();
 let aux = config.puerto_inicial;
-for (let i = 0; i < config.numero_max_serverxuser * config.numero_max_users; i++) {
+for (let i = 0; i < config.numero_max_serverxuser * config.numero_max_users; i += 1) {
   puertos.add(aux);
   aux += 1;
 }
 
 const puertosUsados = new Set();
-var errores = new Array();
+let errores = [];
 
 
 // FUNCIONES AUXILIARES  /////////////////////////////////////
@@ -94,50 +79,49 @@ function arrancaChe(user, motivo, port) {
       --restart no \
       eclipse/che:6.0.0-M4 start \
       --skip:preflight \
-      `
+      `;
   logger.debug(`Preparamos: "${comando}"`);
   return exec(comando)
   .then((result) => {
     logger.debug(`Arranque contenedor salida estandar: "${result.stdout}"`);
   })
-  .catch((error) => logger.warn(`Error Arranque contenedor: "${error}"`));
+  .catch(error => logger.warn(`Error Arranque contenedor: "${error}"`));
 }
 
 
 // Devuelve promesa para la parada del servidor Che
 function paraChe(port) {
-  const comando = `/usr/bin/docker stop ULLcloudIDE-${port}`
+  const comando = `/usr/bin/docker stop ULLcloudIDE-${port}`;
   logger.debug(`Preparamos comando parada che: "${comando}"`);
   return exec(comando)
   .then((result) => {
     logger.debug(`Parada contenedor salida estandar: "${result.stdout}"`);
-  })
+  });
 }
 
 // Configura servidor  //////////////////////////
 
 // Cola de promesas para atender a los `load` secuencialmente
-var colaLoad = Promise.resolve();
+let colaLoad = Promise.resolve();
 // Cola de promesas para atender a los `stop` secuencialmente
-var colaStop = Promise.resolve();
+let colaStop = Promise.resolve();
 
 function configuraServidor(item) {
   const ipServer = item.ip_server;
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     logger.debug(`Considerando servidor: ${ipServer}`);
-    if (socketClientServers.get(ipServer) != undefined) {
+    if (socketClientServers.get(ipServer) !== undefined) {
       logger.debug(`servidor ${ipServer} ya configurado`);
       resolve();
       return;
     }
     const socket = io.connect(`http://${ipServer}:${config.puerto_websocket_vms}`, {
       reconnection: true,
-      reconnectionDelay: 0,
       reconnectionDelay: 1000,
     });
     socketClientServers.set(ipServer, socket);
 
-    socket.on('disconnect', () => {
+    socket.on(`disconnect`, () => {
       logger.info(`servidor ${ipServer} desconectado`);
       pool.query(`DELETE FROM Servidores WHERE ip_server='${ipServer}'`)
       .then(() => {
@@ -150,12 +134,12 @@ function configuraServidor(item) {
       });
     });
 
-    socket.on('load', (data) => {
+    socket.on(`load`, (data) => {
       logger.info(`recibido load de ${ipServer} "${JSON.stringify(data)}"`);
       let port = 0;
       let puertosRestantes = puertos.difference(puertosUsados);
       puertosRestantes = Array.from(puertosRestantes);
-      port = puertosRestantes[0];
+      [port] = puertosRestantes;
       puertosUsados.add(port);
 
       colaLoad = colaLoad.then(() => {
@@ -167,8 +151,8 @@ function configuraServidor(item) {
         .then(() => {
           functions.cleandockerimages();
           logger.debug(`Informamos al servidor ${ipServer}`);
-          const json = { user: data.user, motivo: data.motivo, puerto: port, };
-          socketClientServers.get(ipServer).emit('loaded', json);
+          const json = { user: data.user, motivo: data.motivo, puerto: port };
+          socketClientServers.get(ipServer).emit(`loaded`, json);
           const consulta = `INSERT INTO Asignaciones(usuario, motivo, puerto)
             VALUES('${data.user}', '${data.motivo}', ${port})`;
           logger.debug(`Guardamos en Asignaciones con "${consulta}"`);
@@ -181,9 +165,9 @@ function configuraServidor(item) {
           });
         });
       });
-    });  // de on load
+    }); // de on load
 
-    socket.on('stop', (data) => {
+    socket.on(`stop`, (data) => {
       logger.info(`recibido stop "${JSON.stringify(data)}"`);
       colaStop = colaStop.then(() => {
         logger.debug(`Ejecutando stop "${JSON.stringify(data)}"`);
@@ -192,7 +176,7 @@ function configuraServidor(item) {
           logger.debug(`Parado docker ${data.puerto}`);
           functions.cleandockerimages();
 
-          //puertos.add(data.puerto);
+          // puertos.add(data.puerto);
           puertosUsados.delete(data.puerto);
           db3.run(`DELETE FROM Asignaciones
             WHERE usuario='${data.user}' AND motivo='${data.motivo}' AND puerto=${data.puerto}`)
@@ -203,12 +187,12 @@ function configuraServidor(item) {
             logger.warn(`Error al borrar de Asignaciones "${err.message}"`);
           });
 
-          const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
-          socket.emit('stopped', json);
+          const json = { user: data.user, motivo: data.motivo, puerto: data.puerto };
+          socket.emit(`stopped`, json);
         })
-        .catch((error) => logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`));
+        .catch(error => logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`));
       });
-    });  // del on stop
+    }); // del on stop
     logger.info(`Servidor ${ipServer} configurado`);
     resolve();
   });
@@ -224,24 +208,23 @@ function compruebaAsignacion(row) {
   .then((result) => {
     logger.debug(`Comprobar puerto salida estandar: "${result.stdout}"`);
 
-    if (result.stdout == '') {
+    if (result.stdout === ``) {
       logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
-      errores.push({ motivo: row.motivo, user: row.usuario, puerto: row.puerto, });
+      errores.push({ motivo: row.motivo, user: row.usuario, puerto: row.puerto });
       db3.run(`DELETE FROM Asignaciones WHERE puerto=${row.puerto}`)
       .then(() => {
         logger.debug(`Borrada asignación de puerto ${row.puerto}`);
       })
       .catch((err) => {
-        logger.warn(`Error al borrar la asignación inicial de puerto ${row.puerto}`);
+        logger.warn(`Error al borrar la asignación inicial ${row.puerto}: "${err}"`);
       });
     } else {
       logger.info(`si que existe Asignación: ${result.stdout}`);
       puertosUsados.add(row.puerto);
     }
-
   })
   .catch((err) => {
-    logger.warn(`Error comprobando puerto ${row.puerto}: "${error}"`);
+    logger.warn(`Error comprobando puerto ${row.puerto}: "${err}"`);
   });
 }
 
@@ -249,14 +232,14 @@ function compruebaAsignacion(row) {
 
 function compruebaServidores() {
   logger.debug(`Comprobando servidores`);
-  pool.query('SELECT * FROM Servidores AS s1')
+  pool.query(`SELECT * FROM Servidores AS s1`)
   .then((servers) => {
     logger.info(`Hay ${servers.length} servidores...`);
     Promise.all(servers.map(configuraServidor))
     .then(() => {
       for (const error of errores) {
-        for (const [srv,sckt] of socketClientServers) {
-          sckt.emit('stopped', error);
+        for (const [srv, sckt] of socketClientServers) {
+          sckt.emit(`stopped`, error);
           logger.info(`enviado a ${srv} stop "${JSON.stringify(error)}"`);
         }
       }
@@ -267,45 +250,38 @@ function compruebaServidores() {
 
 // ////////////////////////////////////////////////////
 function inicializacion() {
-
   // limpiamos ids de docker que hayan podido quedarse y que no estén ejecutandose
   const comando = `/usr/bin/docker rm $(/usr/bin/docker ps -aq) &>/dev/null`;
   logger.debug(`Limpiando ids Docker comando "${comando}"`);
   exec(comando)
-  .catch((err) => logger.warn(`Error limpiando IDs: "${error}"`));
+  .catch(err => logger.warn(`Error limpiando IDs: "${err}"`));
 
   logger.debug(`Miramos asignaciones que puedan quedar de ejecuciones anteriores`);
   return db3.run(`CREATE TABLE IF NOT EXISTS Asignaciones
     (usuario TEXT, motivo TEXT, puerto INTEGER)`)
-  .then(() => {
-    return db3.all(`SELECT * FROM Asignaciones`)
-  })
+  .then(() => db3.all(`SELECT * FROM Asignaciones`))
   .then((rows) => {
     logger.info(`longitud de filas Asignaciones "${rows.length}"`);
     Promise.all(rows.map(compruebaAsignacion))
     .then(compruebaServidores);
   });
-};
+}
 
-//// FIN SERIALIZE
-
-sqlite3.open(config.path_db + 'cloudIDE.db')
-.then(db => {
+sqlite3.open(`${config.path_db}cloudIDE.db`)
+.then((db) => {
   db3 = db;
   logger.debug(`Tenemos la BD sqlite3`);
-  db3.db.serialize();  // Ponemos queris en modo serializado
+  db3.db.serialize(); // Ponemos queris en modo serializado
 })
 .then(() => {
-  if (db3 == undefined) {
+  if (db3 === undefined) {
     logger.debug(`db3 esta indefinido`);
   }
   inicializacion().then(() => {
     setInterval(compruebaServidores, config.tiempo_actualizacion);
   });
 })
-.catch( err => {
-  logger.warn(`Error en la inicialización: "${err}"`);
-});
+.catch(err => logger.warn(`Error en la inicialización: "${err}"`));
 
 
 setInterval(() => {

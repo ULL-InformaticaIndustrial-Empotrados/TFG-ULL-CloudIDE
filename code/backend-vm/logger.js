@@ -1,24 +1,22 @@
-const logger = require('winston');
+const logger = require(`winston`);
 
-const myFormat = logger.format.printf(info => {
-  return `${info.timestamp} [${info.label}] ${info.level}: ${info.message}`;
-});
+const myFormat = logger.format.printf(info => `${info.timestamp} [${info.label}] ${info.level}: ${info.message}`);
 
 logger.configure({
   format: logger.format.combine(
     logger.format.colorize(),
     logger.format.timestamp(),
     // logger.format.align(),
-    myFormat
+    myFormat,
   ),
   transports: [
     new logger.transports.Console({
-      level: 'warn',
+      level: `warn`,
       silent: false,
     }),
     new logger.transports.File({
-      filename: '/var/log/cloudidebackend/backend.log',
-      level: 'debug',
+      filename: `/var/log/cloudidebackend/backend.log`,
+      level: `debug`,
     }),
   ],
 });
