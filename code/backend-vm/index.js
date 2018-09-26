@@ -256,6 +256,7 @@ function compruebaAsignacion(row) {
 // Funcion para comprobar los servidores existentes
 
 function compruebaServidores() {
+  logger.debug(`Comprobando servidores`);
   pool.query('SELECT * FROM Servidores AS s1')
   .then((servers) => {
     logger.info(`Hay ${servers.length} servidores...`);
