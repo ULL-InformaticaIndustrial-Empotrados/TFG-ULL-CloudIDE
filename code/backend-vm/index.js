@@ -15,7 +15,6 @@ const { exec } = require('child-process-promise');
 
 async = require('async');
 
-const array = [];
 const socketClientServers = new Map();
 
 const addresses = functions.getiplocal();
@@ -117,6 +116,11 @@ function paraChe(port) {
 
 // Configura servidor  //////////////////////////
 
+// Cola de promesas para atender a los `load` secuencialmente
+var colaLoad = Promise.resolve();
+// Cola de promesas para atender a los `stop` secuencialmente
+var colaStop = Promise.resolve();
+
 function configuraServidor(item) {
   const ipServer = item.ip_server;
   return new Promise((resolve, reject) => {
@@ -148,75 +152,62 @@ function configuraServidor(item) {
 
     socket.on('load', (data) => {
       logger.info(`recibido load de ${ipServer} "${JSON.stringify(data)}"`);
-      array.push(data);
       let port = 0;
       let puertosRestantes = puertos.difference(puertosUsados);
       puertosRestantes = Array.from(puertosRestantes);
       port = puertosRestantes[0];
       puertosUsados.add(port);
 
-      setInterval(function () {
-        logger.info(`interval load "${JSON.stringify(data)}"`);
-        if ((array[0].user == data.user) && (array[0].motivo == data.motivo)) {
-          clearInterval(this);
-          arrancaChe(data.user, data.motivo, port)
+      colaLoad = colaLoad.then(() => {
+        logger.info(`Ejecutando load "${JSON.stringify(data)}"`);
+        return arrancaChe(data.user, data.motivo, port)
+        .then(() => {
+          logger.debug(`Arrancado docker para ${data.user}-${data.motivo}`);
+        })
+        .then(() => {
+          functions.cleandockerimages();
+          logger.debug(`Informamos al servidor ${ipServer}`);
+          const json = { user: data.user, motivo: data.motivo, puerto: port, };
+          socketClientServers.get(ipServer).emit('loaded', json);
+          const consulta = `INSERT INTO Asignaciones(usuario, motivo, puerto)
+            VALUES('${data.user}', '${data.motivo}', ${port})`;
+          logger.debug(`Guardamos en Asignaciones con "${consulta}"`);
+          db3.run(consulta)
           .then(() => {
-            logger.debug(`Arrancado docker para ${data.user}-${data.motivo}`);
+            logger.debug(`Guardado en Asignaciones (${data.user},${data.motivo}, ${port})`);
           })
-          .then(() => {
-            functions.cleandockerimages();
-            array.shift();
-            logger.debug(`Informamos al servidor ${ipServer}`);
-            const json = { user: data.user, motivo: data.motivo, puerto: port, };
-            socketClientServers.get(ipServer).emit('loaded', json);
-            const consulta = `INSERT INTO Asignaciones(usuario, motivo, puerto)
-              VALUES('${data.user}', '${data.motivo}', ${port})`;
-            logger.debug(`Guardamos en Asignaciones con "${consulta}"`);
-            db3.run(consulta)
-            .then(() => {
-              logger.debug(`Guardado en Asignaciones (${data.user},${data.motivo}, ${port})`);
-            })
-            .catch((error) => {
-              logger.warn(`Error al insertar en Asiganciones: "${error}"`);
-            });
+          .catch((error) => {
+            logger.warn(`Error al insertar en Asiganciones: "${error}"`);
           });
-        } else
-          logger.debug(`interval load: no es nuestro usuario o motivo`);
-      }, 1000);
+        });
+      });
     });  // de on load
 
     socket.on('stop', (data) => {
       logger.info(`recibido stop "${JSON.stringify(data)}"`);
-      array.push(data);
-      setInterval(function () {
-        logger.debug(`interval stop "${JSON.stringify(data)}"`);
-        if ((array[0].user == data.user) && (array[0].motivo == data.motivo) && (array[0].puerto == data.puerto)) {
-          clearInterval(this);
-          paraChe(data.puerto)
+      colaStop = colaStop.then(() => {
+        logger.debug(`Ejecutando stop "${JSON.stringify(data)}"`);
+        return paraChe(data.puerto)
+        .then(() => {
+          logger.debug(`Parado docker ${data.puerto}`);
+          functions.cleandockerimages();
+
+          //puertos.add(data.puerto);
+          puertosUsados.delete(data.puerto);
+          db3.run(`DELETE FROM Asignaciones
+            WHERE usuario='${data.user}' AND motivo='${data.motivo}' AND puerto=${data.puerto}`)
           .then(() => {
-            logger.debug(`Parado docker ${data.puerto}`);
-            functions.cleandockerimages();
-
-            //puertos.add(data.puerto);
-            puertosUsados.delete(data.puerto);
-            array.shift();
-            logger.info(`pasamos al siguiente`);
-            db3.run(`DELETE FROM Asignaciones
-              WHERE usuario='${data.user}' AND motivo='${data.motivo}' AND puerto=${data.puerto}`)
-            .then(() => {
-              logger.debug(`Borrado en Asignaciones (${data.user},${data.motivo}, ${data.puerto})`);
-            })
-            .catch((err) => {
-              logger.warn(`Error al borrar de Asignaciones "${err.message}"`);
-            });
-
-            const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
-            socket.emit('stopped', json);
+            logger.debug(`Borrado en Asignaciones (${data.user},${data.motivo}, ${data.puerto})`);
           })
-          .catch((error) => logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`));
-        } else
-          logger.debug(`interval stop: no es nuestro usuario o motivo`);
-      }, 1000);
+          .catch((err) => {
+            logger.warn(`Error al borrar de Asignaciones "${err.message}"`);
+          });
+
+          const json = { user: data.user, motivo: data.motivo, puerto: data.puerto, };
+          socket.emit('stopped', json);
+        })
+        .catch((error) => logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`));
+      });
     });  // del on stop
     logger.info(`Servidor ${ipServer} configurado`);
     resolve();
