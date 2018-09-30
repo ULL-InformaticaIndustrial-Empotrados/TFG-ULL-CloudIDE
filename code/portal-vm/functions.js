@@ -2,8 +2,10 @@ const logger = require(`winston`);
 
 const os = require(`os`);
 const MySqlAsync = require(`mysql`);
-const config = require(`./config.json`);
 const moment = require(`moment`);
+const { exec } = require(`child-process`);
+
+const config = require(`./config.json`);
 
 module.exports = {
 
@@ -54,8 +56,6 @@ module.exports = {
   },
 
   eliminardirectoriosolo(usuario, motivo, callback) {
-    const exec = require(`child_process`).exec;
-
     exec(`./sh/eliminardirectorio.sh ${config.password_root} 1 ${config.path_almacenamiento} ${usuario} ${motivo}`,
       (error, stdout, stderr) => {
         // controlamos el error
@@ -69,8 +69,6 @@ module.exports = {
   },
 
   eliminardirectoriotodo(motivo, callback) {
-    const exec = require(`child_process`).exec;
-
     exec(`./sh/eliminardirectorio.sh ${config.password_root} 2 ${config.path_almacenamiento} ${motivo}`,
       (error, stdout, stderr) => {
         // controlamos el error
