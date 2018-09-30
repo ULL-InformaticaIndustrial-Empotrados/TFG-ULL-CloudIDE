@@ -1,27 +1,27 @@
 const logger = require(`winston`);
 
-var os = require(`os`);
-var MySqlAsync = require(`mysql`);
-var config = require(`./config.json`);
-var moment = require(`moment`);
+const os = require(`os`);
+const MySqlAsync = require(`mysql`);
+const config = require(`./config.json`);
+const moment = require(`moment`);
 
 module.exports = {
 
-    cleanaddress : function(ip){
-      var aux = ip;
-      if (aux.substr(0, 7) == `::ffff:`) {
-        aux = aux.substr(7);
-      }
-      return aux;
-    },
+  cleanaddress(ip) {
+    let aux = ip;
+    if (aux.substr(0, 7) === `::ffff:`) {
+      aux = aux.substr(7);
+    }
+    return aux;
+  },
 
-    getiplocal : function(){
+  getiplocal() {
 
-    var interfaces = os.networkInterfaces();
-    var addresses = [];
-    for (var k in interfaces) {
-        for (var k2 in interfaces[k]) {
-            var address = interfaces[k][k2];
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    for (const k in interfaces) {
+        for (const k2 in interfaces[k]) {
+            const address = interfaces[k][k2];
             if (address.family === `IPv4` && !address.internal) {
                 addresses.push(address.address);
                 logger.info(`IP local encontrada: "${address.address}"`);
@@ -31,91 +31,86 @@ module.exports = {
     return addresses;
   },
 
-    createnewconnection : function(){
-      var connectionAsync = MySqlAsync.createPool({
-        host: config.host_bbdd_mysql,
-        user: config.user_bbdd_mysql,
-        password: config.password_bbdd_mysql,
-        database : config.database_bbdd_mysql,
-        //debug : true,
-        acquireTimeout : 60 * 60 * 1000,
-        connectTimeout : 60 * 60 * 1000,
-        timeout : 60 * 60 * 1000,
-        connectionLimit : 5,
-        queueLimit : 0
+  createnewconnection() {
+    const connectionAsync = MySqlAsync.createPool({
+      host: config.host_bbdd_mysql,
+      user: config.user_bbdd_mysql,
+      password: config.password_bbdd_mysql,
+      database: config.database_bbdd_mysql,
+      // debug : true,
+      acquireTimeout: 60 * 60 * 1000,
+      connectTimeout: 60 * 60 * 1000,
+      timeout: 60 * 60 * 1000,
+      connectionLimit: 5,
+      queueLimit: 0,
+    });
+    logger.debug(`creada conexion MySQL`);
+
+    connectionAsync.on(`release`, (connection) => {
+      logger.debug(`Connection MySQL "${connection.threadId}" released`);
+    });
+
+    return connectionAsync;
+  },
+
+  eliminardirectoriosolo(usuario, motivo, callback) {
+    const exec = require(`child_process`).exec;
+
+    exec(`./sh/eliminardirectorio.sh ${config.password_root} 1 ${config.path_almacenamiento} ${usuario} ${motivo}`,
+      (error, stdout, stderr) => {
+        // controlamos el error
+        if (error !== null) {
+          logger.warn(`Error eliminardirectoriosolo: "${error}"`);
+        }
+        logger.debug(`eliminardirectoriosolo salida estandar: "${stdout}"`);
+        logger.info(`eliminardirectoriosolo se ha eleminado "${usuario}"`);
+        callback();
       });
-      logger.debug(`creada conexion MySQL`);
+  },
 
-      connectionAsync.on(`release`, function (connection) {
-        logger.debug(`Connection MySQL "${connection.threadId}" released`);
+  eliminardirectoriotodo(motivo, callback) {
+    const exec = require(`child_process`).exec;
+
+    exec(`./sh/eliminardirectorio.sh ${config.password_root} 2 ${config.path_almacenamiento} ${motivo}`,
+      (error, stdout, stderr) => {
+        // controlamos el error
+        if (error !== null) {
+          logger.warn(`Error eliminardirectoriotodo: "${error}"`);
+        }
+        logger.debug(`eliminardirectoriotodo salida estandar: "${stdout}"`);
+        logger.info(`eliminardirectoriotodo se ha eleminado`);
+        callback();
       });
+  },
 
-      return connectionAsync;
-    },
+  dateFormat() {
+    return moment(Date.now()).format(`YYYY-MM-DD HH:mm:ss`);
+  },
 
-    eliminardirectoriosolo : function(usuario, motivo, callback){
-      var exec = require(`child_process`).exec, child, salida;
+  getCleanedString(cadenaInicial) {
+    // Definimos los caracteres que queremos eliminar
+    const specialChars = ` !@#$^&%*()+=-[]/{}|:<>?,.`;
 
-      child = exec(`./sh/eliminardirectorio.sh `+config.password_root +` `+ 1 +` `+ config.path_almacenamiento + ` ` + usuario +` `+ motivo,
-        function (error, stdout, stderr) {
-          // Imprimimos en pantalla con console.log
-          salida = stdout;
-          // controlamos el error
-          if (error !== null) {
-            logger.warn(`Error eliminardirectoriosolo: "${error}"`);
-          }
-          logger.debug(`eliminardirectoriosolo salida estandar: "${salida}"`);
-          logger.info(`eliminardirectoriosolo se ha eleminado "${usuario}"`);
-          callback();
-      });
-    },
+    let cadena = cadenaInicial;
+    // Los eliminamos todos
+    for (let i = 0; i < specialChars.length; i += 1) {
+      cadena = cadena.replace(new RegExp(`\\${specialChars[i]}`, `gi`), ``);
+    }
 
-    eliminardirectoriotodo : function(motivo, callback){
-      var exec = require(`child_process`).exec, child, salida;
+    // Lo queremos devolver limpio en minusculas
+    cadena = cadena.toLowerCase();
 
-      child = exec(`./sh/eliminardirectorio.sh `+config.password_root +` `+ 2 +` `+ config.path_almacenamiento + ` ` + motivo,
-        function (error, stdout, stderr) {
-          // Imprimimos en pantalla con console.log
-          salida = stdout;
-          // controlamos el error
-          if (error !== null) {
-            logger.warn(`Error eliminardirectoriotodo: "${error}"`);
-          }
-          logger.debug(`eliminardirectoriotodo salida estandar: "${salida}"`);
-          logger.info(`eliminardirectoriotodo se ha eleminado`);
-          callback();
-      });
-    },
+    // Quitamos espacios y los sustituimos por _ porque nos gusta mas asi
+    cadena = cadena.replace(/ /g, `_`);
 
-    dateFormat : function(){
-      return moment(Date.now()).format(`YYYY-MM-DD HH:mm:ss`);
-    },
+    // Quitamos acentos y `ñ`. Fijate en que va sin comillas el primer parametro
+    cadena = cadena.replace(/á/gi, `a`);
+    cadena = cadena.replace(/é/gi, `e`);
+    cadena = cadena.replace(/í/gi, `i`);
+    cadena = cadena.replace(/ó/gi, `o`);
+    cadena = cadena.replace(/ú/gi, `u`);
+    cadena = cadena.replace(/ñ/gi, `n`);
+    return cadena;
+  },
 
-    getCleanedString : function(cadena){
-     // Definimos los caracteres que queremos eliminar
-     var specialChars = ` !@#$^&%*()+=-[]\/{}|:<>?,.`;
-
-     // Los eliminamos todos
-     for (var i = 0; i < specialChars.length; i++) {
-         cadena= cadena.replace(new RegExp(`\\` + specialChars[i], `gi`), ``);
-     }
-
-     // Lo queremos devolver limpio en minusculas
-     cadena = cadena.toLowerCase();
-
-     // Quitamos espacios y los sustituimos por _ porque nos gusta mas asi
-     cadena = cadena.replace(/ /g,`_`);
-
-     // Quitamos acentos y `ñ`. Fijate en que va sin comillas el primer parametro
-     cadena = cadena.replace(/á/gi,`a`);
-     cadena = cadena.replace(/é/gi,`e`);
-     cadena = cadena.replace(/í/gi,`i`);
-     cadena = cadena.replace(/ó/gi,`o`);
-     cadena = cadena.replace(/ú/gi,`u`);
-     cadena = cadena.replace(/ñ/gi,`n`);
-     return cadena;
-  }
-
-
-
-}
+};
