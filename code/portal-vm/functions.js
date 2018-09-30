@@ -1,15 +1,15 @@
-const logger = require('winston');
+const logger = require(`winston`);
 
-var os = require('os');
-var MySqlAsync = require('mysql');
-var config = require('./config.json');
-var moment = require('moment');
+var os = require(`os`);
+var MySqlAsync = require(`mysql`);
+var config = require(`./config.json`);
+var moment = require(`moment`);
 
 module.exports = {
 
     cleanaddress : function(ip){
       var aux = ip;
-      if (aux.substr(0, 7) == "::ffff:") {
+      if (aux.substr(0, 7) == `::ffff:`) {
         aux = aux.substr(7);
       }
       return aux;
@@ -22,7 +22,7 @@ module.exports = {
     for (var k in interfaces) {
         for (var k2 in interfaces[k]) {
             var address = interfaces[k][k2];
-            if (address.family === 'IPv4' && !address.internal) {
+            if (address.family === `IPv4` && !address.internal) {
                 addresses.push(address.address);
                 logger.info(`IP local encontrada: "${address.address}"`);
             }
@@ -46,7 +46,7 @@ module.exports = {
       });
       logger.debug(`creada conexion MySQL`);
 
-      connectionAsync.on('release', function (connection) {
+      connectionAsync.on(`release`, function (connection) {
         logger.debug(`Connection MySQL "${connection.threadId}" released`);
       });
 
@@ -54,9 +54,9 @@ module.exports = {
     },
 
     eliminardirectoriosolo : function(usuario, motivo, callback){
-      var exec = require('child_process').exec, child, salida;
+      var exec = require(`child_process`).exec, child, salida;
 
-      child = exec('./sh/eliminardirectorio.sh '+config.password_root +" "+ 1 +" "+ config.path_almacenamiento + " " + usuario +" "+ motivo,
+      child = exec(`./sh/eliminardirectorio.sh `+config.password_root +` `+ 1 +` `+ config.path_almacenamiento + ` ` + usuario +` `+ motivo,
         function (error, stdout, stderr) {
           // Imprimimos en pantalla con console.log
           salida = stdout;
@@ -71,9 +71,9 @@ module.exports = {
     },
 
     eliminardirectoriotodo : function(motivo, callback){
-      var exec = require('child_process').exec, child, salida;
+      var exec = require(`child_process`).exec, child, salida;
 
-      child = exec('./sh/eliminardirectorio.sh '+config.password_root +" "+ 2 +" "+ config.path_almacenamiento + " " + motivo,
+      child = exec(`./sh/eliminardirectorio.sh `+config.password_root +` `+ 2 +` `+ config.path_almacenamiento + ` ` + motivo,
         function (error, stdout, stderr) {
           // Imprimimos en pantalla con console.log
           salida = stdout;
@@ -88,31 +88,31 @@ module.exports = {
     },
 
     dateFormat : function(){
-      return moment(Date.now()).format('YYYY-MM-DD HH:mm:ss');
+      return moment(Date.now()).format(`YYYY-MM-DD HH:mm:ss`);
     },
 
     getCleanedString : function(cadena){
      // Definimos los caracteres que queremos eliminar
-     var specialChars = " !@#$^&%*()+=-[]\/{}|:<>?,.";
+     var specialChars = ` !@#$^&%*()+=-[]\/{}|:<>?,.`;
 
      // Los eliminamos todos
      for (var i = 0; i < specialChars.length; i++) {
-         cadena= cadena.replace(new RegExp("\\" + specialChars[i], 'gi'), '');
+         cadena= cadena.replace(new RegExp(`\\` + specialChars[i], `gi`), ``);
      }
 
      // Lo queremos devolver limpio en minusculas
      cadena = cadena.toLowerCase();
 
      // Quitamos espacios y los sustituimos por _ porque nos gusta mas asi
-     cadena = cadena.replace(/ /g,"_");
+     cadena = cadena.replace(/ /g,`_`);
 
-     // Quitamos acentos y "ñ". Fijate en que va sin comillas el primer parametro
-     cadena = cadena.replace(/á/gi,"a");
-     cadena = cadena.replace(/é/gi,"e");
-     cadena = cadena.replace(/í/gi,"i");
-     cadena = cadena.replace(/ó/gi,"o");
-     cadena = cadena.replace(/ú/gi,"u");
-     cadena = cadena.replace(/ñ/gi,"n");
+     // Quitamos acentos y `ñ`. Fijate en que va sin comillas el primer parametro
+     cadena = cadena.replace(/á/gi,`a`);
+     cadena = cadena.replace(/é/gi,`e`);
+     cadena = cadena.replace(/í/gi,`i`);
+     cadena = cadena.replace(/ó/gi,`o`);
+     cadena = cadena.replace(/ú/gi,`u`);
+     cadena = cadena.replace(/ñ/gi,`n`);
      return cadena;
   }
 
