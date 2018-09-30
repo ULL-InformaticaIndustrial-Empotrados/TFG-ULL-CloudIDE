@@ -25,57 +25,56 @@ module.exports = {
       modoI = 3;
     }
 
-    exec(`./sh/dnat.sh ` + modoI + ` ` + ipSource +` `+ ipDest +` `+ port+` `+config.password_root,
-      (error, stdout, stderr) => {
-        // controlamos el error
-        if (error !== null) {
-          logger.error(`dnat.sh exec error: "${error}"`);
-        }
-        logger.debug(`dnat.sh exec salida: "${stdout}"`);
+    const comando = `./sh/dnat.sh ${modoI} ${ipSource} ${ipDest} ${port} ${config.password_root}`;
+    exec(comando, (error, stdout, stderr) => {
+      // controlamos el error
+      if (error !== null) {
+        logger.error(`dnat.sh exec error: "${error}"`);
+      }
+      logger.debug(`dnat.sh exec salida: "${stdout}"`);
 
-        if (callback != null) {
-          callback();
-        }
-      });
+      if (callback != null) {
+        callback();
+      }
+    });
   },
 
   deletednat(ipSource, callback) {
     logger.debug(`Eliminar todo de la ip de origen "${ipSource}"`);
+    const comando = `./sh/deletednat0.sh ${ipSource} ${config.password_root}`;
+    exec(comando, (error, stdout, stderr) => {
+      // controlamos el error
+      if (error !== null) {
+        logger.error(`deletednat0.sh exec error: "${error}"`);
+      }
+      logger.debug(`deletednat0.sh exec salida: "${stdout}"`);
 
-    exec(`./sh/deletednat0.sh `+ ipSource +` `+config.password_root,
-      (error, stdout, stderr) => {
-        // controlamos el error
-        if (error !== null) {
-          logger.error(`deletednat0.sh exec error: "${error}"`);
-        }
-        logger.debug(`deletednat0.sh exec salida: "${stdout}"`);
-
-        if (callback != null) {
-          callback();
-        }
-      });
+      if (callback != null) {
+        callback();
+      }
+    });
   },
 
   inicializar() {
-    exec(`./sh/inicializar.sh `+config.password_root +` `+ config.interfaz_exterior +` `+ config.interfaz_interior +` `+ config.ip_server_interior,
-      (error, stdout, stderr) => {
-        // controlamos el error
-        if (error !== null) {
-          logger.error(`inicializar.sh exec error: "${error}"`);
-        }
-        logger.debug(`inicializar.sh exec salida: "${stdout}"`);
-      });
+    const comando = `./sh/inicializar.sh +${config.password_root} ${config.interfaz_exterior} ${config.interfaz_interior} ${config.ip_server_interior}`;
+    exec(comando, (error, stdout, stderr) => {
+      // controlamos el error
+      if (error !== null) {
+        logger.error(`inicializar.sh exec error: "${error}"`);
+      }
+      logger.debug(`inicializar.sh exec salida: "${stdout}"`);
+    });
   },
 
   tcpkillestablished(ipSource) {
-    exec(`./sh/tcpkillestablished.sh `+config.password_root +` `+ ipSource,
-      (error, stdout, stderr) => {
-        // controlamos el error
-        if (error !== null) {
-          logger.error(`tcpkillestablished.sh exec error: "${error}"`);
-        }
-        logger.debug(`tcpkillestablished.sh exec salida: "${stdout}"`);
-      });
+    const comando = `./sh/tcpkillestablished.sh ${config.password_root} ${ipSource}`;
+    exec(comando, (error, stdout, stderr) => {
+      // controlamos el error
+      if (error !== null) {
+        logger.error(`tcpkillestablished.sh exec error: "${error}"`);
+      }
+      logger.debug(`tcpkillestablished.sh exec salida: "${stdout}"`);
+    });
   },
 
 };
