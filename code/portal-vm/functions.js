@@ -18,7 +18,6 @@ module.exports = {
   },
 
   getiplocal() {
-
     const interfaces = os.networkInterfaces();
     const addresses = [];
     for (const k in interfaces) {
@@ -56,29 +55,31 @@ module.exports = {
   },
 
   eliminardirectoriosolo(usuario, motivo, callback) {
-    exec(`./sh/eliminardirectorio.sh ${config.password_root} 1 ${config.path_almacenamiento} ${usuario} ${motivo}`,
-      (error, stdout, stderr) => {
-        // controlamos el error
-        if (error !== null) {
-          logger.warn(`Error eliminardirectoriosolo: "${error}"`);
-        }
-        logger.debug(`eliminardirectoriosolo salida estandar: "${stdout}"`);
-        logger.info(`eliminardirectoriosolo se ha eleminado "${usuario}"`);
-        callback();
-      });
+    const comando = `rm -Rf ${config.path_almacenamiento}/${usuario}-${motivo}`;
+    logger.debug(`eliminardirectoriosolo ejecutamos comando "${comando}"`);
+    exec(comando, (error, stdout, stderr) => {
+      // controlamos el error
+      if (error !== null) {
+        logger.warn(`Error eliminardirectoriosolo: "${error}"`);
+      }
+      logger.debug(`eliminardirectoriosolo salida estandar: "${stdout}"`);
+      logger.info(`eliminardirectoriosolo se ha eleminado "${usuario}"`);
+      callback();
+    });
   },
 
   eliminardirectoriotodo(motivo, callback) {
-    exec(`./sh/eliminardirectorio.sh ${config.password_root} 2 ${config.path_almacenamiento} ${motivo}`,
-      (error, stdout, stderr) => {
-        // controlamos el error
-        if (error !== null) {
-          logger.warn(`Error eliminardirectoriotodo: "${error}"`);
-        }
-        logger.debug(`eliminardirectoriotodo salida estandar: "${stdout}"`);
-        logger.info(`eliminardirectoriotodo se ha eleminado`);
-        callback();
-      });
+    const comando = `rm -Rf ${config.path_almacenamiento}/*-${motivo}`;
+    logger.debug(`eliminardirectoriotodo ejecutamos comando "${comando}"`);
+    exec(comando, (error, stdout, stderr) => {
+      // controlamos el error
+      if (error !== null) {
+        logger.warn(`Error eliminardirectoriotodo: "${error}"`);
+      }
+      logger.debug(`eliminardirectoriotodo salida estandar: "${stdout}"`);
+      logger.info(`eliminardirectoriotodo se ha eleminado`);
+      callback();
+    });
   },
 
   dateFormat() {
