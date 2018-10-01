@@ -26,6 +26,7 @@ module.exports = {
     }
 
     const comando = `./sh/dnat.sh ${modoI} ${ipSource} ${ipDest} ${port} ${config.password_root}`;
+    logger.debug(`dnatae ejecutamos comando "${comando}"`);
     exec(comando, (error, stdout, stderr) => {
       // controlamos el error
       if (error !== null) {
@@ -42,6 +43,7 @@ module.exports = {
   deletednat(ipSource, callback) {
     logger.debug(`Eliminar todo de la ip de origen "${ipSource}"`);
     const comando = `./sh/deletednat0.sh ${ipSource} ${config.password_root}`;
+    logger.debug(`deletednat ejecutamos comando "${comando}"`);
     exec(comando, (error, stdout, stderr) => {
       // controlamos el error
       if (error !== null) {
@@ -56,7 +58,8 @@ module.exports = {
   },
 
   inicializar() {
-    const comando = `./sh/inicializar.sh +${config.password_root} ${config.interfaz_exterior} ${config.interfaz_interior} ${config.ip_server_interior}`;
+    const comando = `./sh/inicializar.sh ${config.password_root} ${config.interfaz_exterior} ${config.interfaz_interior} ${config.ip_server_interior}`;
+    logger.debug(`inicializar ejecutamos comando "${comando}"`);
     exec(comando, (error, stdout, stderr) => {
       // controlamos el error
       if (error !== null) {
@@ -68,6 +71,7 @@ module.exports = {
 
   tcpkillestablished(ipSource) {
     const comando = `./sh/tcpkillestablished.sh ${config.password_root} ${ipSource}`;
+    logger.debug(`tcpkillestablished ejecutamos comando "${comando}"`);
     exec(comando, (error, stdout, stderr) => {
       // controlamos el error
       if (error !== null) {
