@@ -7,7 +7,7 @@ var config = require(`./config.json`);
 var functions = require(`./functions.js`);
 var firewall = require(`./firewall.js`);
 var bodyParser = require(`body-parser`);
-async = require("async");
+async = require(`async`);
 var ovirt = require(`./ovirt.js`);
 var sesion = require(`./sesion.js`);
 var addresses = functions.getiplocal();
@@ -49,7 +49,7 @@ function getRoll(user) {
 
 
 
-var websocket_client = require("socket.io").listen(config.puerto_websocket_clients);
+var websocket_client = require(`socket.io`).listen(config.puerto_websocket_clients);
 var websocket_vms = require(`socket.io`)(config.puerto_websocket_vms,{
   pingTimeout: 3000,
   pingInterval: 3000
@@ -88,7 +88,7 @@ logger.debug(`Entramos ovirt_vms`);
 pool.getConnection(function(err, connection) {
   connection.query(bloqueo_tablas,function(error, results, fields) {
   connection.query("SELECT COUNT(*) AS total FROM ( SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 UNION SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='up') as t1", function(error, total, fields) {
-    connection.query("SELECT COUNT(DISTINCT usuario) AS total FROM Cola as c1", function(error, total_usuarios_cola, fields) {
+    connection.query(`SELECT COUNT(DISTINCT usuario) AS total FROM Cola as c1`, function(error, total_usuarios_cola, fields) {
 
     if(((total_usuarios_cola[0].total/config.numero_max_users)+config.numero_vm_reserva) > total[0].total){
       logger.info(`OVIRT -> hay menos en cola`);
@@ -100,12 +100,12 @@ pool.getConnection(function(err, connection) {
       var bucle = function(contador){
 
         logger.info(`Añadimos vm`);
-        connection.query("SELECT * FROM Banco_ip as bip WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT 1", function(error, escoger_ip, fields) {
+        connection.query(`SELECT * FROM Banco_ip as bip WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT 1`, function(error, escoger_ip, fields) {
           connection.query("INSERT INTO Ovirt (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-"+escoger_ip[0].ip+"', '"+escoger_ip[0].ip+"')", function(error, result, fields) {
             connection.query("INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-"+escoger_ip[0].ip+"', '"+escoger_ip[0].ip+"', 'up')", function(error, result, fields) {
               connection.query("INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-"+escoger_ip[0].ip+"', '"+escoger_ip[0].ip+"')", function(error, result, fields) {
 
-              connection.query("SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas ", function(error, contar_ovp_up, fields) {
+              connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
                 if(contar_ovp_up[0].total == 1){
 
                   var bucle2 = function(ip){
@@ -114,11 +114,11 @@ pool.getConnection(function(err, connection) {
                       conexion.query(bloqueo_tablas,function(error, results, fields) {
                         conexion.query("DELETE FROM Ovirt_Pendientes_Up_AddStart WHERE ip_vm='"+ip+"'", function(error, result, fields) {
                             logger.info(`VM added and started "ULL-CloudIDE-backend-${ip}"`);
-                            conexion.query("SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas ", function(error, contar_ovp_up, fields) {
+                            conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
                               if(contar_ovp_up[0].total != 0){
-                                conexion.query("SELECT ip_vm FROM Ovirt_Pendientes_Up_AddStart as ovpuas LIMIT 1", function(error, escoger_ovp, fields) {
+                                conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes_Up_AddStart as ovpuas LIMIT 1`, function(error, escoger_ovp, fields) {
                                   bucle2(escoger_ovp[0].ip_vm);
-                                  conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                         logger.debug(`liberando tablas MySQL`);
 
                                       conexion.release();
@@ -126,7 +126,7 @@ pool.getConnection(function(err, connection) {
                                 });
                               }
                               else{
-                                conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                       logger.debug(`liberando tablas MySQL`);
 
                                     conexion.release();
@@ -145,7 +145,7 @@ pool.getConnection(function(err, connection) {
                 bucle(contador);
               }
               else{
-                connection.query("UNLOCK TABLES",function(error, results, fields) {
+                connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
 
                     connection.release();
@@ -165,7 +165,7 @@ pool.getConnection(function(err, connection) {
     else{
 
 
-      connection.query("SELECT COUNT(*) AS total FROM VMS as v1 WHERE prioridad=1", function(error, total, fields) {
+      connection.query(`SELECT COUNT(*) AS total FROM VMS as v1 WHERE prioridad=1`, function(error, total, fields) {
         if(total[0].total > config.numero_vm_reserva){
           logger.info(`OVIRT -> hay más`);
 
@@ -175,7 +175,7 @@ pool.getConnection(function(err, connection) {
           var bucle = function(contador){
 
             logger.info(`Stop and Remove VM`);
-            connection.query("SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 LIMIT 1", function(error, escoger_vm, fields) {
+            connection.query(`SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 LIMIT 1`, function(error, escoger_vm, fields) {
               connection.query("DELETE FROM VMS WHERE ip_vm='"+escoger_vm[0].ip_vm+"'", function(error, result, fields) {
                 connection.query("INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-"+escoger_vm[0].ip_vm+"', '"+escoger_vm[0].ip_vm+"', 'down')", function(error, result, fields) {
                   connection.query("SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' ", function(error, contar_ovp_down, fields) {
@@ -192,7 +192,7 @@ pool.getConnection(function(err, connection) {
                                   if(contar_ovp_down[0].total != 0){
                                     conexion.query("SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='down' LIMIT 1", function(error, escoger_ovp, fields) {
                                       bucle2(escoger_ovp[0].ip_vm);
-                                      conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                             logger.debug(`liberando tablas MySQL`);
 
                                           conexion.release();
@@ -200,7 +200,7 @@ pool.getConnection(function(err, connection) {
                                     });
                                   }
                                   else{
-                                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                           logger.debug(`liberando tablas MySQL`);
 
                                         conexion.release();
@@ -220,7 +220,7 @@ pool.getConnection(function(err, connection) {
                     bucle(contador);
                   }
                   else{
-                    connection.query("UNLOCK TABLES",function(error, results, fields) {
+                    connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                           logger.debug(`liberando tablas MySQL`);
 
                         connection.release();
@@ -239,7 +239,7 @@ pool.getConnection(function(err, connection) {
 
         }
         else{
-          connection.query("UNLOCK TABLES",function(error, results, fields) {
+          connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                 logger.debug(`liberando tablas MySQL`);
 
               connection.release();
@@ -307,7 +307,7 @@ pool.getConnection(function(err, connection) {
                   socket_client_servers.get(ip_server).disconnect();
                   socket_client_servers.delete(ip_server);
                   logger.info(`server disconnected`);
-                  conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                     logger.debug(`liberando tablas MySQL`);
 
                   conexion.release();
@@ -326,14 +326,14 @@ pool.getConnection(function(err, connection) {
           socket_client_servers.get(ip_server).on(`enviar-resultado`, function (data) {
             logger.info(`enviar resultado`);
             if(user_socket.get(data.user) != undefined){
-              broadcastclient(data.user, "resultado", {"motivo" : data.motivo});
+              broadcastclient(data.user, `resultado`, {"motivo" : data.motivo});
             }
           });
 
           socket_client_servers.get(ip_server).on(`enviar-stop`, function (data) {
             logger.info(`enviar stopp`);
             if(user_socket.get(data.user) != undefined){
-              broadcastclient(data.user, "stop", {"motivo" : data.motivo});
+              broadcastclient(data.user, `stop`, {"motivo" : data.motivo});
             }
           });
 
@@ -342,19 +342,19 @@ pool.getConnection(function(err, connection) {
             firewall.deletednat(data);
           });
 
-          socket_client_servers.get(ip_server).on("dnatae-eliminarsolo", function (data) {
+          socket_client_servers.get(ip_server).on(`dnatae-eliminarsolo`, function (data) {
             logger.info(`servers deletednat`);
-            firewall.dnatae("eliminarsolo", data.ip_origen, data.ipvm, data.puerto);
+            firewall.dnatae(`eliminarsolo`, data.ip_origen, data.ipvm, data.puerto);
           });
 
-          socket_client_servers.get(ip_server).on("añadirsolo", function (data) {
+          socket_client_servers.get(ip_server).on(`añadirsolo`, function (data) {
             logger.info(`servers deletednat`);
-            firewall.dnatae("añadirsolo", data.ip_origen, data.ipvm, data.puerto);
+            firewall.dnatae(`añadirsolo`, data.ip_origen, data.ipvm, data.puerto);
           });
 
-          socket_client_servers.get(ip_server).on("añadircomienzo", function (data) {
+          socket_client_servers.get(ip_server).on(`añadircomienzo`, function (data) {
             logger.info(`servers deletednat`);
-            firewall.dnatae("añadircomienzo", data.ip_origen, data.ipvm, data.puerto);
+            firewall.dnatae(`añadircomienzo`, data.ip_origen, data.ipvm, data.puerto);
           });
 
         }, function(err) {
@@ -371,20 +371,20 @@ pool.getConnection(function(err, connection) {
       var conexion = connection;
       logger.info(`VMFREE`);
         conexion.query(bloqueo_tablas,function(error, results, fields) {
-          conexion.query("SELECT COUNT(*) AS total FROM Cola AS c1",function(error, cola_, fields) {
-            conexion.query("SELECT COUNT(*) AS total FROM VMS AS v1",function(error, vms_, fields) {
+          conexion.query(`SELECT COUNT(*) AS total FROM Cola AS c1`,function(error, cola_, fields) {
+            conexion.query(`SELECT COUNT(*) AS total FROM VMS AS v1`,function(error, vms_, fields) {
 
                   if((vms_[0].total != 0)&&(cola_[0].total != 0)){
                     var promise2 = new Promise(function(resolve, reject) {
                     logger.info(`Existen vm libres y hay motivos en cola`);
-                      conexion.query("SELECT * FROM Cola AS c1 LIMIT 1",function(error, cola_user, fields) {
+                      conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
                         conexion.query("SELECT * FROM Cola AS c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
-                            conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
+                            conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
                               if(ip_vms.get(cola_vm[0].ip_vm)!= undefined){
                               async.forEach(cola_user1, function(item, callback) {
                                     conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
                                       var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
-                                      getsocketfromip(cola_vm[0].ip_vm).emit("load", json);
+                                      getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
 
                                       if(item == cola_user1[cola_user1.length-1]){
                                         resolve();
@@ -396,7 +396,7 @@ pool.getConnection(function(err, connection) {
                                 );
                               }
                               else{
-                                resolve("false");
+                                resolve(`false`);
                               }
                             });
                         });
@@ -404,9 +404,9 @@ pool.getConnection(function(err, connection) {
                     });
 
                     promise2.then(function(result) {
-                      if(result != "false"){
-                      conexion.query("SELECT * FROM Cola AS c1 LIMIT 1",function(error, cola_user, fields) {
-                        conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
+                      if(result != `false`){
+                      conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
+                        conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
                           conexion.query("SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones WHERE ip_vm='"+cola_vm[0].ip_vm+"' UNION SELECT DISTINCT usuario FROM Pendientes WHERE ip_vm='"+cola_vm[0].ip_vm+"') AS tmp",function(error, numero_users_vm, fields) {
                             logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
                             if(numero_users_vm[0].total == config.numero_max_users){
@@ -422,7 +422,7 @@ pool.getConnection(function(err, connection) {
 
                                 conexion.query("DELETE FROM Cola WHERE usuario='"+cola_user[0].usuario+"'",function(error, results, fields) {
                                   logger.info(`enviado a vm`);
-                                  conexion.query("UNLOCK TABLES");
+                                  conexion.query(`UNLOCK TABLES`);
                                   conexion.release();
                                   vmfree();
                                 });
@@ -432,7 +432,7 @@ pool.getConnection(function(err, connection) {
                     });
                   }
                   else{
-                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                     conexion.release();
                     vmfree();
 
@@ -445,7 +445,7 @@ pool.getConnection(function(err, connection) {
                     });
               }
               else{
-                conexion.query("UNLOCK TABLES");
+                conexion.query(`UNLOCK TABLES`);
                 conexion.release();
 
               }
@@ -488,7 +488,7 @@ pool.getConnection(function(err, connection) {
     logger.info(`ZONA FIREWALL`);
     var conexion = connection;
 
-    conexion.query("SELECT * FROM Firewall NATURAL JOIN Asignaciones",function(error, results, fields) {
+    conexion.query(`SELECT * FROM Firewall NATURAL JOIN Asignaciones`,function(error, results, fields) {
       var auxiliar = new Map();
       conexion.release();
       async.forEach(results, function(item, callback) {
@@ -498,7 +498,7 @@ pool.getConnection(function(err, connection) {
           auxiliar.set({"ip_origen" : item.ip_origen, "usuario" : item.usuario}, true);
         }
 
-        firewall.dnatae("añadirsolo", item.ip_origen, item.ip_vm, item.puerto);
+        firewall.dnatae(`añadirsolo`, item.ip_origen, item.ip_vm, item.puerto);
 
           }, function(err) {
               if (err) logger.info(err);}
@@ -529,7 +529,7 @@ websocket_servers.on(`connection`, function(socket){
           socket_client_servers.get(functions.cleanaddress(socket.handshake.address)).disconnect();
           socket_client_servers.delete(functions.cleanaddress(socket.handshake.address));
           logger.info(`server disconnected`);
-          conexion.query("UNLOCK TABLES",function(error, results, fields) {
+          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
             logger.debug(`liberando tablas MySQL`);
 
           conexion.release();
@@ -548,7 +548,7 @@ websocket_servers.on(`connection`, function(socket){
   socket.on(`enviar-resultado`, function (data) {
     logger.info(`enviar resultado`);
     if(user_socket.get(data.user) != undefined){
-      broadcastclient(data.user, "resultado", {"motivo" : data.motivo});
+      broadcastclient(data.user, `resultado`, {"motivo" : data.motivo});
     }
     else{
       logger.info(`no tengo el usuario`);
@@ -559,7 +559,7 @@ websocket_servers.on(`connection`, function(socket){
     logger.info(`enviar stopp`);
 
     if(user_socket.get(data.user) != undefined){
-      broadcastclient(data.user, "stop", {"motivo" : data.motivo});
+      broadcastclient(data.user, `stop`, {"motivo" : data.motivo});
     }
     else{
       logger.info(`no tengo el usuario`);
@@ -571,19 +571,19 @@ websocket_servers.on(`connection`, function(socket){
     firewall.deletednat(data);
   });
 
-  socket.on("dnatae-eliminarsolo", function (data) {
+  socket.on(`dnatae-eliminarsolo`, function (data) {
     logger.info(`servers eliminarsolo`);
-    firewall.dnatae("eliminarsolo", data.ip_origen, data.ipvm, data.puerto);
+    firewall.dnatae(`eliminarsolo`, data.ip_origen, data.ipvm, data.puerto);
   });
 
-  socket.on("añadirsolo", function (data) {
+  socket.on(`añadirsolo`, function (data) {
     logger.info(`servers añadirsolo`);
-    firewall.dnatae("añadirsolo", data.ip_origen, data.ipvm, data.puerto);
+    firewall.dnatae(`añadirsolo`, data.ip_origen, data.ipvm, data.puerto);
   });
 
-  socket.on("añadircomienzo", function (data) {
+  socket.on(`añadircomienzo`, function (data) {
     logger.info(`servers deletednat`);
-    firewall.dnatae("añadircomienzo", data.ip_origen, data.ipvm, data.puerto);
+    firewall.dnatae(`añadircomienzo`, data.ip_origen, data.ipvm, data.puerto);
   });
 
 
@@ -627,7 +627,7 @@ websocket_servers.on(`connection`, function(socket){
       if(socket.session.user){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           if(user_socket.get(socket.session.user) != undefined){
-            socket.emit("data-error", {"msg" : "Está accediendo desde una ip diferente a la inicial"} );
+            socket.emit(`data-error`, {"msg" : `Está accediendo desde una ip diferente a la inicial`} );
           }
           logger.info(`Está accediendo desde una ip diferente a la inicial`);
         }
@@ -651,9 +651,9 @@ websocket_servers.on(`connection`, function(socket){
                     var socket_vm = getsocketfromip(results[0].ip_vm);
                     conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+results[0].ip_vm+"', '"+results[0].motivo+"','"+socket.session.user+"', 'down')",function(error, results2, fields) {
                       var json = {"user" : socket.session.user, "motivo" : data, "puerto" : results[0].puerto};
-                      socket_vm.emit("stop", json);
+                      socket_vm.emit(`stop`, json);
                         logger.info(`enviado stop`);
-                        conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                        conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                           conexion.release();
                         });
                     });
@@ -661,9 +661,9 @@ websocket_servers.on(`connection`, function(socket){
                   else{
                     logger.info(`no puede eliminar`);
                     if(user_socket.get(socket.session.user) != undefined){
-                      socket.emit("data-error", {"msg" : "No se puede eliminar"} );
+                      socket.emit(`data-error`, {"msg" : `No se puede eliminar`} );
                     }
-                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                       conexion.release();
                     });
                   }
@@ -672,10 +672,10 @@ websocket_servers.on(`connection`, function(socket){
 
                 else{
                   if(user_socket.get(socket.session.user) != undefined){
-                    socket.emit("data-error", {"msg" : "No se puede eliminar"} );
+                    socket.emit(`data-error`, {"msg" : `No se puede eliminar`} );
                   }
                   logger.info(`no puede eliminar`);
-                  conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                     conexion.release();
                   });
                 }
@@ -683,10 +683,10 @@ websocket_servers.on(`connection`, function(socket){
           }
             else{
               if(user_socket.get(socket.session.user) != undefined){
-                socket.emit("data-error", {"msg" : "No se puede eliminar"} );
+                socket.emit(`data-error`, {"msg" : `No se puede eliminar`} );
               }
               logger.info(`no puede eliminar`);
-              conexion.query("UNLOCK TABLES",function(error, results, fields) {
+              conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                 conexion.release();
               });
             }
@@ -694,10 +694,10 @@ websocket_servers.on(`connection`, function(socket){
           }
             else{
               if(user_socket.get(socket.session.user) != undefined){
-                socket.emit("data-error", {"msg" : "No se puede eliminar"} );
+                socket.emit(`data-error`, {"msg" : `No se puede eliminar`} );
               }
               logger.info(`no puede eliminar`);
-              conexion.query("UNLOCK TABLES",function(error, results, fields) {
+              conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                 conexion.release();
               });
             }
@@ -705,10 +705,10 @@ websocket_servers.on(`connection`, function(socket){
           }
             else{
               if(user_socket.get(socket.session.user) != undefined){
-                socket.emit("data-error", {"msg" : "No está matriculado de este servidor"} );
+                socket.emit(`data-error`, {"msg" : `No está matriculado de este servidor`} );
               }
               logger.info(`No esta matriculado`);
-              conexion.query("UNLOCK TABLES",function(error, results, fields) {
+              conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                 conexion.release();
               });
             }
@@ -730,7 +730,7 @@ websocket_servers.on(`connection`, function(socket){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           logger.info(`la ip no es la misma`);
           if(user_socket.get(socket.session.user) != undefined){
-            socket.emit("data-error", {"msg" : "Está accediendo desde una ip diferente a la inicial"} );
+            socket.emit(`data-error`, {"msg" : `Está accediendo desde una ip diferente a la inicial`} );
           }
         }
         else{
@@ -771,15 +771,15 @@ websocket_servers.on(`connection`, function(socket){
                                       logger.info(`se inserta en la cola`);
                                         conexion.query("INSERT INTO Cola (motivo, usuario) VALUES ('"+data+"','"+socket.session.user+"')",function(error, results, fields) {
                                           bool = true;
-                                          resolve("se inserta");
+                                          resolve(`se inserta`);
                                         });
                                     }
                                     else{
                                       logger.info(`supera el numero de servidores`);
                                       if(user_socket.get(socket.session.user) != undefined){
-                                        socket.emit("data-error", {"msg" : "Supera el número máximo de servidores"} );
+                                        socket.emit(`data-error`, {"msg" : `Supera el número máximo de servidores`} );
                                       }
-                                      resolve("supera");
+                                      resolve(`supera`);
                                     }
                                   }
 
@@ -787,9 +787,9 @@ websocket_servers.on(`connection`, function(socket){
                                   else{
                                     logger.info(`ya esta en la cola`);
                                     if(user_socket.get(socket.session.user) != undefined){
-                                      socket.emit("data-error", {"msg" : "Ya está en el sistema"} );
+                                      socket.emit(`data-error`, {"msg" : `Ya está en el sistema`} );
                                     }
-                                    resolve("ya esta");
+                                    resolve(`ya esta`);
                                   }
 
                                 });
@@ -800,9 +800,9 @@ websocket_servers.on(`connection`, function(socket){
                   else{
                     logger.info(`pendientes fail o bbdd fail`);
                     if(user_socket.get(socket.session.user) != undefined){
-                      socket.emit("data-error", {"msg" : "Ya está en el sistema"} );
+                      socket.emit(`data-error`, {"msg" : `Ya está en el sistema`} );
                     }
-                    resolve("principal");
+                    resolve(`principal`);
                   }
 
               });
@@ -812,18 +812,18 @@ websocket_servers.on(`connection`, function(socket){
             else{
               logger.info(`Este servicio se está desmatriculando`);
               if(user_socket.get(socket.session.user) != undefined){
-                socket.emit("data-error", {"msg" : "Este servicio se está desmatriculando"} );
+                socket.emit(`data-error`, {"msg" : `Este servicio se está desmatriculando`} );
               }
-              resolve("no matriculado");
+              resolve(`no matriculado`);
             }
             });
             }
               else{
                 logger.info(`No está matriculado de este servidor`);
                 if(user_socket.get(socket.session.user) != undefined){
-                  socket.emit("data-error", {"msg" : "No está matriculado de este servidor"} );
+                  socket.emit(`data-error`, {"msg" : `No está matriculado de este servidor`} );
                 }
-                resolve("no matriculado");
+                resolve(`no matriculado`);
               }
             });
 
@@ -869,7 +869,7 @@ websocket_servers.on(`connection`, function(socket){
                                         conexion.query("DELETE FROM Cola WHERE usuario='"+socket.session.user+"'",function(error, result, fields) {
                                           logger.info(`no se puede obtener enlace`);
                                           if(user_socket.get(socket.session.user) != undefined){
-                                            socket.emit("data-error", {"msg" : "No se puede obtener el servidor"} );
+                                            socket.emit(`data-error`, {"msg" : `No se puede obtener el servidor`} );
                                           }
                                           resolve();
                                         });
@@ -881,11 +881,11 @@ websocket_servers.on(`connection`, function(socket){
                                           var promise = new Promise(function(resolve, reject) {
                                             async.forEach(servers, function(item, callback) {
                                               var json = {"user" : socket.session.user, "motivo" : item.motivo};
-                                            socket_vm.emit("load", json);
+                                            socket_vm.emit(`load`, json);
                                               logger.info(`enviado a su maquina`);
                                                 conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+ip+"', '"+item.motivo+"','"+socket.session.user+"', 'up')",function(error, results, fields) {
                                                   if(item == servers[servers.length-1]){
-                                                    resolve("resolver");
+                                                    resolve(`resolver`);
                                                   }
                                                 });
 
@@ -930,14 +930,14 @@ websocket_servers.on(`connection`, function(socket){
 
                           promise6.then(function(result) {
 
-                              conexion.query("SELECT COUNT(*) AS total FROM Cola AS c1",function(error, cola_, fields) {
-                                conexion.query("SELECT COUNT(*) AS total FROM VMS AS v1",function(error, vms_, fields) {
+                              conexion.query(`SELECT COUNT(*) AS total FROM Cola AS c1`,function(error, cola_, fields) {
+                                conexion.query(`SELECT COUNT(*) AS total FROM VMS AS v1`,function(error, vms_, fields) {
 
                                       if((vms_[0].total != 0)&&(cola_[0].total != 0)){
                                         var promise2 = new Promise(function(resolve, reject) {
                                         logger.info(`hay maquinas libres y algo en la cola`);
-                                          conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
-                                            conexion.query("SELECT * FROM Cola AS c1 LIMIT 1",function(error, cola_user, fields) {
+                                          conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
+                                            conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
 
                                               conexion.query("SELECT * FROM Cola AS c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
                                                 if(ip_vms.get(cola_vm[0].ip_vm) != undefined){
@@ -945,11 +945,11 @@ websocket_servers.on(`connection`, function(socket){
 
                                                         conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
                                                           var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
-                                                          getsocketfromip(cola_vm[0].ip_vm).emit("load", json);
+                                                          getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
 
                                                           if(item == cola_user1[cola_user1.length-1]){
                                                             logger.info(`es el ultimo`);
-                                                            resolve("salir");
+                                                            resolve(`salir`);
                                                           }
                                                         });
 
@@ -959,7 +959,7 @@ websocket_servers.on(`connection`, function(socket){
                                                     );
                                                   }
                                                   else{
-                                                    resolve("false");
+                                                    resolve(`false`);
                                                   }
 
                                                 });
@@ -976,9 +976,9 @@ websocket_servers.on(`connection`, function(socket){
 
 
                                         promise2.then(function(result) {
-                                          if(result != "false"){
-                                          conexion.query("SELECT * FROM Cola AS c1 LIMIT 1",function(error, cola_user, fields) {
-                                            conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
+                                          if(result != `false`){
+                                          conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
+                                            conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
                                             conexion.query("SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones as a1 WHERE ip_vm='"+cola_vm[0].ip_vm+"' UNION SELECT DISTINCT usuario FROM Pendientes as p1 WHERE ip_vm='"+cola_vm[0].ip_vm+"') AS tmp",function(error, numero_users_vm, fields) {
                                               logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
                                               if(numero_users_vm[0].total == config.numero_max_users){
@@ -996,7 +996,7 @@ websocket_servers.on(`connection`, function(socket){
 
                                                   conexion.query("DELETE FROM Cola WHERE usuario='"+cola_user[0].usuario+"'",function(error, results, fields) {
                                                     logger.info(`enviado a vm`);
-                                                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                     conexion.release();
                                                     ovirt_vms();
 
@@ -1011,7 +1011,7 @@ websocket_servers.on(`connection`, function(socket){
                                         });
                                       }
                                       else{
-                                        conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                        conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                         conexion.release();
                                         //ovirt_vms();
 
@@ -1027,7 +1027,7 @@ websocket_servers.on(`connection`, function(socket){
 
                                         }
                                         else{
-                                          conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                           conexion.release();
                                           ovirt_vms();
 
@@ -1049,7 +1049,7 @@ websocket_servers.on(`connection`, function(socket){
                         }
                           else{
                             logger.info(`bool es falso`);
-                            conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                            conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                             conexion.release();
                             ovirt_vms();
 
@@ -1067,7 +1067,7 @@ websocket_servers.on(`connection`, function(socket){
     else{
       logger.info(`Acceso sin sesión de usuario`);
       if(user_socket.get(socket.session.user) != undefined){
-        socket.emit("data-error", {"msg" : "Accesso sin iniciar sesión"} );
+        socket.emit(`data-error`, {"msg" : `Accesso sin iniciar sesión`} );
       }
     }
 
@@ -1153,13 +1153,13 @@ websocket_servers.on(`connection`, function(socket){
 
         promesaprimera.then(function(result) {
          logger.info(`Una VM ha arrancado`);
-           conexion.query("SELECT COUNT(*) AS total FROM VMS as v1",function(error, vms_, fields) {
-               conexion.query("SELECT COUNT(*) AS total FROM Cola as c1",function(error, total_cola, fields) {
+           conexion.query(`SELECT COUNT(*) AS total FROM VMS as v1`,function(error, vms_, fields) {
+               conexion.query(`SELECT COUNT(*) AS total FROM Cola as c1`,function(error, total_cola, fields) {
                  logger.info(`tiene "${vms_[0].total}" "${total_cola[0].total}"`);
                  if((vms_[0].total != 0)&&(total_cola[0].total != 0)){
-                     conexion.query("SELECT * FROM Cola as c1 LIMIT 1",function(error, cola_user, fields) {
+                     conexion.query(`SELECT * FROM Cola as c1 LIMIT 1`,function(error, cola_user, fields) {
                        conexion.query("SELECT * FROM Cola as c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
-                           conexion.query("SELECT * FROM VMS as v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
+                           conexion.query(`SELECT * FROM VMS as v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
 
                              if(ip_vms.get(cola_vm[0].ip_vm) != undefined){
                              var promise5 = new Promise(function(resolve, reject) {
@@ -1167,7 +1167,7 @@ websocket_servers.on(`connection`, function(socket){
 
                                    conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
                                      var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
-                                     getsocketfromip(cola_vm[0].ip_vm).emit("load", json);
+                                     getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
                                      if(item == cola_user1[cola_user1.length-1]){
                                        resolve();
                                      }
@@ -1191,7 +1191,7 @@ websocket_servers.on(`connection`, function(socket){
 
                                            conexion.query("DELETE FROM Cola WHERE usuario='"+cola_user[0].usuario+"'",function(error, results, fields) {
                                              logger.info(`enviado a vm`);
-                                             conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                             conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                              conexion.release();
 
                                              vmfree();
@@ -1207,7 +1207,7 @@ websocket_servers.on(`connection`, function(socket){
 
                                            conexion.query("DELETE FROM Cola WHERE usuario='"+cola_user[0].usuario+"'",function(error, results, fields) {
                                              logger.info(`enviado a vm`);
-                                             conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                             conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                              conexion.release();
 
                                              vmfree();
@@ -1232,7 +1232,7 @@ websocket_servers.on(`connection`, function(socket){
 
                                  }
                                  else{
-                                   conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                   conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                    conexion.release();
 
                                    //ovirt_vms();
@@ -1246,7 +1246,7 @@ websocket_servers.on(`connection`, function(socket){
                                }
 
                                else{
-                                 conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                 conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                  conexion.release();
                                  ovirt_vms();
 
@@ -1258,7 +1258,7 @@ websocket_servers.on(`connection`, function(socket){
                        });
                      }
                      else{
-                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                        conexion.release();
                        ovirt_vms();
                      });
@@ -1286,7 +1286,7 @@ websocket_servers.on(`connection`, function(socket){
           conexion.query(bloqueo_tablas,function(error, results, fields) {
           conexion.query("DELETE FROM VMS WHERE ip_vm='"+ipvm+"'",function(error, result, fields) {
 
-            conexion.query("UNLOCK TABLES",function(error, results, fields) {
+            conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
               logger.debug(`liberando tablas MySQL`);
             conexion.release();
 
@@ -1330,18 +1330,18 @@ socket.on(`loaded`, function (data) {
 
                 var bucle = function(){
                   if(min < max){
-                      broadcastservers("añadirsolo", {"ip_origen" : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
-                      firewall.dnatae("añadirsolo", firewall1[min].ip_origen, ipvm, data.puerto, function(){
+                      broadcastservers(`añadirsolo`, {"ip_origen" : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
+                      firewall.dnatae(`añadirsolo`, firewall1[min].ip_origen, ipvm, data.puerto, function(){
                         min++;
                         bucle();
                       });
                     }
                   else{
                     if(user_socket.get(pen[0].usuario) != undefined){
-                      broadcastclient(pen[0].usuario, "resultado", {"motivo" : data.motivo} );
+                      broadcastclient(pen[0].usuario, `resultado`, {`motivo` : data.motivo} );
                     }
                     else{
-                      broadcastservers("enviar-resultado", {"motivo" : data.motivo, "user" : data.user});
+                      broadcastservers(`enviar-resultado`, {"motivo" : data.motivo, "user" : data.user});
                     }
                     conexion.query("DELETE FROM Pendientes WHERE usuario='"+pen[0].usuario+"' AND motivo='"+pen[0].motivo+"' AND tipo='up'",function(error, results, fields) {
                       logger.info(`pendiente realizado`);
@@ -1360,10 +1360,10 @@ socket.on(`loaded`, function (data) {
 
                 var bucle = function(){
                   if(min < max){
-                    broadcastservers("añadircomienzo", {"ip_origen" : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
-                    firewall.dnatae("añadircomienzo", firewall1[min].ip_origen, ipvm, 0, function(){
-                      broadcastservers("añadirsolo", {"ip_origen" : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
-                      firewall.dnatae("añadirsolo", firewall1[min].ip_origen, ipvm, data.puerto, function(){
+                    broadcastservers(`añadircomienzo`, {"ip_origen" : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
+                    firewall.dnatae(`añadircomienzo`, firewall1[min].ip_origen, ipvm, 0, function(){
+                      broadcastservers(`añadirsolo`, {`ip_origen` : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
+                      firewall.dnatae(`añadirsolo`, firewall1[min].ip_origen, ipvm, data.puerto, function(){
                         min++;
                         bucle();
                       });
@@ -1371,10 +1371,10 @@ socket.on(`loaded`, function (data) {
                     }
                   else{
                     if(user_socket.get(pen[0].usuario) != undefined){
-                      broadcastclient(pen[0].usuario, "resultado", {"motivo" : data.motivo} );
+                      broadcastclient(pen[0].usuario, `resultado`, {"motivo" : data.motivo} );
                     }
                     else{
-                      broadcastservers("enviar-resultado", {"motivo" : data.motivo, "user" : data.user});
+                      broadcastservers(`enviar-resultado`, {"motivo" : data.motivo, "user" : data.user});
                     }
                     conexion.query("DELETE FROM Pendientes WHERE usuario='"+pen[0].usuario+"' AND motivo='"+pen[0].motivo+"' AND tipo='up'",function(error, results, fields) {
                       logger.info(`pendiente realizado`);
@@ -1416,9 +1416,9 @@ socket.on(`loaded`, function (data) {
             var socket_vm = getsocketfromip(ipvm);
             conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+ipvm+"', '"+data.motivo+"','"+data.user+"', 'down')",function(error, results2, fields) {
               var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
-              socket_vm.emit("stop", json);
+              socket_vm.emit(`stop`, json);
                 logger.info(`enviado stop`);
-                conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 conexion.release();
 
@@ -1426,7 +1426,7 @@ socket.on(`loaded`, function (data) {
             });
           }
           else{
-            conexion.query("UNLOCK TABLES",function(error, results, fields) {
+            conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
               logger.debug(`liberando tablas MySQL`);
             conexion.release();
 
@@ -1440,9 +1440,9 @@ socket.on(`loaded`, function (data) {
                 var socket_vm = getsocketfromip(ipvm);
                 conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+ipvm+"', '"+data.motivo+"','"+data.user+"', 'down')",function(error, results2, fields) {
                   var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
-                  socket_vm.emit("stop", json);
+                  socket_vm.emit(`stop`, json);
                     logger.info(`enviado stop`);
-                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     conexion.release();
 
@@ -1450,7 +1450,7 @@ socket.on(`loaded`, function (data) {
                 });
               }
               else{
-                conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 conexion.release();
 
@@ -1459,7 +1459,7 @@ socket.on(`loaded`, function (data) {
 
             }
             else{
-              conexion.query("UNLOCK TABLES",function(error, results, fields) {
+              conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                 logger.debug(`liberando tablas MySQL`);
               conexion.release();
 
@@ -1545,8 +1545,8 @@ socket.on(`loaded`, function (data) {
 
                                       var bucle = function(){
                                         if(min < max){
-                                          broadcastservers("dnatae-eliminarsolo", {"ip_origen" : firewall1[min].ip_origen, "ipvm" : asignaciones[0].ip_vm, "puerto" : data.puerto});
-                                          firewall.dnatae("eliminarsolo", firewall1[min].ip_origen, asignaciones[0].ip_vm, data.puerto, function(){
+                                          broadcastservers(`dnatae-eliminarsolo`, {"ip_origen" : firewall1[min].ip_origen, "ipvm" : asignaciones[0].ip_vm, "puerto" : data.puerto});
+                                          firewall.dnatae(`eliminarsolo`, firewall1[min].ip_origen, asignaciones[0].ip_vm, data.puerto, function(){
                                             min++;
                                             bucle();
                                           });
@@ -1554,10 +1554,10 @@ socket.on(`loaded`, function (data) {
                                         }
                                         else{
                                           if(user_socket.get(asignaciones[0].usuario) != undefined){
-                                            broadcastclient(asignaciones[0].usuario, "stop", {"motivo" : asignaciones[0].motivo});
+                                            broadcastclient(asignaciones[0].usuario, `stop`, {"motivo" : asignaciones[0].motivo});
                                           }
                                           else{
-                                            broadcastservers("enviar-stop", {"user" : asignaciones[0].usuario, "motivo" : asignaciones[0].motivo});
+                                            broadcastservers(`enviar-stop`, {"user" : asignaciones[0].usuario, "motivo" : asignaciones[0].motivo});
                                           }
                                           resolve();
                                         }
@@ -1573,7 +1573,7 @@ socket.on(`loaded`, function (data) {
 
                                       var bucle = function(){
                                         if(min < max){
-                                          broadcastservers("deletednat", firewall1[min].ip_origen);
+                                          broadcastservers(`deletednat`, firewall1[min].ip_origen);
                                           firewall.deletednat(firewall1[min].ip_origen, function(){
                                             min++;
                                             bucle();
@@ -1582,10 +1582,10 @@ socket.on(`loaded`, function (data) {
                                         }
                                         else{
                                           if(user_socket.get(asignaciones[0].usuario) != undefined){
-                                            broadcastclient(asignaciones[0].usuario, "stop", {"motivo" : asignaciones[0].motivo});
+                                            broadcastclient(asignaciones[0].usuario, `stop`, {"motivo" : asignaciones[0].motivo});
                                           }
                                           else{
-                                            broadcastservers("enviar-stop", {"user" : asignaciones[0].usuario, "motivo" : asignaciones[0].motivo});
+                                            broadcastservers(`enviar-stop`, {"user" : asignaciones[0].usuario, "motivo" : asignaciones[0].motivo});
                                           }
 
                                           resolve();
@@ -1630,7 +1630,7 @@ socket.on(`loaded`, function (data) {
                                 connection.query(bloqueo_tablas,function(error, results, fields) {
                                   connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+data.motivo+"'",function(error, result, fields) {
                                     connection.query("DELETE FROM Servicios WHERE motivo='"+data.motivo+"'",function(error, result, fields) {
-                                      connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                      connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                         connection.release();
                                       });
                                     });
@@ -1638,7 +1638,7 @@ socket.on(`loaded`, function (data) {
                                 });
                               });
                             });
-                            conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                            conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                               logger.debug(`liberando tablas MySQL`);
                             conexion.release();
 
@@ -1647,7 +1647,7 @@ socket.on(`loaded`, function (data) {
                           });
                           }
                           else{
-                            conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                            conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                               logger.debug(`liberando tablas MySQL`);
                             conexion.release();
 
@@ -1676,7 +1676,7 @@ socket.on(`loaded`, function (data) {
                                 conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+data.user+"' AND motivo='"+data.motivo+"'",function(error, result, fields) {
                                   conexion.query("DELETE FROM Matriculados WHERE usuario='"+data.user+"' AND motivo='"+data.motivo+"'",function(error, result, fields) {
                                     conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+data.user+"' AND motivo='"+data.motivo+"'",function(error, result, fields) {
-                                      conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                         conexion.release();
                                       });
                                     });
@@ -1694,7 +1694,7 @@ socket.on(`loaded`, function (data) {
                                               connection.query(bloqueo_tablas,function(error, results, fields) {
                                                 connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+data.motivo+"'",function(error, result, fields) {
                                                   connection.query("DELETE FROM Servicios WHERE motivo='"+data.motivo+"'",function(error, result, fields) {
-                                                    connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                                    connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                       connection.release();
                                                     });
                                                   });
@@ -1702,12 +1702,12 @@ socket.on(`loaded`, function (data) {
                                               });
                                             });
                                           });
-                                          conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                             conexion.release();
                                           });
                                         }
                                         else{
-                                          conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                             conexion.release();
                                           });
                                         }
@@ -1721,7 +1721,7 @@ socket.on(`loaded`, function (data) {
                       });
                     });
 
-                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     conexion.release();
 
@@ -1732,7 +1732,7 @@ socket.on(`loaded`, function (data) {
 
                     }
                     else{
-                      conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                         logger.debug(`liberando tablas MySQL`);
                       conexion.release();
 
@@ -1799,7 +1799,7 @@ if(req.session.user != undefined){
   }
   else{
   logger.info(`Es usuario "${req.session.user}"`);
-  if(req.session.rol == "profesor"){
+  if(req.session.rol == `profesor`){
     pool.getConnection(function(err, connection) {
     var conexion = connection;
     conexion.query("SELECT * FROM Matriculados NATURAL JOIN Asignaciones WHERE usuario='"+req.session.user+"' AND motivo NOT IN ( SELECT motivo FROM Pendientes WHERE tipo='down' AND usuario='"+req.session.user+"')",function(error, upped, fields) {
@@ -1924,9 +1924,9 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
         conexion.query("DELETE FROM Firewall WHERE ip_origen='"+ip_origen+"'",function(error, results, fields) {
 
 
-          req.session.user = req.session["cas_userinfo"].username;
+          req.session.user = req.session[`cas_userinfo`].username;
 
-  //req.session.user = req.session["cas_userinfo"].username;
+  //req.session.user = req.session[`cas_userinfo`].username;
   req.session.ip_origen = ip_origen;
   getRoll(req.session.user)
   .then((rol) => {
@@ -1949,18 +1949,18 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
         var bucle = function(){
           if(min < max){
             if(min == 0){
-              broadcastservers("añadircomienzo", ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto)
-              firewall.dnatae("añadircomienzo", ip_origen, row[min].ip_vm, 0, function(){
-                broadcastservers("añadirsolo", ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto);
-                firewall.dnatae("añadirsolo", ip_origen, row[min].ip_vm, row[min].puerto, function(){
+              broadcastservers(`añadircomienzo`, ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto)
+              firewall.dnatae(`añadircomienzo`, ip_origen, row[min].ip_vm, 0, function(){
+                broadcastservers(`añadirsolo`, ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto);
+                firewall.dnatae(`añadirsolo`, ip_origen, row[min].ip_vm, row[min].puerto, function(){
                   min++;
                   bucle();
                 });
               });
             }
             else{
-              broadcastservers("añadirsolo", ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto);
-              firewall.dnatae("añadirsolo", ip_origen, row[min].ip_vm, row[min].puerto, function(){
+              broadcastservers(`añadirsolo`, ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto);
+              firewall.dnatae(`añadirsolo`, ip_origen, row[min].ip_vm, row[min].puerto, function(){
                 min++;
                 bucle();
               });
@@ -2010,7 +2010,7 @@ app.get(`/logout`,cas.logout, function(req,res){
           conexion.release();
           setTimeout(function(){
             if(user_socket.get(user) != undefined){
-              broadcastclient(user, "reload","");
+              broadcastclient(user, `reload`,"");
             }
             res.redirect(`/`);
           },4000);
@@ -2025,14 +2025,14 @@ app.get(`/logout`,cas.logout, function(req,res){
 
 app.get(`/comprobardisponibilidad`, function(req,res){
   if(req.session.user != undefined){
-    if(req.session.rol == "profesor"){
+    if(req.session.rol == `profesor`){
         pool.getConnection(function(err, connection) {
           var conexion = connection;
           conexion.query("SELECT count(*) AS total FROM Servicios WHERE motivo='"+req.query.nombre+"'",function(error, total, fields) {
               conexion.release();
               var datos = {};
               if(total[0].total == 0){
-                  datos = {"valido" : true};
+                  datos = {`valido` : true};
                 }else{
                   datos = {"valido" : false};
                 }
@@ -2040,11 +2040,11 @@ app.get(`/comprobardisponibilidad`, function(req,res){
             });
       });
     }else{
-      res.send("no disponible");
+      res.send(`no disponible`);
     }
   }
   else{
-    res.send("no disponible");
+    res.send(`no disponible`);
   }
 
 })
@@ -2053,7 +2053,7 @@ var quitardominio = new RegExp(/\w*/);
 
 app.post(`/nuevoservicio`, function(req,res){
   if(req.session.user != undefined){
-    if(req.session.rol == "profesor"){
+    if(req.session.rol == `profesor`){
       req.body[`nombreservicio`] = functions.getCleanedString(req.body[`nombreservicio`]);
       pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas,function(error, results, fields) {
@@ -2068,7 +2068,7 @@ app.post(`/nuevoservicio`, function(req,res){
                       connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
                         connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
                           if(item == valores[valores.length-1]){
-                            connection.query("UNLOCK TABLES",function(error, results, fields) {
+                            connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                 logger.debug(`liberando tablas MySQL`);
                               connection.release();
                               res.redirect(`/controlpanel`);
@@ -2083,7 +2083,7 @@ app.post(`/nuevoservicio`, function(req,res){
                     var aux = valores.match(quitardominio);
                     connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
                       connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
-                        connection.query("UNLOCK TABLES",function(error, results, fields) {
+                        connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                             logger.debug(`liberando tablas MySQL`);
                           connection.release();
                           res.redirect(`/controlpanel`);
@@ -2093,7 +2093,7 @@ app.post(`/nuevoservicio`, function(req,res){
                   }
                 }
                 else{
-                  connection.query("UNLOCK TABLES",function(error, results, fields) {
+                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     connection.release();
                     res.redirect(`/controlpanel`);
@@ -2102,7 +2102,7 @@ app.post(`/nuevoservicio`, function(req,res){
               });
             }
             else{
-              connection.query("UNLOCK TABLES",function(error, results, fields) {
+              connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 connection.release();
                 res.redirect(`/controlpanel`);
@@ -2120,7 +2120,7 @@ app.post(`/nuevoservicio`, function(req,res){
 
 app.post(`/eliminarservicio`, function(req,res){
   if(req.session.user != undefined){
-    if(req.session.rol == "profesor"){
+    if(req.session.rol == `profesor`){
       pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas,function(error, results, fields) {
           connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
@@ -2154,7 +2154,7 @@ app.post(`/eliminarservicio`, function(req,res){
                                                                 connection.query(bloqueo_tablas,function(error, results, fields) {
                                                                   connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                                     connection.query("DELETE FROM Servicios WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
-                                                                      connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                                                      connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                                         connection.release();
                                                                       });
                                                                     });
@@ -2182,7 +2182,7 @@ app.post(`/eliminarservicio`, function(req,res){
                                           var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                           connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                             var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
-                                            socket_vm.emit("stop", json);
+                                            socket_vm.emit(`stop`, json);
                                               logger.info(`enviado stop`);
                                               min++;
                                               bucle();
@@ -2208,7 +2208,7 @@ app.post(`/eliminarservicio`, function(req,res){
                             if(result[0].total == 0){
                               connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                 connection.query("DELETE FROM Servicios WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
-                                  connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                     connection.release();
                                     res.redirect(`/controlpanel`);
                                   });
@@ -2216,7 +2216,7 @@ app.post(`/eliminarservicio`, function(req,res){
                               });
                             }
                             else{
-                              connection.query("UNLOCK TABLES",function(error, results, fields) {
+                              connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                 connection.release();
                                 res.redirect(`/controlpanel`);
                               });
@@ -2233,7 +2233,7 @@ app.post(`/eliminarservicio`, function(req,res){
                   });
                 }
                 else{
-                  connection.query("UNLOCK TABLES",function(error, results, fields) {
+                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     connection.release();
                     res.redirect(`/controlpanel`);
@@ -2242,7 +2242,7 @@ app.post(`/eliminarservicio`, function(req,res){
               });
             }
             else{
-              connection.query("UNLOCK TABLES",function(error, results, fields) {
+              connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 connection.release();
                 res.redirect(`/controlpanel`);
@@ -2260,7 +2260,7 @@ app.post(`/eliminarservicio`, function(req,res){
 
 app.post(`/aniadirusuarios`, function(req,res){
   if(req.session.user != undefined){
-    if(req.session.rol == "profesor"){
+    if(req.session.rol == `profesor`){
       pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas,function(error, results, fields) {
           connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
@@ -2278,7 +2278,7 @@ app.post(`/aniadirusuarios`, function(req,res){
                             connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
                                 connection.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                 if(item == valores[valores.length-1]){
-                                  connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                       logger.debug(`liberando tablas MySQL`);
                                     connection.release();
                                     res.redirect(`/controlpanel`);
@@ -2290,7 +2290,7 @@ app.post(`/aniadirusuarios`, function(req,res){
                         }
                         else{
                           if(item == valores[valores.length-1]){
-                            connection.query("UNLOCK TABLES",function(error, results, fields) {
+                            connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                 logger.debug(`liberando tablas MySQL`);
                               connection.release();
                               res.redirect(`/controlpanel`);
@@ -2308,7 +2308,7 @@ app.post(`/aniadirusuarios`, function(req,res){
                         connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
                           connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
                             connection.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
-                              connection.query("UNLOCK TABLES",function(error, results, fields) {
+                              connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                   logger.debug(`liberando tablas MySQL`);
                                 connection.release();
                                 res.redirect(`/controlpanel`);
@@ -2318,7 +2318,7 @@ app.post(`/aniadirusuarios`, function(req,res){
                         });
                       }
                       else{
-                        connection.query("UNLOCK TABLES",function(error, results, fields) {
+                        connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                             logger.debug(`liberando tablas MySQL`);
                           connection.release();
                           res.redirect(`/controlpanel`);
@@ -2329,7 +2329,7 @@ app.post(`/aniadirusuarios`, function(req,res){
                 }
                 else{
                   logger.info(`ERROR -> No se han enviado usuarios`);
-                  connection.query("UNLOCK TABLES",function(error, results, fields) {
+                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     connection.release();
                     res.redirect(`/controlpanel`);
@@ -2338,7 +2338,7 @@ app.post(`/aniadirusuarios`, function(req,res){
               }
               else{
                 logger.info(`ERROR -> ya se esta eliminando`);
-                connection.query("UNLOCK TABLES",function(error, results, fields) {
+                connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                     logger.debug(`liberando tablas MySQL`);
                   connection.release();
                   res.redirect(`/controlpanel`);
@@ -2348,7 +2348,7 @@ app.post(`/aniadirusuarios`, function(req,res){
             }
             else{
               logger.info(`ERROR -> no existe en servicios`);
-              connection.query("UNLOCK TABLES",function(error, results, fields) {
+              connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 connection.release();
                 res.redirect(`/controlpanel`);
@@ -2364,7 +2364,7 @@ app.post(`/aniadirusuarios`, function(req,res){
 
 app.post(`/eliminarusuarios`, function(req,res){
   if(req.session.user != undefined){
-    if(req.session.rol == "profesor"){
+    if(req.session.rol == `profesor`){
       pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas,function(error, results, fields) {
           connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
@@ -2400,7 +2400,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                                 conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                   conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                     conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
-                                                      conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                         conexion.release();
                                                       });
                                                     });
@@ -2418,7 +2418,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                                               connection.query(bloqueo_tablas,function(error, results, fields) {
                                                                 connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                                   connection.query("DELETE FROM Servicios WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
-                                                                    connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                                                    connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                                       connection.release();
                                                                     });
                                                                   });
@@ -2426,12 +2426,12 @@ app.post(`/eliminarusuarios`, function(req,res){
                                                               });
                                                             });
                                                           });
-                                                          conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                                          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                             conexion.release();
                                                           });
                                                         }
                                                         else{
-                                                          conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                                          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                             conexion.release();
                                                           });
                                                         }
@@ -2454,7 +2454,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                         var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                         connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                           var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
-                                          socket_vm.emit("stop", json);
+                                          socket_vm.emit(`stop`, json);
                                             logger.info(`enviado stop`);
                                             min++;
                                             bucle();
@@ -2492,7 +2492,7 @@ app.post(`/eliminarusuarios`, function(req,res){
 
                       }
                       else{
-                        connection.query("UNLOCK TABLES",function(error, results, fields) {
+                        connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                           connection.release();
                           res.redirect(`/controlpanel`);
                         });
@@ -2523,7 +2523,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                             conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                               conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                 conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
-                                                  conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                     conexion.release();
                                                   });
                                                 });
@@ -2541,7 +2541,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                                           connection.query(bloqueo_tablas,function(error, results, fields) {
                                                             connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                               connection.query("DELETE FROM Servicios WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
-                                                                connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                                                connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                                   connection.release();
                                                                 });
                                                               });
@@ -2549,12 +2549,12 @@ app.post(`/eliminarusuarios`, function(req,res){
                                                           });
                                                         });
                                                       });
-                                                      conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                         conexion.release();
                                                       });
                                                     }
                                                     else{
-                                                      conexion.query("UNLOCK TABLES",function(error, results, fields) {
+                                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                         conexion.release();
                                                       });
                                                     }
@@ -2567,7 +2567,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                     });
                                   });
                                 });
-                                  connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                     connection.release();
                                     res.redirect(`/controlpanel`);
                                   });
@@ -2577,16 +2577,16 @@ app.post(`/eliminarusuarios`, function(req,res){
                                     var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                     connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                       var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
-                                      socket_vm.emit("stop", json);
+                                      socket_vm.emit(`stop`, json);
                                         logger.info(`enviado stop`);
-                                        connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                        connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                           connection.release();
                                           res.redirect(`/controlpanel`);
                                         });
                                     });
                                   }
                                   else{
-                                    connection.query("UNLOCK TABLES",function(error, results, fields) {
+                                    connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                         logger.debug(`liberando tablas MySQL`);
                                       connection.release();
                                       res.redirect(`/controlpanel`);
@@ -2597,7 +2597,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                             });
                             }
                             else{
-                              connection.query("UNLOCK TABLES",function(error, results, fields) {
+                              connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                                   logger.debug(`liberando tablas MySQL`);
                                 connection.release();
                                 res.redirect(`/controlpanel`);
@@ -2607,7 +2607,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                         });
                       }
                       else{
-                        connection.query("UNLOCK TABLES",function(error, results, fields) {
+                        connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                             logger.debug(`liberando tablas MySQL`);
                           connection.release();
                           res.redirect(`/controlpanel`);
@@ -2616,7 +2616,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                       });
                       }
                     else{
-                      connection.query("UNLOCK TABLES",function(error, results, fields) {
+                      connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                           logger.debug(`liberando tablas MySQL`);
                         connection.release();
                         res.redirect(`/controlpanel`);
@@ -2627,7 +2627,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                 }
                 else{
                   logger.info(`ERROR -> No se han enviado usuarios`);
-                  connection.query("UNLOCK TABLES",function(error, results, fields) {
+                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     connection.release();
                     res.redirect(`/controlpanel`);
@@ -2636,7 +2636,7 @@ app.post(`/eliminarusuarios`, function(req,res){
               }
               else{
                 logger.info(`ERROR -> ya se esta eliminando`);
-                connection.query("UNLOCK TABLES",function(error, results, fields) {
+                connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                     logger.debug(`liberando tablas MySQL`);
                   connection.release();
                   res.redirect(`/controlpanel`);
@@ -2646,7 +2646,7 @@ app.post(`/eliminarusuarios`, function(req,res){
             }
             else{
               logger.info(`ERROR -> no existe en servicios`);
-              connection.query("UNLOCK TABLES",function(error, results, fields) {
+              connection.query(`UNLOCK TABLES`,function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 connection.release();
                 res.redirect(`/controlpanel`);
