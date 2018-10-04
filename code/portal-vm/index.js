@@ -61,7 +61,35 @@ var socket_client_servers = new Map();
 sesion.createsession(app, websocket_client); //creamos la sesion
 var ip_vms = new Map();
 var user_socket = new Map();
-var bloqueo_tablas = "LOCK TABLES VMS WRITE, VMS as v1 READ, Ovirt_Pendientes_Up_AddStart WRITE, Ovirt_Pendientes_Up_AddStart as ovpuas READ, Ultima_conexion WRITE, Ultima_conexion as uc READ, Eliminar_servicio_usuario WRITE, Eliminar_servicio_usuario as esu READ, Eliminar_servicio WRITE, Eliminar_servicio as es READ, Servicios WRITE, Servicios as s1 READ, Matriculados WRITE, Matriculados as m1 READ, Ovirt WRITE, Ovirt as ov READ, Ovirt_Pendientes WRITE, Ovirt_Pendientes as ovp READ, Banco_ip WRITE, Banco_ip as bip READ, Firewall WRITE, Firewall as f1 READ, Pendientes WRITE, Pendientes as p1 READ, Asignaciones WRITE, Asignaciones as a1 READ, Cola WRITE, Cola as c1 READ";
+var bloqueo_tablas = `LOCK TABLES
+  VMS WRITE,
+  VMS as v1 READ,
+  Ovirt_Pendientes_Up_AddStart WRITE,
+  Ovirt_Pendientes_Up_AddStart as ovpuas READ,
+  Ultima_conexion WRITE,
+  Ultima_conexion as uc READ,
+  Eliminar_servicio_usuario WRITE,
+  Eliminar_servicio_usuario as esu READ,
+  Eliminar_servicio WRITE,
+  Eliminar_servicio as es READ,
+  Servicios WRITE,
+  Servicios as s1 READ,
+  Matriculados WRITE,
+  Matriculados as m1 READ,
+  Ovirt WRITE,
+  Ovirt as ov READ,
+  Ovirt_Pendientes WRITE,
+  Ovirt_Pendientes as ovp READ,
+  Banco_ip WRITE,
+  Banco_ip as bip READ,
+  Firewall WRITE,
+  Firewall as f1 READ,
+  Pendientes WRITE,
+  Pendientes as p1 READ,
+  Asignaciones WRITE,
+  Asignaciones as a1 READ,
+  Cola WRITE,
+  Cola as c1 READ`;
 
 
 //AUTENTICACION POR CAS ULL
@@ -87,7 +115,7 @@ logger.debug(`Entramos ovirt_vms`);
 
 pool.getConnection(function(err, connection) {
   connection.query(bloqueo_tablas,function(error, results, fields) {
-  connection.query("SELECT COUNT(*) AS total FROM ( SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 UNION SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='up') as t1", function(error, total, fields) {
+  connection.query(`SELECT COUNT(*) AS total FROM ( SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 UNION SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='up') as t1`, function(error, total, fields) {
     connection.query(`SELECT COUNT(DISTINCT usuario) AS total FROM Cola as c1`, function(error, total_usuarios_cola, fields) {
 
     if(((total_usuarios_cola[0].total/config.numero_max_users)+config.numero_vm_reserva) > total[0].total){
@@ -101,18 +129,18 @@ pool.getConnection(function(err, connection) {
 
         logger.info(`Añadimos vm`);
         connection.query(`SELECT * FROM Banco_ip as bip WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT 1`, function(error, escoger_ip, fields) {
-          connection.query("INSERT INTO Ovirt (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-"+escoger_ip[0].ip+"', '"+escoger_ip[0].ip+"')", function(error, result, fields) {
-            connection.query("INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-"+escoger_ip[0].ip+"', '"+escoger_ip[0].ip+"', 'up')", function(error, result, fields) {
-              connection.query("INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-"+escoger_ip[0].ip+"', '"+escoger_ip[0].ip+"')", function(error, result, fields) {
+          connection.query(`INSERT INTO Ovirt (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}')`, function(error, result, fields) {
+            connection.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}', 'up')`, function(error, result, fields) {
+              connection.query(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}')`, function(error, result, fields) {
 
               connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
                 if(contar_ovp_up[0].total == 1){
 
                   var bucle2 = function(ip){
-                  ovirt.add_and_start_vm("ULL-CloudIDE-backend-"+ip,ip, function(){
+                  ovirt.add_and_start_vm(`ULL-CloudIDE-backend-${ip}`,ip, function(){
                     pool.getConnection(function(err, conexion) {
                       conexion.query(bloqueo_tablas,function(error, results, fields) {
-                        conexion.query("DELETE FROM Ovirt_Pendientes_Up_AddStart WHERE ip_vm='"+ip+"'", function(error, result, fields) {
+                        conexion.query(`DELETE FROM Ovirt_Pendientes_Up_AddStart WHERE ip_vm='${ip}'`, function(error, result, fields) {
                             logger.info(`VM added and started "ULL-CloudIDE-backend-${ip}"`);
                             conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
                               if(contar_ovp_up[0].total != 0){
@@ -128,7 +156,6 @@ pool.getConnection(function(err, connection) {
                               else{
                                 conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                       logger.debug(`liberando tablas MySQL`);
-
                                     conexion.release();
                                 });
                               }
@@ -176,21 +203,21 @@ pool.getConnection(function(err, connection) {
 
             logger.info(`Stop and Remove VM`);
             connection.query(`SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 LIMIT 1`, function(error, escoger_vm, fields) {
-              connection.query("DELETE FROM VMS WHERE ip_vm='"+escoger_vm[0].ip_vm+"'", function(error, result, fields) {
-                connection.query("INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-"+escoger_vm[0].ip_vm+"', '"+escoger_vm[0].ip_vm+"', 'down')", function(error, result, fields) {
-                  connection.query("SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' ", function(error, contar_ovp_down, fields) {
+              connection.query(`DELETE FROM VMS WHERE ip_vm='${escoger_vm[0].ip_vm}'`, function(error, result, fields) {
+                connection.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-${escoger_vm[0].ip_vm}', '${escoger_vm[0].ip_vm}', 'down')`, function(error, result, fields) {
+                  connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' `, function(error, contar_ovp_down, fields) {
                     if(contar_ovp_down[0].total == 1){
 
                       var bucle2 = function(ip){
-                      ovirt.stop_and_remove_vm("ULL-CloudIDE-backend-"+ip, function(){
+                      ovirt.stop_and_remove_vm(`ULL-CloudIDE-backend-${ip}`, function(){
                         pool.getConnection(function(err, conexion) {
                           conexion.query(bloqueo_tablas,function(error, results, fields) {
-                            conexion.query("DELETE FROM Ovirt_Pendientes WHERE ip_vm='"+ip+"'", function(error, result, fields) {
-                              conexion.query("DELETE FROM Ovirt WHERE ip_vm='"+ip+"'", function(error, result, fields) {
+                            conexion.query(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ip}'`, function(error, result, fields) {
+                              conexion.query(`DELETE FROM Ovirt WHERE ip_vm='${ip}'`, function(error, result, fields) {
                                 logger.info(`VM stopped and removed "ULL-CloudIDE-backend-${ip}"`);
-                                conexion.query("SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' ", function(error, contar_ovp_down, fields) {
+                                conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' `, function(error, contar_ovp_down, fields) {
                                   if(contar_ovp_down[0].total != 0){
-                                    conexion.query("SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='down' LIMIT 1", function(error, escoger_ovp, fields) {
+                                    conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='down' LIMIT 1` function(error, escoger_ovp, fields) {
                                       bucle2(escoger_ovp[0].ip_vm);
                                       conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                             logger.debug(`liberando tablas MySQL`);
@@ -271,7 +298,7 @@ var comprobarservidor = function(){
   logger.info(`Comprobando servidor...`);
   pool.getConnection(function(err, connection) {
     if(err) logger.info(`comprobarservidor error obteniendo conexión: "${err}"`);
-    connection.query("INSERT INTO Servidores (ip_server) SELECT '"+addresses[1]+"' FROM dual WHERE NOT EXISTS (SELECT * FROM Servidores WHERE ip_server='"+addresses[1]+"')", function(error, results, fields){
+    connection.query(`INSERT INTO Servidores (ip_server) SELECT '${addresses[1]}' FROM dual WHERE NOT EXISTS (SELECT * FROM Servidores WHERE ip_server='${addresses[1]}')`, function(error, results, fields){
       connection.release();
     });
   });
@@ -287,7 +314,7 @@ setInterval(comprobarservidor, 600000);
 pool.getConnection(function(err, connection) {
   var conexion = connection;
   if(err) logger.info(`comprobarservidor error obteniendo conexión: "${err}"`);
-  conexion.query("SELECT * FROM Servidores WHERE ip_server<>'"+addresses[1]+"'",function(error, results, fields) {
+  conexion.query(`SELECT * FROM Servidores WHERE ip_server<>'${addresses[1]}'`,function(error, results, fields) {
 
     var servers = results;
     conexion.release();
@@ -303,7 +330,7 @@ pool.getConnection(function(err, connection) {
               pool.getConnection(function(err, connection) {
               var conexion = connection;
               conexion.query(bloqueo_tablas,function(error, results, fields) {
-                conexion.query("DELETE FROM Servidores WHERE ip_server='"+ip_server+"'",function(error, result, fields) {
+                conexion.query(`DELETE FROM Servidores WHERE ip_server='${ip_server}'`,function(error, result, fields) {
                   socket_client_servers.get(ip_server).disconnect();
                   socket_client_servers.delete(ip_server);
                   logger.info(`server disconnected`);
@@ -378,11 +405,11 @@ pool.getConnection(function(err, connection) {
                     var promise2 = new Promise(function(resolve, reject) {
                     logger.info(`Existen vm libres y hay motivos en cola`);
                       conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
-                        conexion.query("SELECT * FROM Cola AS c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
+                        conexion.query(`SELECT * FROM Cola AS c1 WHERE usuario='${cola_user[0].usuario}'`,function(error, cola_user1, fields) {
                             conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
                               if(ip_vms.get(cola_vm[0].ip_vm)!= undefined){
                               async.forEach(cola_user1, function(item, callback) {
-                                    conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
+                                    conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
                                       var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
                                       getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
 
@@ -407,20 +434,20 @@ pool.getConnection(function(err, connection) {
                       if(result != `false`){
                       conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
                         conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
-                          conexion.query("SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones WHERE ip_vm='"+cola_vm[0].ip_vm+"' UNION SELECT DISTINCT usuario FROM Pendientes WHERE ip_vm='"+cola_vm[0].ip_vm+"') AS tmp",function(error, numero_users_vm, fields) {
+                          conexion.query(`SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones WHERE ip_vm='${cola_vm[0].ip_vm}' UNION SELECT DISTINCT usuario FROM Pendientes WHERE ip_vm='{$cola_vm[0].ip_vm}') AS tmp`,function(error, numero_users_vm, fields) {
                             logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
                             if(numero_users_vm[0].total == config.numero_max_users){
-                              conexion.query("DELETE FROM VMS WHERE ip_vm='"+cola_vm[0].ip_vm+"'",function(error, cola_vm, fields) {
+                              conexion.query(`DELETE FROM VMS WHERE ip_vm='${cola_vm[0].ip_vm}'`,function(error, cola_vm, fields) {
                               });
                             }
                             else{
-                              conexion.query("UPDATE VMS SET prioridad=0 WHERE ip_vm='"+cola_vm[0].ip_vm+"'",function(error, results, fields) {
+                              conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${cola_vm[0].ip_vm}'`,function(error, results, fields) {
                                 logger.info(`actualizamos vm`);
                               });
 
                             }
 
-                                conexion.query("DELETE FROM Cola WHERE usuario='"+cola_user[0].usuario+"'",function(error, results, fields) {
+                                conexion.query(`DELETE FROM Cola WHERE usuario='${cola_user[0].usuario}'`,function(error, results, fields) {
                                   logger.info(`enviado a vm`);
                                   conexion.query(`UNLOCK TABLES`);
                                   conexion.release();
@@ -525,7 +552,7 @@ websocket_servers.on(`connection`, function(socket){
       pool.getConnection(function(err, connection) {
       var conexion = connection;
       conexion.query(bloqueo_tablas,function(error, results, fields) {
-        conexion.query("DELETE FROM Servidores WHERE ip_server='"+functions.cleanaddress(socket.handshake.address)+"'",function(error, result, fields) {
+        conexion.query(`DELETE FROM Servidores WHERE ip_server='${functions.cleanaddress(socket.handshake.address)}'`,function(error, result, fields) {
           socket_client_servers.get(functions.cleanaddress(socket.handshake.address)).disconnect();
           socket_client_servers.delete(functions.cleanaddress(socket.handshake.address));
           logger.info(`server disconnected`);
@@ -638,18 +665,18 @@ websocket_servers.on(`connection`, function(socket){
           var conexion = connection;
 
           conexion.query(bloqueo_tablas,function(error, results, fields) {
-            conexion.query("SELECT COUNT(*) AS total FROM Matriculados AS m1 WHERE usuario='"+socket.session.user+"' AND motivo='"+data+"'",function(error, existe_matriculados, fields) {
+            conexion.query(`SELECT COUNT(*) AS total FROM Matriculados AS m1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, existe_matriculados, fields) {
               if(existe_matriculados[0].total != 0){
-                conexion.query("SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='"+socket.session.user+"' AND motivo='"+data+"' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='"+data+"') AS alias",function(error, total, fields) {
+                conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='${socket.session.user}' AND motivo='${data}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data}') AS alias`function(error, total, fields) {
                   if(total[0].total == 0){
-            conexion.query("SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE motivo='"+data+"' AND usuario='"+socket.session.user+"'",function(error, resultspendientes, fields) {
+            conexion.query(`SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE motivo='${data}' AND usuario='${socket.session.user}'`,function(error, resultspendientes, fields) {
               if(resultspendientes[0].total == 0){
-              conexion.query("SELECT * FROM Asignaciones AS a1 WHERE motivo='"+data+"' AND usuario='"+socket.session.user+"'",function(error, results, fields) {
+              conexion.query(`SELECT * FROM Asignaciones AS a1 WHERE motivo='${data}' AND usuario='${socket.session.user}'`,function(error, results, fields) {
                 if(results.length != 0){
 
                   if(ip_vms.get(results[0].ip_vm) != undefined){
                     var socket_vm = getsocketfromip(results[0].ip_vm);
-                    conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+results[0].ip_vm+"', '"+results[0].motivo+"','"+socket.session.user+"', 'down')",function(error, results2, fields) {
+                    conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${results[0].ip_vm}', '${results[0].motivo}','${socket.session.user}', 'down')`,function(error, results2, fields) {
                       var json = {"user" : socket.session.user, "motivo" : data, "puerto" : results[0].puerto};
                       socket_vm.emit(`stop`, json);
                         logger.info(`enviado stop`);
@@ -746,30 +773,30 @@ websocket_servers.on(`connection`, function(socket){
 
         var promise3 = new Promise(function(resolve, reject) {
 
-          conexion.query("SELECT COUNT(*) AS total FROM Matriculados AS m1 WHERE usuario='"+socket.session.user+"' AND motivo='"+data+"'",function(error, existe_matriculados, fields) {
+          conexion.query(`SELECT COUNT(*) AS total FROM Matriculados AS m1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, existe_matriculados, fields) {
             if(existe_matriculados[0].total != 0){
-              conexion.query("SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='"+socket.session.user+"' AND motivo='"+data+"' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='"+data+"') AS alias",function(error, total, fields) {
+              conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='${socket.session.user}' AND motivo='${data}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data}') AS alias`function(error, total, fields) {
                 if(total[0].total == 0){
-          conexion.query("SELECT COUNT(*) AS total FROM Asignaciones AS a1 WHERE usuario='"+socket.session.user+"'",function(error, row, fields) {
-            conexion.query("SELECT COUNT(*) AS total FROM Asignaciones AS a1 WHERE usuario='"+socket.session.user+"' AND motivo='"+data+"'",function(error, motivototal, fields) {
-                  conexion.query("SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE usuario='"+socket.session.user+"' AND motivo='"+data+"'",function(error, pendientes1, fields) {
+          conexion.query(`SELECT COUNT(*) AS total FROM Asignaciones AS a1 WHERE usuario='${socket.session.user}'`,function(error, row, fields) {
+            conexion.query(`SELECT COUNT(*) AS total FROM Asignaciones AS a1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, motivototal, fields) {
+                  conexion.query(`SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, pendientes1, fields) {
                     logger.info(`Hay en pendiente del motivo "${pendientes1[0].total}" y en asignaciones "${motivototal[0].total}"`);
                     if((pendientes1[0].total == 0) && (motivototal[0].total == 0)){
 
                         logger.info(`no esta en pendientes ni en asignaciones`);
-                        conexion.query("SELECT COUNT(*) AS total FROM Cola AS c1 WHERE usuario='"+socket.session.user+"'",function(error, total_cola, fields) {
+                        conexion.query(`SELECT COUNT(*) AS total FROM Cola AS c1 WHERE usuario='${socket.session.user}'`,function(error, total_cola, fields) {
 
                           var existiruser = total_cola[0].total; //cuantos en cola
 
-                            conexion.query("SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE usuario='"+socket.session.user+"' AND tipo='up'",function(error, pendientes1total, fields) {
+                            conexion.query(`SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE usuario='${socket.session.user}' AND tipo='up'`,function(error, pendientes1total, fields) {
 
-                                conexion.query("SELECT COUNT(*) AS total FROM Cola AS c1 WHERE usuario='"+socket.session.user+"' AND motivo='"+data+"'",function(error, cola_user, fields) {
+                                conexion.query(`SELECT COUNT(*) AS total FROM Cola AS c1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, cola_user, fields) {
 
                                   if(cola_user[0].total == 0){
 
                                     if((existiruser + row[0].total + pendientes1total[0].total)  < n){
                                       logger.info(`se inserta en la cola`);
-                                        conexion.query("INSERT INTO Cola (motivo, usuario) VALUES ('"+data+"','"+socket.session.user+"')",function(error, results, fields) {
+                                        conexion.query(`INSERT INTO Cola (motivo, usuario) VALUES ('${data}','${socket.session.user}')`,function(error, results, fields) {
                                           bool = true;
                                           resolve(`se inserta`);
                                         });
@@ -839,18 +866,18 @@ websocket_servers.on(`connection`, function(socket){
                         logger.info(`bool es true`);
 
                           var promise6 = new Promise(function(resolve, reject) {
-                            conexion.query("SELECT COUNT(*) AS total FROM Asignaciones AS a1 WHERE usuario='"+socket.session.user+"'",function(error, row, fields) {
+                            conexion.query(`SELECT COUNT(*) AS total FROM Asignaciones AS a1 WHERE usuario='${socket.session.user}'`,function(error, row, fields) {
 
-                              conexion.query("SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE usuario='"+socket.session.user+"'",function(error, pendientes1total, fields) {
+                              conexion.query(`SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE usuario='${socket.session.user}'`,function(error, pendientes1total, fields) {
                               if(((row[0].total + pendientes1total[0].total) > 0)){
 
-                                  conexion.query("SELECT ip_vm FROM Pendientes AS p1 WHERE usuario='"+socket.session.user+"'",function(error, pip, fields) {
+                                  conexion.query(`SELECT ip_vm FROM Pendientes AS p1 WHERE usuario='${socket.session.user}'`,function(error, pip, fields) {
 
                                     var socket_vm=0;
                                     var ip =0;
                                     var promise4 = new Promise(function(resolve, reject) {
                                       if(pip.length == 0){
-                                          conexion.query("SELECT ip_vm FROM Asignaciones AS a1 WHERE usuario='"+socket.session.user+"'",function(error, aip, fields) {
+                                          conexion.query(`SELECT ip_vm FROM Asignaciones AS a1 WHERE usuario='${socket.session.user}'`,function(error, aip, fields) {
                                             ip = aip[0].ip_vm;
                                             resolve();
                                           });
@@ -866,7 +893,7 @@ websocket_servers.on(`connection`, function(socket){
                                     promise4.then(function(result) {
 
                                       if(ip_vms.get(ip) == undefined){ //si la vm no esta disponible
-                                        conexion.query("DELETE FROM Cola WHERE usuario='"+socket.session.user+"'",function(error, result, fields) {
+                                        conexion.query(`DELETE FROM Cola WHERE usuario='${socket.session.user}'`,function(error, result, fields) {
                                           logger.info(`no se puede obtener enlace`);
                                           if(user_socket.get(socket.session.user) != undefined){
                                             socket.emit(`data-error`, {"msg" : `No se puede obtener el servidor`} );
@@ -876,14 +903,14 @@ websocket_servers.on(`connection`, function(socket){
                                       }
                                       else{
                                         socket_vm = getsocketfromip(ip);
-                                        conexion.query("SELECT motivo FROM Cola AS c1 WHERE usuario='"+socket.session.user+"'",function(error, cola_user_motivos, fields) {
+                                        conexion.query(`SELECT motivo FROM Cola AS c1 WHERE usuario='${socket.session.user}'`,function(error, cola_user_motivos, fields) {
                                           var servers = cola_user_motivos;
                                           var promise = new Promise(function(resolve, reject) {
                                             async.forEach(servers, function(item, callback) {
                                               var json = {"user" : socket.session.user, "motivo" : item.motivo};
                                             socket_vm.emit(`load`, json);
                                               logger.info(`enviado a su maquina`);
-                                                conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+ip+"', '"+item.motivo+"','"+socket.session.user+"', 'up')",function(error, results, fields) {
+                                                conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${ip}', '${item.motivo}','${socket.session.user}', 'up')`,function(error, results, fields) {
                                                   if(item == servers[servers.length-1]){
                                                     resolve(`resolver`);
                                                   }
@@ -895,7 +922,7 @@ websocket_servers.on(`connection`, function(socket){
                                             });
 
                                             promise.then(function(result) {
-                                                conexion.query("DELETE FROM Cola WHERE usuario='"+socket.session.user+"'");
+                                                conexion.query(`DELETE FROM Cola WHERE usuario='${socket.session.user}'`);
 
                                               logger.info(result);
                                               resolve();
@@ -939,11 +966,11 @@ websocket_servers.on(`connection`, function(socket){
                                           conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
                                             conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
 
-                                              conexion.query("SELECT * FROM Cola AS c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
+                                              conexion.query(`SELECT * FROM Cola AS c1 WHERE usuario='${cola_user[0].usuario}'`,function(error, cola_user1, fields) {
                                                 if(ip_vms.get(cola_vm[0].ip_vm) != undefined){
                                                   async.forEach(cola_user1, function(item, callback) {
 
-                                                        conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
+                                                        conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
                                                           var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
                                                           getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
 
@@ -979,22 +1006,22 @@ websocket_servers.on(`connection`, function(socket){
                                           if(result != `false`){
                                           conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
                                             conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
-                                            conexion.query("SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones as a1 WHERE ip_vm='"+cola_vm[0].ip_vm+"' UNION SELECT DISTINCT usuario FROM Pendientes as p1 WHERE ip_vm='"+cola_vm[0].ip_vm+"') AS tmp",function(error, numero_users_vm, fields) {
+                                            conexion.query(`SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones as a1 WHERE ip_vm='${cola_vm[0].ip_vm}' UNION SELECT DISTINCT usuario FROM Pendientes as p1 WHERE ip_vm='${cola_vm[0].ip_vm}') AS tmp`,function(error, numero_users_vm, fields) {
                                               logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
                                               if(numero_users_vm[0].total == config.numero_max_users){
-                                              conexion.query("DELETE FROM VMS WHERE ip_vm='"+cola_vm[0].ip_vm+"'",function(error, cola_vm, fields) {
+                                              conexion.query(`DELETE FROM VMS WHERE ip_vm='${cola_vm[0].ip_vm}'`,function(error, cola_vm, fields) {
                                                   logger.info(`eliminado 1`);
                                                     });
                                               }
                                               else{
 
-                                                conexion.query("UPDATE VMS SET prioridad=0 WHERE ip_vm='"+cola_vm[0].ip_vm+"'",function(error, results, fields) {
+                                                conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${cola_vm[0].ip_vm}'`,function(error, results, fields) {
                                                   logger.info(`actualizamos vm`);
                                                 });
 
                                               }
 
-                                                  conexion.query("DELETE FROM Cola WHERE usuario='"+cola_user[0].usuario+"'",function(error, results, fields) {
+                                                  conexion.query(`DELETE FROM Cola WHERE usuario='${cola_user[0].usuario}'`,function(error, results, fields) {
                                                     logger.info(`enviado a vm`);
                                                     conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                     conexion.release();
@@ -1099,7 +1126,7 @@ websocket_servers.on(`connection`, function(socket){
    var conexion = connection;
    conexion.query(bloqueo_tablas,function(error, results, fields) {
 
-     conexion.query("SELECT * FROM Ovirt_Pendientes as ovp WHERE ip_vm='"+ipvm+"'",function(error, existe_pendientes_ovirt, fields) {
+     conexion.query(`SELECT * FROM Ovirt_Pendientes as ovp WHERE ip_vm='${ipvm}'`,function(error, existe_pendientes_ovirt, fields) {
        var bool = true;
     var promesaovirt = new Promise(function(resolve, reject) {
        if(existe_pendientes_ovirt.length != 0){
@@ -1108,7 +1135,7 @@ websocket_servers.on(`connection`, function(socket){
            resolve();
          }
          else{
-           conexion.query("DELETE FROM Ovirt_Pendientes WHERE ip_vm='"+ipvm+"'",function(error, results, fields) {
+           conexion.query(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ipvm}'`,function(error, results, fields) {
              resolve();
            });
          }
@@ -1121,19 +1148,19 @@ websocket_servers.on(`connection`, function(socket){
 
        promesaovirt.then(function(result) {
          if(bool == true){
-     conexion.query("SELECT COUNT(*) AS total FROM VMS as v1 WHERE ip_vm='"+ipvm+"'",function(error, existe, fields) {
+     conexion.query(`SELECT COUNT(*) AS total FROM VMS as v1 WHERE ip_vm='${ipvm}'`,function(error, existe, fields) {
        var promesaprimera = new Promise(function(resolve, reject) {
        if(existe[0].total == 0){
-         conexion.query("SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones as a1 WHERE ip_vm='"+ipvm+"' UNION SELECT DISTINCT usuario FROM Pendientes as p1 WHERE ip_vm='"+ipvm+"') AS tmp",function(error, numero_users_vm, fields) {
+         conexion.query(`SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones as a1 WHERE ip_vm='${ipvm}' UNION SELECT DISTINCT usuario FROM Pendientes as p1 WHERE ip_vm='${ipvm}') AS tmp`,function(error, numero_users_vm, fields) {
            logger.info(`tiene "${numero_users_vm[0].total} usuarios la maquina virtual`);
            if(numero_users_vm[0].total == 0){
-             connection.query("INSERT INTO VMS (prioridad, ip_vm) VALUES (1,'"+ipvm+"')", function(error, results, fields) {
+             connection.query(`INSERT INTO VMS (prioridad, ip_vm) VALUES (1,'${ipvm}')`, function(error, results, fields) {
                resolve();
              });
            }
            else if(numero_users_vm[0].total < config.numero_max_users){
 
-             connection.query("INSERT INTO VMS (prioridad, ip_vm) VALUES (0,'"+ipvm+"')", function(error, results, fields) {
+             connection.query(`INSERT INTO VMS (prioridad, ip_vm) VALUES (0,'${ipvm}')`, function(error, results, fields) {
                resolve();
              });
 
@@ -1158,14 +1185,14 @@ websocket_servers.on(`connection`, function(socket){
                  logger.info(`tiene "${vms_[0].total}" "${total_cola[0].total}"`);
                  if((vms_[0].total != 0)&&(total_cola[0].total != 0)){
                      conexion.query(`SELECT * FROM Cola as c1 LIMIT 1`,function(error, cola_user, fields) {
-                       conexion.query("SELECT * FROM Cola as c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
+                       conexion.query(`SELECT * FROM Cola as c1 WHERE usuario='${cola_user[0].usuario}'`,function(error, cola_user1, fields) {
                            conexion.query(`SELECT * FROM VMS as v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
 
                              if(ip_vms.get(cola_vm[0].ip_vm) != undefined){
                              var promise5 = new Promise(function(resolve, reject) {
                                async.forEach(cola_user1, function(item, callback) {
 
-                                   conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
+                                   conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
                                      var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
                                      getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
                                      if(item == cola_user1[cola_user1.length-1]){
