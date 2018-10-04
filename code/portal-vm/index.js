@@ -353,14 +353,14 @@ pool.getConnection(function(err, connection) {
           socket_client_servers.get(ip_server).on(`enviar-resultado`, function (data) {
             logger.info(`enviar resultado`);
             if(user_socket.get(data.user) != undefined){
-              broadcastclient(data.user, `resultado`, {"motivo" : data.motivo});
+              broadcastclient(data.user, `resultado`, {motivo : data.motivo});
             }
           });
 
           socket_client_servers.get(ip_server).on(`enviar-stop`, function (data) {
             logger.info(`enviar stopp`);
             if(user_socket.get(data.user) != undefined){
-              broadcastclient(data.user, `stop`, {"motivo" : data.motivo});
+              broadcastclient(data.user, `stop`, {motivo : data.motivo});
             }
           });
 
@@ -410,7 +410,7 @@ pool.getConnection(function(err, connection) {
                               if(ip_vms.get(cola_vm[0].ip_vm)!= undefined){
                               async.forEach(cola_user1, function(item, callback) {
                                     conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
-                                      var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
+                                      var json = {user : cola_user[0].usuario, motivo : item.motivo};
                                       getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
 
                                       if(item == cola_user1[cola_user1.length-1]){
@@ -520,9 +520,9 @@ pool.getConnection(function(err, connection) {
       conexion.release();
       async.forEach(results, function(item, callback) {
         logger.info(`firewall usuario "${item.usuario}"`);
-        if(auxiliar.get({"ip_origen" : item.ip_origen,"usuario" : item.usuario}) == undefined){
-          firewall.dnatae("añadircomienzo", item.ip_origen, item.ip_vm,0);
-          auxiliar.set({"ip_origen" : item.ip_origen, "usuario" : item.usuario}, true);
+        if(auxiliar.get({ip_origen : item.ip_origen, usuario : item.usuario}) == undefined){
+          firewall.dnatae(`añadircomienzo`, item.ip_origen, item.ip_vm,0);
+          auxiliar.set({ip_origen : item.ip_origen, usuario : item.usuario}, true);
         }
 
         firewall.dnatae(`añadirsolo`, item.ip_origen, item.ip_vm, item.puerto);
@@ -575,7 +575,7 @@ websocket_servers.on(`connection`, function(socket){
   socket.on(`enviar-resultado`, function (data) {
     logger.info(`enviar resultado`);
     if(user_socket.get(data.user) != undefined){
-      broadcastclient(data.user, `resultado`, {"motivo" : data.motivo});
+      broadcastclient(data.user, `resultado`, {motivo : data.motivo});
     }
     else{
       logger.info(`no tengo el usuario`);
@@ -586,7 +586,7 @@ websocket_servers.on(`connection`, function(socket){
     logger.info(`enviar stopp`);
 
     if(user_socket.get(data.user) != undefined){
-      broadcastclient(data.user, `stop`, {"motivo" : data.motivo});
+      broadcastclient(data.user, `stop`, {motivo : data.motivo});
     }
     else{
       logger.info(`no tengo el usuario`);
@@ -654,7 +654,7 @@ websocket_servers.on(`connection`, function(socket){
       if(socket.session.user){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           if(user_socket.get(socket.session.user) != undefined){
-            socket.emit(`data-error`, {"msg" : `Está accediendo desde una ip diferente a la inicial`} );
+            socket.emit(`data-error`, {msg : `Está accediendo desde una ip diferente a la inicial`} );
           }
           logger.info(`Está accediendo desde una ip diferente a la inicial`);
         }
@@ -677,7 +677,7 @@ websocket_servers.on(`connection`, function(socket){
                   if(ip_vms.get(results[0].ip_vm) != undefined){
                     var socket_vm = getsocketfromip(results[0].ip_vm);
                     conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${results[0].ip_vm}', '${results[0].motivo}','${socket.session.user}', 'down')`,function(error, results2, fields) {
-                      var json = {"user" : socket.session.user, "motivo" : data, "puerto" : results[0].puerto};
+                      var json = {user : socket.session.user, motivo : data, puerto : results[0].puerto};
                       socket_vm.emit(`stop`, json);
                         logger.info(`enviado stop`);
                         conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -688,7 +688,7 @@ websocket_servers.on(`connection`, function(socket){
                   else{
                     logger.info(`no puede eliminar`);
                     if(user_socket.get(socket.session.user) != undefined){
-                      socket.emit(`data-error`, {"msg" : `No se puede eliminar`} );
+                      socket.emit(`data-error`, {msg : `No se puede eliminar`} );
                     }
                     conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                       conexion.release();
@@ -699,7 +699,7 @@ websocket_servers.on(`connection`, function(socket){
 
                 else{
                   if(user_socket.get(socket.session.user) != undefined){
-                    socket.emit(`data-error`, {"msg" : `No se puede eliminar`} );
+                    socket.emit(`data-error`, {msg : `No se puede eliminar`} );
                   }
                   logger.info(`no puede eliminar`);
                   conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -710,7 +710,7 @@ websocket_servers.on(`connection`, function(socket){
           }
             else{
               if(user_socket.get(socket.session.user) != undefined){
-                socket.emit(`data-error`, {"msg" : `No se puede eliminar`} );
+                socket.emit(`data-error`, {msg : `No se puede eliminar`} );
               }
               logger.info(`no puede eliminar`);
               conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -721,7 +721,7 @@ websocket_servers.on(`connection`, function(socket){
           }
             else{
               if(user_socket.get(socket.session.user) != undefined){
-                socket.emit(`data-error`, {"msg" : `No se puede eliminar`} );
+                socket.emit(`data-error`, {msg : `No se puede eliminar`} );
               }
               logger.info(`no puede eliminar`);
               conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -732,7 +732,7 @@ websocket_servers.on(`connection`, function(socket){
           }
             else{
               if(user_socket.get(socket.session.user) != undefined){
-                socket.emit(`data-error`, {"msg" : `No está matriculado de este servidor`} );
+                socket.emit(`data-error`, {msg : `No está matriculado de este servidor`} );
               }
               logger.info(`No esta matriculado`);
               conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -757,7 +757,7 @@ websocket_servers.on(`connection`, function(socket){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           logger.info(`la ip no es la misma`);
           if(user_socket.get(socket.session.user) != undefined){
-            socket.emit(`data-error`, {"msg" : `Está accediendo desde una ip diferente a la inicial`} );
+            socket.emit(`data-error`, {msg : `Está accediendo desde una ip diferente a la inicial`} );
           }
         }
         else{
@@ -804,7 +804,7 @@ websocket_servers.on(`connection`, function(socket){
                                     else{
                                       logger.info(`supera el numero de servidores`);
                                       if(user_socket.get(socket.session.user) != undefined){
-                                        socket.emit(`data-error`, {"msg" : `Supera el número máximo de servidores`} );
+                                        socket.emit(`data-error`, {msg : `Supera el número máximo de servidores`} );
                                       }
                                       resolve(`supera`);
                                     }
@@ -814,7 +814,7 @@ websocket_servers.on(`connection`, function(socket){
                                   else{
                                     logger.info(`ya esta en la cola`);
                                     if(user_socket.get(socket.session.user) != undefined){
-                                      socket.emit(`data-error`, {"msg" : `Ya está en el sistema`} );
+                                      socket.emit(`data-error`, {msg : `Ya está en el sistema`} );
                                     }
                                     resolve(`ya esta`);
                                   }
@@ -827,7 +827,7 @@ websocket_servers.on(`connection`, function(socket){
                   else{
                     logger.info(`pendientes fail o bbdd fail`);
                     if(user_socket.get(socket.session.user) != undefined){
-                      socket.emit(`data-error`, {"msg" : `Ya está en el sistema`} );
+                      socket.emit(`data-error`, {msg : `Ya está en el sistema`} );
                     }
                     resolve(`principal`);
                   }
@@ -839,7 +839,7 @@ websocket_servers.on(`connection`, function(socket){
             else{
               logger.info(`Este servicio se está desmatriculando`);
               if(user_socket.get(socket.session.user) != undefined){
-                socket.emit(`data-error`, {"msg" : `Este servicio se está desmatriculando`} );
+                socket.emit(`data-error`, {msg : `Este servicio se está desmatriculando`} );
               }
               resolve(`no matriculado`);
             }
@@ -848,7 +848,7 @@ websocket_servers.on(`connection`, function(socket){
               else{
                 logger.info(`No está matriculado de este servidor`);
                 if(user_socket.get(socket.session.user) != undefined){
-                  socket.emit(`data-error`, {"msg" : `No está matriculado de este servidor`} );
+                  socket.emit(`data-error`, {msg : `No está matriculado de este servidor`} );
                 }
                 resolve(`no matriculado`);
               }
@@ -896,7 +896,7 @@ websocket_servers.on(`connection`, function(socket){
                                         conexion.query(`DELETE FROM Cola WHERE usuario='${socket.session.user}'`,function(error, result, fields) {
                                           logger.info(`no se puede obtener enlace`);
                                           if(user_socket.get(socket.session.user) != undefined){
-                                            socket.emit(`data-error`, {"msg" : `No se puede obtener el servidor`} );
+                                            socket.emit(`data-error`, {msg : `No se puede obtener el servidor`} );
                                           }
                                           resolve();
                                         });
@@ -907,7 +907,7 @@ websocket_servers.on(`connection`, function(socket){
                                           var servers = cola_user_motivos;
                                           var promise = new Promise(function(resolve, reject) {
                                             async.forEach(servers, function(item, callback) {
-                                              var json = {"user" : socket.session.user, "motivo" : item.motivo};
+                                              var json = {user : socket.session.user, motivo : item.motivo};
                                             socket_vm.emit(`load`, json);
                                               logger.info(`enviado a su maquina`);
                                                 conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${ip}', '${item.motivo}','${socket.session.user}', 'up')`,function(error, results, fields) {
@@ -971,7 +971,7 @@ websocket_servers.on(`connection`, function(socket){
                                                   async.forEach(cola_user1, function(item, callback) {
 
                                                         conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
-                                                          var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
+                                                          var json = {user : cola_user[0].usuario, motivo : item.motivo};
                                                           getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
 
                                                           if(item == cola_user1[cola_user1.length-1]){
@@ -1094,7 +1094,7 @@ websocket_servers.on(`connection`, function(socket){
     else{
       logger.info(`Acceso sin sesión de usuario`);
       if(user_socket.get(socket.session.user) != undefined){
-        socket.emit(`data-error`, {"msg" : `Accesso sin iniciar sesión`} );
+        socket.emit(`data-error`, {msg : `Accesso sin iniciar sesión`} );
       }
     }
 
@@ -1193,7 +1193,7 @@ websocket_servers.on(`connection`, function(socket){
                                async.forEach(cola_user1, function(item, callback) {
 
                                    conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
-                                     var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
+                                     var json = {user : cola_user[0].usuario, motivo : item.motivo};
                                      getsocketfromip(cola_vm[0].ip_vm).emit(`load`, json);
                                      if(item == cola_user1[cola_user1.length-1]){
                                        resolve();
@@ -1357,7 +1357,7 @@ socket.on(`loaded`, function (data) {
 
                 var bucle = function(){
                   if(min < max){
-                      broadcastservers(`añadirsolo`, {"ip_origen" : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
+                      broadcastservers(`añadirsolo`, {ip_origen : firewall1[min].ip_origen, ipvm : ipvm, puerto : data.puerto});
                       firewall.dnatae(`añadirsolo`, firewall1[min].ip_origen, ipvm, data.puerto, function(){
                         min++;
                         bucle();
@@ -1368,7 +1368,7 @@ socket.on(`loaded`, function (data) {
                       broadcastclient(pen[0].usuario, `resultado`, {`motivo` : data.motivo} );
                     }
                     else{
-                      broadcastservers(`enviar-resultado`, {"motivo" : data.motivo, "user" : data.user});
+                      broadcastservers(`enviar-resultado`, {motivo : data.motivo, user : data.user});
                     }
                     conexion.query(`DELETE FROM Pendientes WHERE usuario='${pen[0].usuario}' AND motivo='${pen[0].motivo}' AND tipo='up'`,function(error, results, fields) {
                       logger.info(`pendiente realizado`);
@@ -1387,9 +1387,9 @@ socket.on(`loaded`, function (data) {
 
                 var bucle = function(){
                   if(min < max){
-                    broadcastservers(`añadircomienzo`, {"ip_origen" : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
+                    broadcastservers(`añadircomienzo`, {ip_origen : firewall1[min].ip_origen, ipvm : ipvm, puerto : data.puerto});
                     firewall.dnatae(`añadircomienzo`, firewall1[min].ip_origen, ipvm, 0, function(){
-                      broadcastservers(`añadirsolo`, {`ip_origen` : firewall1[min].ip_origen, "ipvm" : ipvm, "puerto" : data.puerto});
+                      broadcastservers(`añadirsolo`, {ip_origen : firewall1[min].ip_origen, ipvm : ipvm, puerto : data.puerto});
                       firewall.dnatae(`añadirsolo`, firewall1[min].ip_origen, ipvm, data.puerto, function(){
                         min++;
                         bucle();
@@ -1398,10 +1398,10 @@ socket.on(`loaded`, function (data) {
                     }
                   else{
                     if(user_socket.get(pen[0].usuario) != undefined){
-                      broadcastclient(pen[0].usuario, `resultado`, {"motivo" : data.motivo} );
+                      broadcastclient(pen[0].usuario, `resultado`, {motivo : data.motivo} );
                     }
                     else{
-                      broadcastservers(`enviar-resultado`, {"motivo" : data.motivo, "user" : data.user});
+                      broadcastservers(`enviar-resultado`, {motivo : data.motivo, user : data.user});
                     }
                     conexion.query(`DELETE FROM Pendientes WHERE usuario='${pen[0].usuario}' AND motivo='${pen[0].motivo}' AND tipo='up'`,function(error, results, fields) {
                       logger.info(`pendiente realizado`);
@@ -1442,7 +1442,7 @@ socket.on(`loaded`, function (data) {
           if(ip_vms.get(ipvm) != undefined){
             var socket_vm = getsocketfromip(ipvm);
             conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${ipvm}', '${data.motivo}','${data.user}', 'down')`,function(error, results2, fields) {
-              var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
+              var json = {user : data.user, motivo : data.motivo, puerto : data.puerto};
               socket_vm.emit(`stop`, json);
                 logger.info(`enviado stop`);
                 conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -1466,7 +1466,7 @@ socket.on(`loaded`, function (data) {
               if(ip_vms.get(ipvm) != undefined){
                 var socket_vm = getsocketfromip(ipvm);
                 conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${ipvm}', '${data.motivo}','${data.user}', 'down')`,function(error, results2, fields) {
-                  var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
+                  var json = {user : data.user, motivo : data.motivo, puerto : data.puerto};
                   socket_vm.emit(`stop`, json);
                     logger.info(`enviado stop`);
                     conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -1572,7 +1572,7 @@ socket.on(`loaded`, function (data) {
 
                                       var bucle = function(){
                                         if(min < max){
-                                          broadcastservers(`dnatae-eliminarsolo`, {"ip_origen" : firewall1[min].ip_origen, "ipvm" : asignaciones[0].ip_vm, "puerto" : data.puerto});
+                                          broadcastservers(`dnatae-eliminarsolo`, {ip_origen : firewall1[min].ip_origen, ipvm : asignaciones[0].ip_vm, puerto : data.puerto});
                                           firewall.dnatae(`eliminarsolo`, firewall1[min].ip_origen, asignaciones[0].ip_vm, data.puerto, function(){
                                             min++;
                                             bucle();
@@ -1581,10 +1581,10 @@ socket.on(`loaded`, function (data) {
                                         }
                                         else{
                                           if(user_socket.get(asignaciones[0].usuario) != undefined){
-                                            broadcastclient(asignaciones[0].usuario, `stop`, {"motivo" : asignaciones[0].motivo});
+                                            broadcastclient(asignaciones[0].usuario, `stop`, {motivo : asignaciones[0].motivo});
                                           }
                                           else{
-                                            broadcastservers(`enviar-stop`, {"user" : asignaciones[0].usuario, "motivo" : asignaciones[0].motivo});
+                                            broadcastservers(`enviar-stop`, {user : asignaciones[0].usuario, motivo : asignaciones[0].motivo});
                                           }
                                           resolve();
                                         }
@@ -1609,10 +1609,10 @@ socket.on(`loaded`, function (data) {
                                         }
                                         else{
                                           if(user_socket.get(asignaciones[0].usuario) != undefined){
-                                            broadcastclient(asignaciones[0].usuario, `stop`, {"motivo" : asignaciones[0].motivo});
+                                            broadcastclient(asignaciones[0].usuario, `stop`, {motivo : asignaciones[0].motivo});
                                           }
                                           else{
-                                            broadcastservers(`enviar-stop`, {"user" : asignaciones[0].usuario, "motivo" : asignaciones[0].motivo});
+                                            broadcastservers(`enviar-stop`, {user : asignaciones[0].usuario, motivo : asignaciones[0].motivo});
                                           }
 
                                           resolve();
@@ -1849,15 +1849,15 @@ if(req.session.user != undefined){
                       }
                       for(var i=0; i<result.length; i++){
                         if(set.has(result[i].usuario)){
-                          var a = {"usuario":result[i].usuario, "estado":"up", "fecha" : result[i].fecha}
+                          var a = {usuario: result[i].usuario, estado: `up`, fecha : result[i].fecha}
                           usuarios.push(a);
                         }
                         else{
-                          var a = {"usuario":result[i].usuario, "estado":"down", "fecha" : result[i].fecha}
+                          var a = {usuario: result[i].usuario, estado: `down`, fecha : result[i].fecha}
                           usuarios.push(a);
                         }
                       }
-                      var aux = {"motivo" : motivos[min].motivo, "usuarios" : usuarios};
+                      var aux = {motivo : motivos[min].motivo, usuarios : usuarios};
                       tservicios.push(aux);
                       min++;
                       bucle();
@@ -1976,9 +1976,9 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
         var bucle = function(){
           if(min < max){
             if(min == 0){
-              broadcastservers(`añadircomienzo`, ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto)
+              broadcastservers(`añadircomienzo`, `${ip_origen} ${row[min].ip_vm} ${row[min].puerto}`)
               firewall.dnatae(`añadircomienzo`, ip_origen, row[min].ip_vm, 0, function(){
-                broadcastservers(`añadirsolo`, ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto);
+                broadcastservers(`añadirsolo`, `${ip_origen} ${row[min].ip_vm} ${row[min].puerto}`);
                 firewall.dnatae(`añadirsolo`, ip_origen, row[min].ip_vm, row[min].puerto, function(){
                   min++;
                   bucle();
@@ -1986,7 +1986,7 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
               });
             }
             else{
-              broadcastservers(`añadirsolo`, ip_origen +" "+ row[min].ip_vm +" "+ row[min].puerto);
+              broadcastservers(`añadirsolo`, `${ip_origen} ${row[min].ip_vm} ${row[min].puerto}`);
               firewall.dnatae(`añadirsolo`, ip_origen, row[min].ip_vm, row[min].puerto, function(){
                 min++;
                 bucle();
@@ -2037,7 +2037,7 @@ app.get(`/logout`,cas.logout, function(req,res){
           conexion.release();
           setTimeout(function(){
             if(user_socket.get(user) != undefined){
-              broadcastclient(user, `reload`,"");
+              broadcastclient(user, `reload`, ``);
             }
             res.redirect(`/`);
           },4000);
@@ -2061,7 +2061,7 @@ app.get(`/comprobardisponibilidad`, function(req,res){
               if(total[0].total == 0){
                   datos = {`valido` : true};
                 }else{
-                  datos = {"valido" : false};
+                  datos = {valido : false};
                 }
               res.send(datos);
             });
@@ -2208,7 +2208,7 @@ app.post(`/eliminarservicio`, function(req,res){
                                         if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
                                           var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                           connection.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${estaasignado[0].ip_vm}', '${estaasignado[0].motivo}','${aux}', 'down')`,function(error, results2, fields) {
-                                            var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
+                                            var json = {user : aux, motivo : estaasignado[0].motivo, puerto : estaasignado[0].puerto};
                                             socket_vm.emit(`stop`, json);
                                               logger.info(`enviado stop`);
                                               min++;
@@ -2480,7 +2480,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                       if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
                                         var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                         connection.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${estaasignado[0].ip_vm}', '${estaasignado[0].motivo}','${aux}', 'down')`,function(error, results2, fields) {
-                                          var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
+                                          var json = {user : aux, motivo : estaasignado[0].motivo, puerto : estaasignado[0].puerto};
                                           socket_vm.emit(`stop`, json);
                                             logger.info(`enviado stop`);
                                             min++;
@@ -2603,7 +2603,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                   if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
                                     var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                     connection.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${estaasignado[0].ip_vm}', '${estaasignado[0].motivo}','${aux}', 'down')`,function(error, results2, fields) {
-                                      var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
+                                      var json = {user : aux, motivo : estaasignado[0].motivo, puerto : estaasignado[0].puerto};
                                       socket_vm.emit(`stop`, json);
                                         logger.info(`enviado stop`);
                                         connection.query(`UNLOCK TABLES`,function(error, results, fields) {
