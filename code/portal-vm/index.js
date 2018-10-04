@@ -217,7 +217,7 @@ pool.getConnection(function(err, connection) {
                                 logger.info(`VM stopped and removed "ULL-CloudIDE-backend-${ip}"`);
                                 conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' `, function(error, contar_ovp_down, fields) {
                                   if(contar_ovp_down[0].total != 0){
-                                    conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='down' LIMIT 1` function(error, escoger_ovp, fields) {
+                                    conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='down' LIMIT 1`, function(error, escoger_ovp, fields) {
                                       bucle2(escoger_ovp[0].ip_vm);
                                       conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                             logger.debug(`liberando tablas MySQL`);
@@ -667,7 +667,7 @@ websocket_servers.on(`connection`, function(socket){
           conexion.query(bloqueo_tablas,function(error, results, fields) {
             conexion.query(`SELECT COUNT(*) AS total FROM Matriculados AS m1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, existe_matriculados, fields) {
               if(existe_matriculados[0].total != 0){
-                conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='${socket.session.user}' AND motivo='${data}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data}') AS alias`function(error, total, fields) {
+                conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu WHERE usuario='${socket.session.user}' AND motivo='${data}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data}') AS alias`, function(error, total, fields) {
                   if(total[0].total == 0){
             conexion.query(`SELECT COUNT(*) AS total FROM Pendientes AS p1 WHERE motivo='${data}' AND usuario='${socket.session.user}'`,function(error, resultspendientes, fields) {
               if(resultspendientes[0].total == 0){
@@ -775,7 +775,7 @@ websocket_servers.on(`connection`, function(socket){
 
           conexion.query(`SELECT COUNT(*) AS total FROM Matriculados AS m1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, existe_matriculados, fields) {
             if(existe_matriculados[0].total != 0){
-              conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='${socket.session.user}' AND motivo='${data}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data}') AS alias`function(error, total, fields) {
+              conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu WHERE usuario='${socket.session.user}' AND motivo='${data}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data}') AS alias`, function(error, total, fields) {
                 if(total[0].total == 0){
           conexion.query(`SELECT COUNT(*) AS total FROM Asignaciones AS a1 WHERE usuario='${socket.session.user}'`,function(error, row, fields) {
             conexion.query(`SELECT COUNT(*) AS total FROM Asignaciones AS a1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, motivototal, fields) {
@@ -1365,7 +1365,7 @@ socket.on(`loaded`, function (data) {
                     }
                   else{
                     if(user_socket.get(pen[0].usuario) != undefined){
-                      broadcastclient(pen[0].usuario, `resultado`, {`motivo` : data.motivo} );
+                      broadcastclient(pen[0].usuario, `resultado`, {motivo : data.motivo} );
                     }
                     else{
                       broadcastservers(`enviar-resultado`, {motivo : data.motivo, user : data.user});
@@ -1437,7 +1437,7 @@ socket.on(`loaded`, function (data) {
 
 
     promise.then(function(result) {
-      conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='${data.user}' AND motivo='${data.motivo}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data.motivo}') AS alias`,function(error, total, fields) {
+      conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu WHERE usuario='${data.user}' AND motivo='${data.motivo}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data.motivo}') AS alias`,function(error, total, fields) {
         if(total[0].total != 0){
           if(ip_vms.get(ipvm) != undefined){
             var socket_vm = getsocketfromip(ipvm);
@@ -1689,7 +1689,7 @@ socket.on(`loaded`, function (data) {
 
                 }
                 else{
-                  conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='${data.user}' AND motivo='${data.motivo}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data.motivo}') AS alias`,function(error, result, fields) {
+                  conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu WHERE usuario='${data.user}' AND motivo='${data.motivo}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data.motivo}') AS alias`,function(error, result, fields) {
                     if(result[0].total != 0){
 
 
@@ -2059,9 +2059,9 @@ app.get(`/comprobardisponibilidad`, function(req,res){
               conexion.release();
               var datos = {};
               if(total[0].total == 0){
-                  datos = {`valido` : true};
+                  datos = {valido: true};
                 }else{
-                  datos = {valido : false};
+                  datos = {valido: false};
                 }
               res.send(datos);
             });
