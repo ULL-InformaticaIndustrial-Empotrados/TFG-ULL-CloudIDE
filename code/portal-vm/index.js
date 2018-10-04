@@ -1,15 +1,15 @@
-const logger = require('./logger.js');
+const logger = require(`./logger.js`);
 
 logger.info(`Comienza la aplicacion portal`);
 
-var express = require('express');
-var config = require('./config.json');
-var functions = require('./functions.js');
-var firewall = require('./firewall.js');
-var bodyParser = require('body-parser');
+var express = require(`express`);
+var config = require(`./config.json`);
+var functions = require(`./functions.js`);
+var firewall = require(`./firewall.js`);
+var bodyParser = require(`body-parser`);
 async = require("async");
-var ovirt = require('./ovirt.js');
-var sesion = require('./sesion.js');
+var ovirt = require(`./ovirt.js`);
+var sesion = require(`./sesion.js`);
 var addresses = functions.getiplocal();
 
 
@@ -19,11 +19,11 @@ var pool = functions.createnewconnection();
 var app = express();
 app.use(bodyParser.urlencoded({extended : false}));
 app.use(bodyParser.json());
-app.use('/cloud', express.static('./client/views'));
-app.use('/', express.static('./client/views'));
+app.use(`/cloud`, express.static(`./client/views`));
+app.use(`/`, express.static(`./client/views`));
 
-app.set('views', './client/views'); //Configuramos el directorio de vistas
-app.set('view engine', 'ejs');
+app.set(`views`, `./client/views`); //Configuramos el directorio de vistas
+app.set(`view engine`, `ejs`);
 
 firewall.inicializar(); //borramos iptables anteriores
 
@@ -38,9 +38,9 @@ function getRoll(user) {
     pool.query(consulta, (error, result, fields) => {
         logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 4)}`);
         if (result[0].total == 1)
-          resolve('profesor');
+          resolve(`profesor`);
         else
-          resolve('alumno');
+          resolve(`alumno`);
       }
     )
   });
@@ -50,11 +50,11 @@ function getRoll(user) {
 
 
 var websocket_client = require("socket.io").listen(config.puerto_websocket_clients);
-var websocket_vms = require('socket.io')(config.puerto_websocket_vms,{
+var websocket_vms = require(`socket.io`)(config.puerto_websocket_vms,{
   pingTimeout: 3000,
   pingInterval: 3000
 });
-var websocket_servers = require('socket.io').listen(config.puerto_websocket_servers);
+var websocket_servers = require(`socket.io`).listen(config.puerto_websocket_servers);
 var n = config.numero_max_serverxuser;
 var maxusers = config.numero_max_users;
 var socket_client_servers = new Map();
@@ -65,13 +65,13 @@ var bloqueo_tablas = "LOCK TABLES VMS WRITE, VMS as v1 READ, Ovirt_Pendientes_Up
 
 
 //AUTENTICACION POR CAS ULL
-var CASAuthentication = require('./cas-authentication.js');
+var CASAuthentication = require(`./cas-authentication.js`);
 
 // Create a new instance of CASAuthentication.
 var cas = new CASAuthentication({
-    cas_url     : 'https://login.ull.es/cas-1',
-    service_url : 'http://cloudide.iaas.ull.es',
-    session_info     : 'cas_userinfo',
+    cas_url     : `https://login.ull.es/cas-1`,
+    service_url : `http://cloudide.iaas.ull.es`,
+    session_info     : `cas_userinfo`,
     destroy_session : false
 
 });
@@ -294,12 +294,12 @@ pool.getConnection(function(err, connection) {
     async.forEach(servers, function(item, callback) {
 
             var ip_server = item.ip_server;
-            socket_client_servers.set(ip_server, require('socket.io-client')('http://'+ip_server+':'+config.puerto_websocket_servers, {
+            socket_client_servers.set(ip_server, require(`socket.io-client`)(`http://`+ip_server+`:`+config.puerto_websocket_servers, {
             reconnection : true,
             reconnectionDelay:0,
             reconnectionDelay:100}));
 
-            socket_client_servers.get(ip_server).on('disconnect', function () {
+            socket_client_servers.get(ip_server).on(`disconnect`, function () {
               pool.getConnection(function(err, connection) {
               var conexion = connection;
               conexion.query(bloqueo_tablas,function(error, results, fields) {
@@ -319,25 +319,25 @@ pool.getConnection(function(err, connection) {
         });
       });
 
-          socket_client_servers.get(ip_server).on('prueba', function (data) {
+          socket_client_servers.get(ip_server).on(`prueba`, function (data) {
             logger.info(`prueba recibida`);
           });
 
-          socket_client_servers.get(ip_server).on('enviar-resultado', function (data) {
+          socket_client_servers.get(ip_server).on(`enviar-resultado`, function (data) {
             logger.info(`enviar resultado`);
             if(user_socket.get(data.user) != undefined){
               broadcastclient(data.user, "resultado", {"motivo" : data.motivo});
             }
           });
 
-          socket_client_servers.get(ip_server).on('enviar-stop', function (data) {
+          socket_client_servers.get(ip_server).on(`enviar-stop`, function (data) {
             logger.info(`enviar stopp`);
             if(user_socket.get(data.user) != undefined){
               broadcastclient(data.user, "stop", {"motivo" : data.motivo});
             }
           });
 
-          socket_client_servers.get(ip_server).on('deletednat', function (data) {
+          socket_client_servers.get(ip_server).on(`deletednat`, function (data) {
             logger.info(`servers deletednat`);
             firewall.deletednat(data);
           });
@@ -515,12 +515,12 @@ pool.getConnection(function(err, connection) {
 //WEBSOCKET////////////////////////////
 
 
-websocket_servers.on('connection', function(socket){
+websocket_servers.on(`connection`, function(socket){
   logger.info(`server conectado`);
 
   socket_client_servers.set(functions.cleanaddress(socket.handshake.address), socket);
 
-  socket.on('disconnect', function () {
+  socket.on(`disconnect`, function () {
 
       pool.getConnection(function(err, connection) {
       var conexion = connection;
@@ -541,11 +541,11 @@ websocket_servers.on('connection', function(socket){
   });
 });
 
-  socket.on('prueba', function (data) {
+  socket.on(`prueba`, function (data) {
     logger.info(`prueba recibida`);
   });
 
-  socket.on('enviar-resultado', function (data) {
+  socket.on(`enviar-resultado`, function (data) {
     logger.info(`enviar resultado`);
     if(user_socket.get(data.user) != undefined){
       broadcastclient(data.user, "resultado", {"motivo" : data.motivo});
@@ -555,7 +555,7 @@ websocket_servers.on('connection', function(socket){
     }
   });
 
-  socket.on('enviar-stop', function (data) {
+  socket.on(`enviar-stop`, function (data) {
     logger.info(`enviar stopp`);
 
     if(user_socket.get(data.user) != undefined){
@@ -566,7 +566,7 @@ websocket_servers.on('connection', function(socket){
     }
   });
 
-  socket.on('deletednat', function (data) {
+  socket.on(`deletednat`, function (data) {
     logger.info(`servers deletednat`);
     firewall.deletednat(data);
   });
@@ -591,7 +591,7 @@ websocket_servers.on('connection', function(socket){
 
 
 
- websocket_client.on('connection', function (socket) {
+ websocket_client.on(`connection`, function (socket) {
 
     logger.info(`Conexión cliente de "${socket.id}" Con ip "${socket.handshake.address}"`);
     if(socket.session.user){
@@ -604,7 +604,7 @@ websocket_servers.on('connection', function(socket){
       user_socket.set(socket.session.user, aux);
     }
 
-    socket.on('disconnect', function () {
+    socket.on(`disconnect`, function () {
       logger.info(`client disconnected`);
       if(socket.session.user){
         if(user_socket.get(socket.session.user) != undefined){
@@ -623,7 +623,7 @@ websocket_servers.on('connection', function(socket){
     });
 
 
-  socket.on('stopenlace', function(data){
+  socket.on(`stopenlace`, function(data){
       if(socket.session.user){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           if(user_socket.get(socket.session.user) != undefined){
@@ -725,7 +725,7 @@ websocket_servers.on('connection', function(socket){
 
 
 
-    socket.on('obtenerenlace', function (data) {
+    socket.on(`obtenerenlace`, function (data) {
       if(socket.session.user){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           logger.info(`la ip no es la misma`);
@@ -1272,7 +1272,7 @@ websocket_servers.on('connection', function(socket){
 
 
 
-    socket.on('disconnect', function () {
+    socket.on(`disconnect`, function () {
       logger.info(`VM disconnected "${ipvm}"`);
 
         if(ip_vms.get(ipvm)!= undefined){
@@ -1304,7 +1304,7 @@ websocket_servers.on('connection', function(socket){
 
 
 
-socket.on('loaded', function (data) {
+socket.on(`loaded`, function (data) {
   logger.info(`Che server loaded "${JSON.stringify(data)}"`);
   pool.getConnection(function(err, connection) {
   var conexion = connection;
@@ -1480,7 +1480,7 @@ socket.on('loaded', function (data) {
 
 
 
-    socket.on('stopped', function (data) {
+    socket.on(`stopped`, function (data) {
       logger.info(`Che server stopped "${JSON.stringify(data)}"`);
       pool.getConnection(function(err, connection) {
       var conexion = connection;
@@ -1689,7 +1689,7 @@ socket.on('loaded', function (data) {
                                     conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+data.motivo+"'",function(error, result, fields) {
                                       conexion.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+data.motivo+"'",function(error, result, fields) {
                                         if(result[0].total == 0){
-                                          functions.eliminardirectoriotodo(req.body['nombreservicio'], function(){
+                                          functions.eliminardirectoriotodo(req.body[`nombreservicio`], function(){
                                             pool.getConnection(function(err, connection) {
                                               connection.query(bloqueo_tablas,function(error, results, fields) {
                                                 connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+data.motivo+"'",function(error, result, fields) {
@@ -1766,36 +1766,36 @@ socket.on('loaded', function (data) {
 /// RUTAS WEB ////////////////////////////
 
 
-app.get('/', function(req,res){
+app.get(`/`, function(req,res){
 var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
   if(req.session.user == undefined){
-    broadcastservers('deletednat', ip_origen);
+    broadcastservers(`deletednat`, ip_origen);
     firewall.deletednat(ip_origen, function(){
       pool.getConnection(function(err, connection) {
       var conexion = connection;
       conexion.query("DELETE FROM Firewall WHERE ip_origen='"+functions.cleanaddress(req.connection.remoteAddress)+"'",function(error, results, fields) {
         conexion.release();
-        res.render('index', {});
+        res.render(`index`, {});
       });
     });
   });
   }
   else{
     if(ip_origen != req.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-      res.redirect('/logout');
+      res.redirect(`/logout`);
     }
     else{
-    res.redirect('/controlpanel');
+    res.redirect(`/controlpanel`);
   }
   }
 
 });
 
-app.get('/controlpanel', function(req,res){
+app.get(`/controlpanel`, function(req,res){
   var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
 if(req.session.user != undefined){
   if(ip_origen != req.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-    res.redirect('/logout');
+    res.redirect(`/logout`);
   }
   else{
   logger.info(`Es usuario "${req.session.user}"`);
@@ -1839,7 +1839,7 @@ if(req.session.user != undefined){
                 }
                 else{
                   conexion.release();
-                  res.render('controlpanelprofesor', {ip_server_che: config.ip_server_exterior, user : req.session.user, encendidos : upped, apagandose : dowing, encendiendose : upping, resto : rest, servicios : tservicios});
+                  res.render(`controlpanelprofesor`, {ip_server_che: config.ip_server_exterior, user : req.session.user, encendidos : upped, apagandose : dowing, encendiendose : upping, resto : rest, servicios : tservicios});
                 }
               }
 
@@ -1859,7 +1859,7 @@ if(req.session.user != undefined){
         conexion.query("SELECT usuario, motivo FROM Matriculados NATURAL JOIN Pendientes WHERE usuario='"+req.session.user+"' AND tipo='up' UNION ALL SELECT usuario, motivo FROM Matriculados NATURAL JOIN Cola WHERE usuario='"+req.session.user+"'",function(error, upping, fields) {
           conexion.query("SELECT * FROM Matriculados WHERE usuario='"+req.session.user+"' AND motivo NOT IN (SELECT motivo FROM Pendientes WHERE usuario='"+req.session.user+"' UNION SELECT motivo FROM Asignaciones WHERE usuario='"+req.session.user+"' UNION SELECT motivo FROM Cola WHERE usuario='"+req.session.user+"')",function(error, rest, fields) {
             conexion.release();
-            res.render('controlpanelalumno', {ip_server_che: config.ip_server_exterior, user : req.session.user, encendidos : upped, apagandose : dowing, encendiendose : upping, resto : rest});
+            res.render(`controlpanelalumno`, {ip_server_che: config.ip_server_exterior, user : req.session.user, encendidos : upped, apagandose : dowing, encendiendose : upping, resto : rest});
           });
         });
       });
@@ -1869,15 +1869,15 @@ if(req.session.user != undefined){
 }
 }
 else{
-res.redirect('/');
+res.redirect(`/`);
 }
 });
 
-app.get('/cloud/:motivo', function(req,res){
+app.get(`/cloud/:motivo`, function(req,res){
   var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
   if(req.session.user != undefined){
     if(ip_origen != req.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-      res.redirect('/logout');
+      res.redirect(`/logout`);
     }
     else{
     pool.getConnection(function(err, connection) {
@@ -1887,37 +1887,37 @@ app.get('/cloud/:motivo', function(req,res){
         conexion.release();
         if(row.length != 0){
           conexion.query("UPDATE Ultima_conexion SET fecha='"+functions.dateFormat()+"' WHERE usuario='"+req.session.user+"' AND motivo='"+req.params.motivo+"'",function(error, result, fields) {
-            res.render('cloud', {user : req.session.user, motivo : req.params.motivo, ip_server_che : config.ip_server_exterior, port_server_che : row[0].puerto});
+            res.render(`cloud`, {user : req.session.user, motivo : req.params.motivo, ip_server_che : config.ip_server_exterior, port_server_che : row[0].puerto});
           });
         }
         else{
-          res.render('error', {});
+          res.render(`error`, {});
         }
       });
   });
 }
   }
   else{
-    res.redirect('/');
+    res.redirect(`/`);
   }
 
 });
 
-app.get('/autenticacion', cas.bounce, function(req,res){
+app.get(`/autenticacion`, cas.bounce, function(req,res){
 var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
 
   if(req.session.user != undefined){
     if(ip_origen != req.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-      res.redirect('/logout');
+      res.redirect(`/logout`);
     }
     else{
-      res.redirect('/');
+      res.redirect(`/`);
     }
   }
     else{
 
 //borrar iptables de esta ip por si acaso
-      broadcastservers('deletednat', ip_origen);
+      broadcastservers(`deletednat`, ip_origen);
       firewall.deletednat(ip_origen, function(){
       pool.getConnection(function(err, connection) {
         var conexion = connection;
@@ -1969,7 +1969,7 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
           }
           else{
             setTimeout(function(){
-              res.redirect('/controlpanel');
+              res.redirect(`/controlpanel`);
   	        }, 3000);
           }
 
@@ -1987,7 +1987,7 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
 });
 
 
-app.get('/logout',cas.logout, function(req,res){
+app.get(`/logout`,cas.logout, function(req,res){
 
   var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
 
@@ -2002,7 +2002,7 @@ app.get('/logout',cas.logout, function(req,res){
 
 
 
-    broadcastservers('deletednat', ip_origen);
+    broadcastservers(`deletednat`, ip_origen);
     firewall.deletednat(ip_origen, function(){
       pool.getConnection(function(err, connection) {
         var conexion = connection;
@@ -2012,7 +2012,7 @@ app.get('/logout',cas.logout, function(req,res){
             if(user_socket.get(user) != undefined){
               broadcastclient(user, "reload","");
             }
-            res.redirect('/');
+            res.redirect(`/`);
           },4000);
 
         });
@@ -2023,7 +2023,7 @@ app.get('/logout',cas.logout, function(req,res){
 
 })
 
-app.get('/comprobardisponibilidad', function(req,res){
+app.get(`/comprobardisponibilidad`, function(req,res){
   if(req.session.user != undefined){
     if(req.session.rol == "profesor"){
         pool.getConnection(function(err, connection) {
@@ -2051,27 +2051,27 @@ app.get('/comprobardisponibilidad', function(req,res){
 
 var quitardominio = new RegExp(/\w*/);
 
-app.post('/nuevoservicio', function(req,res){
+app.post(`/nuevoservicio`, function(req,res){
   if(req.session.user != undefined){
     if(req.session.rol == "profesor"){
-      req.body['nombreservicio'] = functions.getCleanedString(req.body['nombreservicio']);
+      req.body[`nombreservicio`] = functions.getCleanedString(req.body[`nombreservicio`]);
       pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas,function(error, results, fields) {
-          connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body['nombreservicio']+"'",function(error, total, fields) {
+          connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, total, fields) {
             if(total[0].total == 0){
-              connection.query("INSERT INTO Servicios (usuario, motivo) VALUES ('"+req.session.user+"','"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                var valores = req.body['usuario'];
+              connection.query("INSERT INTO Servicios (usuario, motivo) VALUES ('"+req.session.user+"','"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                var valores = req.body[`usuario`];
                 if(valores != undefined){
                   if(valores instanceof Array){
                     async.forEach(valores, function(item, callback) {
                       var aux = item.match(quitardominio);
-                      connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                        connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
+                      connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                        connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
                           if(item == valores[valores.length-1]){
                             connection.query("UNLOCK TABLES",function(error, results, fields) {
                                 logger.debug(`liberando tablas MySQL`);
                               connection.release();
-                              res.redirect('/controlpanel');
+                              res.redirect(`/controlpanel`);
                             });
                           }
                         });
@@ -2081,12 +2081,12 @@ app.post('/nuevoservicio', function(req,res){
                   }
                   else{
                     var aux = valores.match(quitardominio);
-                    connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                      connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
+                    connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                      connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
                         connection.query("UNLOCK TABLES",function(error, results, fields) {
                             logger.debug(`liberando tablas MySQL`);
                           connection.release();
-                          res.redirect('/controlpanel');
+                          res.redirect(`/controlpanel`);
                         });
                       });
                     });
@@ -2096,7 +2096,7 @@ app.post('/nuevoservicio', function(req,res){
                   connection.query("UNLOCK TABLES",function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     connection.release();
-                    res.redirect('/controlpanel');
+                    res.redirect(`/controlpanel`);
                   });
                 }
               });
@@ -2105,7 +2105,7 @@ app.post('/nuevoservicio', function(req,res){
               connection.query("UNLOCK TABLES",function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 connection.release();
-                res.redirect('/controlpanel');
+                res.redirect(`/controlpanel`);
               });
             }
           });
@@ -2118,17 +2118,17 @@ app.post('/nuevoservicio', function(req,res){
 
 
 
-app.post('/eliminarservicio', function(req,res){
+app.post(`/eliminarservicio`, function(req,res){
   if(req.session.user != undefined){
     if(req.session.rol == "profesor"){
       pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas,function(error, results, fields) {
-          connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
+          connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
             if(total[0].total == 1){
-              connection.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body['nombreservicio']+"'",function(error, total, fields) {
+              connection.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, total, fields) {
                 if(total[0].total == 0){
-                  connection.query("INSERT INTO Eliminar_servicio (motivo) VALUES ('"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                    connection.query("SELECT usuario FROM Matriculados as m1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario NOT IN (SELECT usuario FROM Eliminar_servicio_usuario WHERE motivo='"+req.body['nombreservicio']+"')",function(error, matriculados, fields) {
+                  connection.query("INSERT INTO Eliminar_servicio (motivo) VALUES ('"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                    connection.query("SELECT usuario FROM Matriculados as m1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario NOT IN (SELECT usuario FROM Eliminar_servicio_usuario WHERE motivo='"+req.body[`nombreservicio`]+"')",function(error, matriculados, fields) {
                       var max = matriculados.length;
                       var min = 0;
 
@@ -2138,22 +2138,22 @@ app.post('/eliminarservicio', function(req,res){
 
 
                           var aux = matriculados[min].usuario;
-                                connection.query("SELECT count(*) AS total FROM Pendientes as p1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                                connection.query("SELECT count(*) AS total FROM Pendientes as p1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                                   if(total[0].total == 0){
-                                    connection.query("DELETE FROM Cola WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) { //por si acaso
-                                    connection.query("SELECT * FROM Asignaciones as a1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, estaasignado, fields) {
+                                    connection.query("DELETE FROM Cola WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) { //por si acaso
+                                    connection.query("SELECT * FROM Asignaciones as a1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, estaasignado, fields) {
                                       if(estaasignado.length == 0){//si no está encendido
 
-                                                  connection.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                    connection.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                      connection.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                        connection.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                                  connection.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                    connection.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                      connection.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                        connection.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                           if(result[0].total == 0){
-                                                            functions.eliminardirectoriotodo(req.body['nombreservicio'], function(){
+                                                            functions.eliminardirectoriotodo(req.body[`nombreservicio`], function(){
                                                               pool.getConnection(function(err, connection) {
                                                                 connection.query(bloqueo_tablas,function(error, results, fields) {
-                                                                  connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                                    connection.query("DELETE FROM Servicios WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                                                  connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                                    connection.query("DELETE FROM Servicios WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                                       connection.query("UNLOCK TABLES",function(error, results, fields) {
                                                                         connection.release();
                                                                       });
@@ -2204,13 +2204,13 @@ app.post('/eliminarservicio', function(req,res){
 
                         }
                         else{
-                          connection.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                          connection.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                             if(result[0].total == 0){
-                              connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                connection.query("DELETE FROM Servicios WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                              connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                connection.query("DELETE FROM Servicios WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                   connection.query("UNLOCK TABLES",function(error, results, fields) {
                                     connection.release();
-                                    res.redirect('/controlpanel');
+                                    res.redirect(`/controlpanel`);
                                   });
                                 });
                               });
@@ -2218,7 +2218,7 @@ app.post('/eliminarservicio', function(req,res){
                             else{
                               connection.query("UNLOCK TABLES",function(error, results, fields) {
                                 connection.release();
-                                res.redirect('/controlpanel');
+                                res.redirect(`/controlpanel`);
                               });
                             }
                           });
@@ -2236,7 +2236,7 @@ app.post('/eliminarservicio', function(req,res){
                   connection.query("UNLOCK TABLES",function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     connection.release();
-                    res.redirect('/controlpanel');
+                    res.redirect(`/controlpanel`);
                   });
                 }
               });
@@ -2245,7 +2245,7 @@ app.post('/eliminarservicio', function(req,res){
               connection.query("UNLOCK TABLES",function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 connection.release();
-                res.redirect('/controlpanel');
+                res.redirect(`/controlpanel`);
               });
             }
           });
@@ -2258,30 +2258,30 @@ app.post('/eliminarservicio', function(req,res){
 
 
 
-app.post('/aniadirusuarios', function(req,res){
+app.post(`/aniadirusuarios`, function(req,res){
   if(req.session.user != undefined){
     if(req.session.rol == "profesor"){
       pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas,function(error, results, fields) {
-          connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
+          connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
             if(total[0].total == 1){
-              connection.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+              connection.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                 if(result[0].total == 0){
-                var valores = req.body['usuario'];
+                var valores = req.body[`usuario`];
                 if(valores != undefined){
                   if(valores instanceof Array){
                     async.forEach(valores, function(item, callback) {
                       var aux = item.match(quitardominio);
-                      connection.query("SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                      connection.query("SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                         if(total[0].total == 0){
-                          connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                            connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                                connection.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                          connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                            connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                                connection.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                 if(item == valores[valores.length-1]){
                                   connection.query("UNLOCK TABLES",function(error, results, fields) {
                                       logger.debug(`liberando tablas MySQL`);
                                     connection.release();
-                                    res.redirect('/controlpanel');
+                                    res.redirect(`/controlpanel`);
                                   });
                                 }
                               });
@@ -2293,7 +2293,7 @@ app.post('/aniadirusuarios', function(req,res){
                             connection.query("UNLOCK TABLES",function(error, results, fields) {
                                 logger.debug(`liberando tablas MySQL`);
                               connection.release();
-                              res.redirect('/controlpanel');
+                              res.redirect(`/controlpanel`);
                             });
                           }
                         }
@@ -2303,15 +2303,15 @@ app.post('/aniadirusuarios', function(req,res){
                   }
                   else{
                     var aux = valores.match(quitardominio);
-                    connection.query("SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                    connection.query("SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                       if(total[0].total == 0){
-                        connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                          connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                            connection.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                        connection.query("INSERT INTO Matriculados (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Matriculados as m1 WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                          connection.query("INSERT INTO Ultima_conexion (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Ultima_conexion as uc WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                            connection.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                               connection.query("UNLOCK TABLES",function(error, results, fields) {
                                   logger.debug(`liberando tablas MySQL`);
                                 connection.release();
-                                res.redirect('/controlpanel');
+                                res.redirect(`/controlpanel`);
                               });
                             });
                           });
@@ -2321,7 +2321,7 @@ app.post('/aniadirusuarios', function(req,res){
                         connection.query("UNLOCK TABLES",function(error, results, fields) {
                             logger.debug(`liberando tablas MySQL`);
                           connection.release();
-                          res.redirect('/controlpanel');
+                          res.redirect(`/controlpanel`);
                         });
                       }
                     });
@@ -2332,7 +2332,7 @@ app.post('/aniadirusuarios', function(req,res){
                   connection.query("UNLOCK TABLES",function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     connection.release();
-                    res.redirect('/controlpanel');
+                    res.redirect(`/controlpanel`);
                   });
                 }
               }
@@ -2341,7 +2341,7 @@ app.post('/aniadirusuarios', function(req,res){
                 connection.query("UNLOCK TABLES",function(error, results, fields) {
                     logger.debug(`liberando tablas MySQL`);
                   connection.release();
-                  res.redirect('/controlpanel');
+                  res.redirect(`/controlpanel`);
                 });
               }
               });
@@ -2351,7 +2351,7 @@ app.post('/aniadirusuarios', function(req,res){
               connection.query("UNLOCK TABLES",function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 connection.release();
-                res.redirect('/controlpanel');
+                res.redirect(`/controlpanel`);
               });
             }
           });
@@ -2362,16 +2362,16 @@ app.post('/aniadirusuarios', function(req,res){
 });
 
 
-app.post('/eliminarusuarios', function(req,res){
+app.post(`/eliminarusuarios`, function(req,res){
   if(req.session.user != undefined){
     if(req.session.rol == "profesor"){
       pool.getConnection(function(err, connection) {
         connection.query(bloqueo_tablas,function(error, results, fields) {
-          connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
+          connection.query("SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+req.session.user+"'",function(error, total, fields) {
             if(total[0].total == 1){
-              connection.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+              connection.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                 if(result[0].total == 0){
-                var valores = req.body['usuario'];
+                var valores = req.body[`usuario`];
                 if(valores != undefined){
                   if(valores instanceof Array){
                     var max = valores.length;
@@ -2382,24 +2382,24 @@ app.post('/eliminarusuarios', function(req,res){
 
 
                         var aux = valores[min];
-                        connection.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                        connection.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                           if(total[0].total == 1){
-                            connection.query("SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                            connection.query("SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                               if(total[0].total == 0){
-                            connection.query("INSERT INTO Eliminar_servicio_usuario (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Eliminar_servicio_usuario as esu WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                              connection.query("SELECT count(*) AS total FROM Pendientes as p1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                            connection.query("INSERT INTO Eliminar_servicio_usuario (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Eliminar_servicio_usuario as esu WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                              connection.query("SELECT count(*) AS total FROM Pendientes as p1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                                 if(total[0].total == 0){
-                                  connection.query("DELETE FROM Cola WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) { //por si acaso
-                                  connection.query("SELECT * FROM Asignaciones as a1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, estaasignado, fields) {
+                                  connection.query("DELETE FROM Cola WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) { //por si acaso
+                                  connection.query("SELECT * FROM Asignaciones as a1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, estaasignado, fields) {
                                     if(estaasignado.length == 0){//si no está encendido
-                                      functions.eliminardirectoriosolo(aux, req.body['nombreservicio'], function(){
+                                      functions.eliminardirectoriosolo(aux, req.body[`nombreservicio`], function(){
                                         pool.getConnection(function(err, conexion) {
                                           conexion.query(bloqueo_tablas,function(error, results, fields) {
-                                            conexion.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                            conexion.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                               if(result[0].total == 0){
-                                                conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                  conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                    conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                                conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                  conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                    conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                       conexion.query("UNLOCK TABLES",function(error, results, fields) {
                                                         conexion.release();
                                                       });
@@ -2408,16 +2408,16 @@ app.post('/eliminarusuarios', function(req,res){
                                                 });
                                               }
                                               else{
-                                                conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                  conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                    conexion.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                      conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                                conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                  conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                    conexion.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                      conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                         if(result[0].total == 0){
-                                                          functions.eliminardirectoriotodo(req.body['nombreservicio'], function(){
+                                                          functions.eliminardirectoriotodo(req.body[`nombreservicio`], function(){
                                                             pool.getConnection(function(err, connection) {
                                                               connection.query(bloqueo_tablas,function(error, results, fields) {
-                                                                connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                                  connection.query("DELETE FROM Servicios WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                                                connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                                  connection.query("DELETE FROM Servicios WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                                     connection.query("UNLOCK TABLES",function(error, results, fields) {
                                                                       connection.release();
                                                                     });
@@ -2494,7 +2494,7 @@ app.post('/eliminarusuarios', function(req,res){
                       else{
                         connection.query("UNLOCK TABLES",function(error, results, fields) {
                           connection.release();
-                          res.redirect('/controlpanel');
+                          res.redirect(`/controlpanel`);
                         });
                       }
                     }
@@ -2505,24 +2505,24 @@ app.post('/eliminarusuarios', function(req,res){
                   }
                   else{
                     var aux = valores;
-                    connection.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                    connection.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                       if(total[0].total == 1){
-                        connection.query("SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                        connection.query("SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                           if(total[0].total == 0){
-                        connection.query("INSERT INTO Eliminar_servicio_usuario (usuario, motivo) SELECT '"+aux+"','"+req.body['nombreservicio']+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Eliminar_servicio_usuario as esu WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"')",function(error, result, fields) {
-                          connection.query("SELECT count(*) AS total FROM Pendientes as p1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, total, fields) {
+                        connection.query("INSERT INTO Eliminar_servicio_usuario (usuario, motivo) SELECT '"+aux+"','"+req.body[`nombreservicio`]+"' FROM dual WHERE NOT EXISTS ( SELECT * FROM Eliminar_servicio_usuario as esu WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"')",function(error, result, fields) {
+                          connection.query("SELECT count(*) AS total FROM Pendientes as p1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, total, fields) {
                             if(total[0].total == 0){
-                              connection.query("DELETE FROM Cola WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) { //por si acaso
-                              connection.query("SELECT * FROM Asignaciones as a1 WHERE motivo='"+req.body['nombreservicio']+"' AND usuario='"+aux+"'",function(error, estaasignado, fields) {
+                              connection.query("DELETE FROM Cola WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) { //por si acaso
+                              connection.query("SELECT * FROM Asignaciones as a1 WHERE motivo='"+req.body[`nombreservicio`]+"' AND usuario='"+aux+"'",function(error, estaasignado, fields) {
                                 if(estaasignado.length == 0){//si no está encendido
-                                  functions.eliminardirectoriosolo(aux, req.body['nombreservicio'], function(){
+                                  functions.eliminardirectoriosolo(aux, req.body[`nombreservicio`], function(){
                                     pool.getConnection(function(err, conexion) {
                                       conexion.query(bloqueo_tablas,function(error, results, fields) {
-                                        conexion.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                        conexion.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                           if(result[0].total == 0){
-                                            conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                              conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                            conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                              conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                   conexion.query("UNLOCK TABLES",function(error, results, fields) {
                                                     conexion.release();
                                                   });
@@ -2531,16 +2531,16 @@ app.post('/eliminarusuarios', function(req,res){
                                             });
                                           }
                                           else{
-                                            conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                              conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                  conexion.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                            conexion.query("DELETE FROM Eliminar_servicio_usuario WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                              conexion.query("DELETE FROM Matriculados WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                conexion.query("DELETE FROM Ultima_conexion WHERE usuario='"+aux+"' AND motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                  conexion.query("SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                     if(result[0].total == 0){
-                                                      functions.eliminardirectoriotodo(req.body['nombreservicio'], function(){
+                                                      functions.eliminardirectoriotodo(req.body[`nombreservicio`], function(){
                                                         pool.getConnection(function(err, connection) {
                                                           connection.query(bloqueo_tablas,function(error, results, fields) {
-                                                            connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
-                                                              connection.query("DELETE FROM Servicios WHERE motivo='"+req.body['nombreservicio']+"'",function(error, result, fields) {
+                                                            connection.query("DELETE FROM Eliminar_servicio WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
+                                                              connection.query("DELETE FROM Servicios WHERE motivo='"+req.body[`nombreservicio`]+"'",function(error, result, fields) {
                                                                 connection.query("UNLOCK TABLES",function(error, results, fields) {
                                                                   connection.release();
                                                                 });
@@ -2569,7 +2569,7 @@ app.post('/eliminarusuarios', function(req,res){
                                 });
                                   connection.query("UNLOCK TABLES",function(error, results, fields) {
                                     connection.release();
-                                    res.redirect('/controlpanel');
+                                    res.redirect(`/controlpanel`);
                                   });
                                 }
                                 else{ // si está encendido mandamos a apagar
@@ -2581,7 +2581,7 @@ app.post('/eliminarusuarios', function(req,res){
                                         logger.info(`enviado stop`);
                                         connection.query("UNLOCK TABLES",function(error, results, fields) {
                                           connection.release();
-                                          res.redirect('/controlpanel');
+                                          res.redirect(`/controlpanel`);
                                         });
                                     });
                                   }
@@ -2589,7 +2589,7 @@ app.post('/eliminarusuarios', function(req,res){
                                     connection.query("UNLOCK TABLES",function(error, results, fields) {
                                         logger.debug(`liberando tablas MySQL`);
                                       connection.release();
-                                      res.redirect('/controlpanel');
+                                      res.redirect(`/controlpanel`);
                                     });
                                   }
                                 }
@@ -2600,7 +2600,7 @@ app.post('/eliminarusuarios', function(req,res){
                               connection.query("UNLOCK TABLES",function(error, results, fields) {
                                   logger.debug(`liberando tablas MySQL`);
                                 connection.release();
-                                res.redirect('/controlpanel');
+                                res.redirect(`/controlpanel`);
                               });
                             }
                           });
@@ -2610,7 +2610,7 @@ app.post('/eliminarusuarios', function(req,res){
                         connection.query("UNLOCK TABLES",function(error, results, fields) {
                             logger.debug(`liberando tablas MySQL`);
                           connection.release();
-                          res.redirect('/controlpanel');
+                          res.redirect(`/controlpanel`);
                         });
                       }
                       });
@@ -2619,7 +2619,7 @@ app.post('/eliminarusuarios', function(req,res){
                       connection.query("UNLOCK TABLES",function(error, results, fields) {
                           logger.debug(`liberando tablas MySQL`);
                         connection.release();
-                        res.redirect('/controlpanel');
+                        res.redirect(`/controlpanel`);
                       });
                     }
                   });
@@ -2630,7 +2630,7 @@ app.post('/eliminarusuarios', function(req,res){
                   connection.query("UNLOCK TABLES",function(error, results, fields) {
                       logger.debug(`liberando tablas MySQL`);
                     connection.release();
-                    res.redirect('/controlpanel');
+                    res.redirect(`/controlpanel`);
                   });
                 }
               }
@@ -2639,7 +2639,7 @@ app.post('/eliminarusuarios', function(req,res){
                 connection.query("UNLOCK TABLES",function(error, results, fields) {
                     logger.debug(`liberando tablas MySQL`);
                   connection.release();
-                  res.redirect('/controlpanel');
+                  res.redirect(`/controlpanel`);
                 });
               }
               });
@@ -2649,7 +2649,7 @@ app.post('/eliminarusuarios', function(req,res){
               connection.query("UNLOCK TABLES",function(error, results, fields) {
                   logger.debug(`liberando tablas MySQL`);
                 connection.release();
-                res.redirect('/controlpanel');
+                res.redirect(`/controlpanel`);
               });
             }
           });
@@ -2660,8 +2660,8 @@ app.post('/eliminarusuarios', function(req,res){
 });
 
 
-app.get('*', function(req, res){
-  res.render('error', {});
+app.get(`*`, function(req, res){
+  res.render(`error`, {});
 });
 
 
