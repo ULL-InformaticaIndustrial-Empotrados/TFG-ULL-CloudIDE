@@ -1,5 +1,5 @@
 const logger = require(`winston`);
-const { exec } = require(`child-process`);
+const { exec } = require(`child_process`);
 
 
 const config = require(`./config.json`);

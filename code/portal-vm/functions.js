@@ -3,7 +3,7 @@ const logger = require(`winston`);
 const os = require(`os`);
 const MySqlAsync = require(`mysql`);
 const moment = require(`moment`);
-const { exec } = require(`child-process`);
+const { exec } = require(`child_process`);
 
 const config = require(`./config.json`);
 
