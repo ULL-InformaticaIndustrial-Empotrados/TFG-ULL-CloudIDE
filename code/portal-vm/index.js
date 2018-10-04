@@ -2,33 +2,27 @@ const logger = require(`./logger.js`);
 
 logger.info(`Comienza la aplicacion portal`);
 
-var express = require(`express`);
-var config = require(`./config.json`);
-var functions = require(`./functions.js`);
-var firewall = require(`./firewall.js`);
-var bodyParser = require(`body-parser`);
-async = require(`async`);
-var ovirt = require(`./ovirt.js`);
-var sesion = require(`./sesion.js`);
-var addresses = functions.getiplocal();
+const express = require(`express`);
+const config = require(`./config.json`);
+const functions = require(`./functions.js`);
+const firewall = require(`./firewall.js`);
+const bodyParser = require(`body-parser`);
+const async = require(`async`);
+const ovirt = require(`./ovirt.js`);
+const sesion = require(`./sesion.js`);
+const addresses = functions.getiplocal();
 
-
-
-
-var pool = functions.createnewconnection();
-var app = express();
-app.use(bodyParser.urlencoded({extended : false}));
+const pool = functions.createnewconnection();
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(`/cloud`, express.static(`./client/views`));
 app.use(`/`, express.static(`./client/views`));
 
-app.set(`views`, `./client/views`); //Configuramos el directorio de vistas
+app.set(`views`, `./client/views`); // Configuramos el directorio de vistas
 app.set(`view engine`, `ejs`);
 
-firewall.inicializar(); //borramos iptables anteriores
-
-var regexp = /\balu\d{10}\b/; //Expresion regular para saber si el usuario es un alumno o un profesor
-
+firewall.inicializar(); // borramos iptables anteriores
 
 // Funcion-promesa para determinar rol del usuario
 function getRoll(user) {
@@ -36,32 +30,29 @@ function getRoll(user) {
     const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
     logger.debug(`Obetemos roll con consulta: "${consulta}"`);
     pool.query(consulta, (error, result, fields) => {
-        logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 4)}`);
-        if (result[0].total == 1)
-          resolve(`profesor`);
-        else
-          resolve(`alumno`);
+      logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 4)}`);
+      if (result[0].total === 1) {
+        resolve(`profesor`);
+      } else {
+        resolve(`alumno`);
       }
-    )
+    });
   });
 }
 
-
-
-
-var websocket_client = require(`socket.io`).listen(config.puerto_websocket_clients);
-var websocket_vms = require(`socket.io`)(config.puerto_websocket_vms,{
+const websocket_client = require(`socket.io`).listen(config.puerto_websocket_clients);
+const websocket_vms = require(`socket.io`)(config.puerto_websocket_vms,{
   pingTimeout: 3000,
   pingInterval: 3000
 });
-var websocket_servers = require(`socket.io`).listen(config.puerto_websocket_servers);
-var n = config.numero_max_serverxuser;
-var maxusers = config.numero_max_users;
-var socket_client_servers = new Map();
+const websocket_servers = require(`socket.io`).listen(config.puerto_websocket_servers);
+const n = config.numero_max_serverxuser;
+const maxusers = config.numero_max_users;
+const socket_client_servers = new Map();
 sesion.createsession(app, websocket_client); //creamos la sesion
-var ip_vms = new Map();
-var user_socket = new Map();
-var bloqueo_tablas = `LOCK TABLES
+const ip_vms = new Map();
+const user_socket = new Map();
+const bloqueo_tablas = `LOCK TABLES
   VMS WRITE,
   VMS as v1 READ,
   Ovirt_Pendientes_Up_AddStart WRITE,
@@ -89,28 +80,24 @@ var bloqueo_tablas = `LOCK TABLES
   Asignaciones WRITE,
   Asignaciones as a1 READ,
   Cola WRITE,
-  Cola as c1 READ`;
+  Cola as c1 READ
+`;
 
 
-//AUTENTICACION POR CAS ULL
-var CASAuthentication = require(`./cas-authentication.js`);
+// AUTENTICACION POR CAS ULL
+const CASAuthentication = require(`./cas-authentication.js`);
 
 // Create a new instance of CASAuthentication.
-var cas = new CASAuthentication({
-    cas_url     : `https://login.ull.es/cas-1`,
-    service_url : `http://cloudide.iaas.ull.es`,
-    session_info     : `cas_userinfo`,
-    destroy_session : false
-
+const cas = new CASAuthentication({
+  cas_url: `https://login.ull.es/cas-1`,
+  service_url: `http://cloudide.iaas.ull.es`,
+  session_info: `cas_userinfo`,
+  destroy_session: false,
 });
-
-///////
-
-
 
 // OVIRT //////////////////////
 
-var ovirt_vms = function(){
+const ovirt_vms = function(){
 logger.debug(`Entramos ovirt_vms`);
 
 pool.getConnection(function(err, connection) {
