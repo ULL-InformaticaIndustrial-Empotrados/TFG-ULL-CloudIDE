@@ -26,10 +26,10 @@ firewall.inicializar(); // borramos iptables anteriores
 
 // Funcion-promesa para determinar rol del usuario
 function getRoll(user) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
     logger.debug(`Obetemos roll con consulta: "${consulta}"`);
-    pool.query(consulta, (error, result, fields) => {
+    pool.query(consulta, (error, result) => {
       logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 4)}`);
       if (result[0].total === 1) {
         resolve(`profesor`);
@@ -40,19 +40,19 @@ function getRoll(user) {
   });
 }
 
-const websocket_client = require(`socket.io`).listen(config.puerto_websocket_clients);
-const websocket_vms = require(`socket.io`)(config.puerto_websocket_vms,{
+const websocketClient = require(`socket.io`).listen(config.puerto_websocket_clients);
+const websocketVms = require(`socket.io`)(config.puerto_websocket_vms, {
   pingTimeout: 3000,
-  pingInterval: 3000
+  pingInterval: 3000,
 });
-const websocket_servers = require(`socket.io`).listen(config.puerto_websocket_servers);
+const websocketServers = require(`socket.io`).listen(config.puerto_websocket_servers);
 const n = config.numero_max_serverxuser;
-const maxusers = config.numero_max_users;
-const socket_client_servers = new Map();
-sesion.createsession(app, websocket_client); //creamos la sesion
-const ip_vms = new Map();
-const user_socket = new Map();
-const bloqueo_tablas = `LOCK TABLES
+// const maxusers = config.numero_max_users;
+const socketClientServers = new Map();
+sesion.createsession(app, websocketClient); // creamos la sesion
+const ipVms = new Map();
+const userSocket = new Map();
+const bloqueoTablas = `LOCK TABLES
   VMS WRITE,
   VMS as v1 READ,
   Ovirt_Pendientes_Up_AddStart WRITE,
@@ -97,182 +97,182 @@ const cas = new CASAuthentication({
 
 // OVIRT //////////////////////
 
-const ovirt_vms = function(){
-logger.debug(`Entramos ovirt_vms`);
+function ovirtVms() {
+logger.debug(`Entramos ovirtVms`);
 
-pool.getConnection(function(err, connection) {
-  connection.query(bloqueo_tablas,function(error, results, fields) {
-  connection.query(`SELECT COUNT(*) AS total FROM ( SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 UNION SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='up') as t1`, function(error, total, fields) {
-    connection.query(`SELECT COUNT(DISTINCT usuario) AS total FROM Cola as c1`, function(error, total_usuarios_cola, fields) {
+  pool.getConnection((err, connection) => {
+    connection.query(bloqueoTablas, (error, results, fields) => {
+      connection.query(`SELECT COUNT(*) AS total FROM ( SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 UNION SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='up') as t1`, (error, total, fields) => {
+        connection.query(`SELECT COUNT(DISTINCT usuario) AS total FROM Cola as c1`, (error, total_usuarios_cola, fields) => {
 
-    if(((total_usuarios_cola[0].total/config.numero_max_users)+config.numero_vm_reserva) > total[0].total){
-      logger.info(`OVIRT -> hay menos en cola`);
-
-
-      var inicio = 0;
-      var limite = ((total_usuarios_cola[0].total/config.numero_max_users)+config.numero_vm_reserva)-total[0].total;
-
-      var bucle = function(contador){
-
-        logger.info(`Añadimos vm`);
-        connection.query(`SELECT * FROM Banco_ip as bip WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT 1`, function(error, escoger_ip, fields) {
-          connection.query(`INSERT INTO Ovirt (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}')`, function(error, result, fields) {
-            connection.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}', 'up')`, function(error, result, fields) {
-              connection.query(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}')`, function(error, result, fields) {
-
-              connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
-                if(contar_ovp_up[0].total == 1){
-
-                  var bucle2 = function(ip){
-                  ovirt.add_and_start_vm(`ULL-CloudIDE-backend-${ip}`,ip, function(){
-                    pool.getConnection(function(err, conexion) {
-                      conexion.query(bloqueo_tablas,function(error, results, fields) {
-                        conexion.query(`DELETE FROM Ovirt_Pendientes_Up_AddStart WHERE ip_vm='${ip}'`, function(error, result, fields) {
-                            logger.info(`VM added and started "ULL-CloudIDE-backend-${ip}"`);
-                            conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
-                              if(contar_ovp_up[0].total != 0){
-                                conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes_Up_AddStart as ovpuas LIMIT 1`, function(error, escoger_ovp, fields) {
-                                  bucle2(escoger_ovp[0].ip_vm);
-                                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                        logger.debug(`liberando tablas MySQL`);
-
-                                      conexion.release();
-                                  });
-                                });
-                              }
-                              else{
-                                conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                      logger.debug(`liberando tablas MySQL`);
-                                    conexion.release();
-                                });
-                              }
-                            });
-                        });
-                      });
-                    });
-                  });
-                }
-                bucle2(escoger_ip[0].ip);
-              }
-              contador++;
-              if(contador  < limite){
-                bucle(contador);
-              }
-              else{
-                connection.query(`UNLOCK TABLES`,function(error, results, fields) {
-                      logger.debug(`liberando tablas MySQL`);
-
-                    connection.release();
-                });
-              }
-            });
-          });
-            });
-          });
-        });
-      }
-
-      bucle(inicio);
-      }
+      if(((total_usuarios_cola[0].total/config.numero_max_users)+config.numero_vm_reserva) > total[0].total){
+        logger.info(`OVIRT -> hay menos en cola`);
 
 
-    else{
+        var inicio = 0;
+        var limite = ((total_usuarios_cola[0].total/config.numero_max_users)+config.numero_vm_reserva)-total[0].total;
 
+        var bucle = function(contador){
 
-      connection.query(`SELECT COUNT(*) AS total FROM VMS as v1 WHERE prioridad=1`, function(error, total, fields) {
-        if(total[0].total > config.numero_vm_reserva){
-          logger.info(`OVIRT -> hay más`);
+          logger.info(`Añadimos vm`);
+          connection.query(`SELECT * FROM Banco_ip as bip WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT 1`, function(error, escoger_ip, fields) {
+            connection.query(`INSERT INTO Ovirt (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}')`, function(error, result, fields) {
+              connection.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}', 'up')`, function(error, result, fields) {
+                connection.query(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}')`, function(error, result, fields) {
 
-          var limite = total[0].total-config.numero_vm_reserva;
-          var inicio = 0;
+                connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
+                  if(contar_ovp_up[0].total == 1){
 
-          var bucle = function(contador){
-
-            logger.info(`Stop and Remove VM`);
-            connection.query(`SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 LIMIT 1`, function(error, escoger_vm, fields) {
-              connection.query(`DELETE FROM VMS WHERE ip_vm='${escoger_vm[0].ip_vm}'`, function(error, result, fields) {
-                connection.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-${escoger_vm[0].ip_vm}', '${escoger_vm[0].ip_vm}', 'down')`, function(error, result, fields) {
-                  connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' `, function(error, contar_ovp_down, fields) {
-                    if(contar_ovp_down[0].total == 1){
-
-                      var bucle2 = function(ip){
-                      ovirt.stop_and_remove_vm(`ULL-CloudIDE-backend-${ip}`, function(){
-                        pool.getConnection(function(err, conexion) {
-                          conexion.query(bloqueo_tablas,function(error, results, fields) {
-                            conexion.query(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ip}'`, function(error, result, fields) {
-                              conexion.query(`DELETE FROM Ovirt WHERE ip_vm='${ip}'`, function(error, result, fields) {
-                                logger.info(`VM stopped and removed "ULL-CloudIDE-backend-${ip}"`);
-                                conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' `, function(error, contar_ovp_down, fields) {
-                                  if(contar_ovp_down[0].total != 0){
-                                    conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='down' LIMIT 1`, function(error, escoger_ovp, fields) {
-                                      bucle2(escoger_ovp[0].ip_vm);
-                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                            logger.debug(`liberando tablas MySQL`);
-
-                                          conexion.release();
-                                      });
-                                    });
-                                  }
-                                  else{
+                    var bucle2 = function(ip){
+                    ovirt.add_and_start_vm(`ULL-CloudIDE-backend-${ip}`,ip, function(){
+                      pool.getConnection(function(err, conexion) {
+                        conexion.query(bloqueoTablas,function(error, results, fields) {
+                          conexion.query(`DELETE FROM Ovirt_Pendientes_Up_AddStart WHERE ip_vm='${ip}'`, function(error, result, fields) {
+                              logger.info(`VM added and started "ULL-CloudIDE-backend-${ip}"`);
+                              conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
+                                if(contar_ovp_up[0].total != 0){
+                                  conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes_Up_AddStart as ovpuas LIMIT 1`, function(error, escoger_ovp, fields) {
+                                    bucle2(escoger_ovp[0].ip_vm);
                                     conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                           logger.debug(`liberando tablas MySQL`);
 
                                         conexion.release();
                                     });
-                                  }
+                                  });
+                                }
+                                else{
+                                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
+                                        logger.debug(`liberando tablas MySQL`);
+                                      conexion.release();
+                                  });
+                                }
+                              });
+                          });
+                        });
+                      });
+                    });
+                  }
+                  bucle2(escoger_ip[0].ip);
+                }
+                contador++;
+                if(contador  < limite){
+                  bucle(contador);
+                }
+                else{
+                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
+                        logger.debug(`liberando tablas MySQL`);
+
+                      connection.release();
+                  });
+                }
+              });
+            });
+              });
+            });
+          });
+        }
+
+        bucle(inicio);
+        }
+
+
+      else{
+
+
+        connection.query(`SELECT COUNT(*) AS total FROM VMS as v1 WHERE prioridad=1`, function(error, total, fields) {
+          if(total[0].total > config.numero_vm_reserva){
+            logger.info(`OVIRT -> hay más`);
+
+            var limite = total[0].total-config.numero_vm_reserva;
+            var inicio = 0;
+
+            var bucle = function(contador){
+
+              logger.info(`Stop and Remove VM`);
+              connection.query(`SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 LIMIT 1`, function(error, escoger_vm, fields) {
+                connection.query(`DELETE FROM VMS WHERE ip_vm='${escoger_vm[0].ip_vm}'`, function(error, result, fields) {
+                  connection.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-${escoger_vm[0].ip_vm}', '${escoger_vm[0].ip_vm}', 'down')`, function(error, result, fields) {
+                    connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' `, function(error, contar_ovp_down, fields) {
+                      if(contar_ovp_down[0].total == 1){
+
+                        var bucle2 = function(ip){
+                        ovirt.stop_and_remove_vm(`ULL-CloudIDE-backend-${ip}`, function(){
+                          pool.getConnection(function(err, conexion) {
+                            conexion.query(bloqueoTablas,function(error, results, fields) {
+                              conexion.query(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ip}'`, function(error, result, fields) {
+                                conexion.query(`DELETE FROM Ovirt WHERE ip_vm='${ip}'`, function(error, result, fields) {
+                                  logger.info(`VM stopped and removed "ULL-CloudIDE-backend-${ip}"`);
+                                  conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes as ovp WHERE tipo='down' `, function(error, contar_ovp_down, fields) {
+                                    if(contar_ovp_down[0].total != 0){
+                                      conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='down' LIMIT 1`, function(error, escoger_ovp, fields) {
+                                        bucle2(escoger_ovp[0].ip_vm);
+                                        conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
+                                              logger.debug(`liberando tablas MySQL`);
+
+                                            conexion.release();
+                                        });
+                                      });
+                                    }
+                                    else{
+                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
+                                            logger.debug(`liberando tablas MySQL`);
+
+                                          conexion.release();
+                                      });
+                                    }
+                                  });
                                 });
                               });
                             });
                           });
                         });
+                      }
+                      bucle2(escoger_vm[0].ip_vm);
+                    }
+                    contador++;
+                    if(contador  < limite){
+                      bucle(contador);
+                    }
+                    else{
+                      connection.query(`UNLOCK TABLES`,function(error, results, fields) {
+                            logger.debug(`liberando tablas MySQL`);
+
+                          connection.release();
                       });
                     }
-                    bucle2(escoger_vm[0].ip_vm);
-                  }
-                  contador++;
-                  if(contador  < limite){
-                    bucle(contador);
-                  }
-                  else{
-                    connection.query(`UNLOCK TABLES`,function(error, results, fields) {
-                          logger.debug(`liberando tablas MySQL`);
-
-                        connection.release();
-                    });
-                  }
+                  });
                 });
               });
             });
-          });
+            }
+
+            bucle(inicio);
+
+
+
+
+          }
+          else{
+            connection.query(`UNLOCK TABLES`,function(error, results, fields) {
+                  logger.debug(`liberando tablas MySQL`);
+
+                connection.release();
+            });
           }
 
-          bucle(inicio);
+        });
+      }
 
 
-
-
-        }
-        else{
-          connection.query(`UNLOCK TABLES`,function(error, results, fields) {
-                logger.debug(`liberando tablas MySQL`);
-
-              connection.release();
-          });
-        }
-
-      });
-    }
-
-
+    });
   });
-});
-});
-});
+  });
+  });
 
 }
 
 
-ovirt_vms(); //Llamamos a ovirt
+ovirtVms(); //Llamamos a ovirt
 
 
 /////////////////////////////////////////
@@ -308,18 +308,18 @@ pool.getConnection(function(err, connection) {
     async.forEach(servers, function(item, callback) {
 
             var ip_server = item.ip_server;
-            socket_client_servers.set(ip_server, require(`socket.io-client`)(`http://`+ip_server+`:`+config.puerto_websocket_servers, {
+            socketClientServers.set(ip_server, require(`socket.io-client`)(`http://`+ip_server+`:`+config.puerto_websocket_servers, {
             reconnection : true,
             reconnectionDelay:0,
             reconnectionDelay:100}));
 
-            socket_client_servers.get(ip_server).on(`disconnect`, function () {
+            socketClientServers.get(ip_server).on(`disconnect`, function () {
               pool.getConnection(function(err, connection) {
               var conexion = connection;
-              conexion.query(bloqueo_tablas,function(error, results, fields) {
+              conexion.query(bloqueoTablas,function(error, results, fields) {
                 conexion.query(`DELETE FROM Servidores WHERE ip_server='${ip_server}'`,function(error, result, fields) {
-                  socket_client_servers.get(ip_server).disconnect();
-                  socket_client_servers.delete(ip_server);
+                  socketClientServers.get(ip_server).disconnect();
+                  socketClientServers.delete(ip_server);
                   logger.info(`server disconnected`);
                   conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                     logger.debug(`liberando tablas MySQL`);
@@ -333,40 +333,40 @@ pool.getConnection(function(err, connection) {
         });
       });
 
-          socket_client_servers.get(ip_server).on(`prueba`, function (data) {
+          socketClientServers.get(ip_server).on(`prueba`, function (data) {
             logger.info(`prueba recibida`);
           });
 
-          socket_client_servers.get(ip_server).on(`enviar-resultado`, function (data) {
+          socketClientServers.get(ip_server).on(`enviar-resultado`, function (data) {
             logger.info(`enviar resultado`);
-            if(user_socket.get(data.user) != undefined){
+            if(userSocket.get(data.user) != undefined){
               broadcastclient(data.user, `resultado`, {motivo : data.motivo});
             }
           });
 
-          socket_client_servers.get(ip_server).on(`enviar-stop`, function (data) {
+          socketClientServers.get(ip_server).on(`enviar-stop`, function (data) {
             logger.info(`enviar stopp`);
-            if(user_socket.get(data.user) != undefined){
+            if(userSocket.get(data.user) != undefined){
               broadcastclient(data.user, `stop`, {motivo : data.motivo});
             }
           });
 
-          socket_client_servers.get(ip_server).on(`deletednat`, function (data) {
+          socketClientServers.get(ip_server).on(`deletednat`, function (data) {
             logger.info(`servers deletednat`);
             firewall.deletednat(data);
           });
 
-          socket_client_servers.get(ip_server).on(`dnatae-eliminarsolo`, function (data) {
+          socketClientServers.get(ip_server).on(`dnatae-eliminarsolo`, function (data) {
             logger.info(`servers deletednat`);
             firewall.dnatae(`eliminarsolo`, data.ip_origen, data.ipvm, data.puerto);
           });
 
-          socket_client_servers.get(ip_server).on(`añadirsolo`, function (data) {
+          socketClientServers.get(ip_server).on(`añadirsolo`, function (data) {
             logger.info(`servers deletednat`);
             firewall.dnatae(`añadirsolo`, data.ip_origen, data.ipvm, data.puerto);
           });
 
-          socket_client_servers.get(ip_server).on(`añadircomienzo`, function (data) {
+          socketClientServers.get(ip_server).on(`añadircomienzo`, function (data) {
             logger.info(`servers deletednat`);
             firewall.dnatae(`añadircomienzo`, data.ip_origen, data.ipvm, data.puerto);
           });
@@ -384,7 +384,7 @@ pool.getConnection(function(err, connection) {
     pool.getConnection(function(err, connection) {
       var conexion = connection;
       logger.info(`VMFREE`);
-        conexion.query(bloqueo_tablas,function(error, results, fields) {
+        conexion.query(bloqueoTablas,function(error, results, fields) {
           conexion.query(`SELECT COUNT(*) AS total FROM Cola AS c1`,function(error, cola_, fields) {
             conexion.query(`SELECT COUNT(*) AS total FROM VMS AS v1`,function(error, vms_, fields) {
 
@@ -394,7 +394,7 @@ pool.getConnection(function(err, connection) {
                       conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
                         conexion.query(`SELECT * FROM Cola AS c1 WHERE usuario='${cola_user[0].usuario}'`,function(error, cola_user1, fields) {
                             conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
-                              if(ip_vms.get(cola_vm[0].ip_vm)!= undefined){
+                              if(ipVms.get(cola_vm[0].ip_vm)!= undefined){
                               async.forEach(cola_user1, function(item, callback) {
                                     conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
                                       var json = {user : cola_user[0].usuario, motivo : item.motivo};
@@ -470,24 +470,24 @@ pool.getConnection(function(err, connection) {
 }
 
   var getsocketfromip = function(ip){
-    return ip_vms.get(ip)[ip_vms.get(ip).length-1];
+    return ipVms.get(ip)[ipVms.get(ip).length-1];
   }
 
   var broadcastservers = function(evento, data){
     logger.info(`Enviando broadcastservers`);
 
-    socket_client_servers.forEach(function(value, key, map){
+    socketClientServers.forEach(function(value, key, map){
       value.emit(evento, data);
     });
 
-    websocket_servers.sockets.emit(evento,data);
+    websocketServers.sockets.emit(evento,data);
 
 
   }
 
 
   var broadcastclient = function(user, evento, data){
-    var socks = user_socket.get(user);
+    var socks = userSocket.get(user);
     if(socks != undefined){
       socks.forEach(function(value, key, map){
         value.emit(evento, data);
@@ -529,19 +529,19 @@ pool.getConnection(function(err, connection) {
 //WEBSOCKET////////////////////////////
 
 
-websocket_servers.on(`connection`, function(socket){
+websocketServers.on(`connection`, function(socket){
   logger.info(`server conectado`);
 
-  socket_client_servers.set(functions.cleanaddress(socket.handshake.address), socket);
+  socketClientServers.set(functions.cleanaddress(socket.handshake.address), socket);
 
   socket.on(`disconnect`, function () {
 
       pool.getConnection(function(err, connection) {
       var conexion = connection;
-      conexion.query(bloqueo_tablas,function(error, results, fields) {
+      conexion.query(bloqueoTablas,function(error, results, fields) {
         conexion.query(`DELETE FROM Servidores WHERE ip_server='${functions.cleanaddress(socket.handshake.address)}'`,function(error, result, fields) {
-          socket_client_servers.get(functions.cleanaddress(socket.handshake.address)).disconnect();
-          socket_client_servers.delete(functions.cleanaddress(socket.handshake.address));
+          socketClientServers.get(functions.cleanaddress(socket.handshake.address)).disconnect();
+          socketClientServers.delete(functions.cleanaddress(socket.handshake.address));
           logger.info(`server disconnected`);
           conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
             logger.debug(`liberando tablas MySQL`);
@@ -561,7 +561,7 @@ websocket_servers.on(`connection`, function(socket){
 
   socket.on(`enviar-resultado`, function (data) {
     logger.info(`enviar resultado`);
-    if(user_socket.get(data.user) != undefined){
+    if(userSocket.get(data.user) != undefined){
       broadcastclient(data.user, `resultado`, {motivo : data.motivo});
     }
     else{
@@ -572,7 +572,7 @@ websocket_servers.on(`connection`, function(socket){
   socket.on(`enviar-stop`, function (data) {
     logger.info(`enviar stopp`);
 
-    if(user_socket.get(data.user) != undefined){
+    if(userSocket.get(data.user) != undefined){
       broadcastclient(data.user, `stop`, {motivo : data.motivo});
     }
     else{
@@ -605,31 +605,31 @@ websocket_servers.on(`connection`, function(socket){
 
 
 
- websocket_client.on(`connection`, function (socket) {
+ websocketClient.on(`connection`, function (socket) {
 
     logger.info(`Conexión cliente de "${socket.id}" Con ip "${socket.handshake.address}"`);
     if(socket.session.user){
-      if(user_socket.get(socket.session.user) == undefined){
-        user_socket.set(socket.session.user, new Map());
+      if(userSocket.get(socket.session.user) == undefined){
+        userSocket.set(socket.session.user, new Map());
       }
-      var aux = user_socket.get(socket.session.user);
+      var aux = userSocket.get(socket.session.user);
       aux.set(socket.id, socket);
       logger.info(`tiene conectados a la vez "${aux.size}"`);
-      user_socket.set(socket.session.user, aux);
+      userSocket.set(socket.session.user, aux);
     }
 
     socket.on(`disconnect`, function () {
       logger.info(`client disconnected`);
       if(socket.session.user){
-        if(user_socket.get(socket.session.user) != undefined){
-          var aux = user_socket.get(socket.session.user);
+        if(userSocket.get(socket.session.user) != undefined){
+          var aux = userSocket.get(socket.session.user);
           aux.delete(socket.id);
           if(aux.size == 0){
             logger.info(`no hay mas usuario "${socket.session.user}"`);
-            user_socket.delete(socket.session.user);
+            userSocket.delete(socket.session.user);
           }
           else{
-            user_socket.set(socket.session.user, aux);
+            userSocket.set(socket.session.user, aux);
           }
           logger.info(`tiene conectados a la vez "${aux.size}"`);
         }
@@ -640,7 +640,7 @@ websocket_servers.on(`connection`, function(socket){
   socket.on(`stopenlace`, function(data){
       if(socket.session.user){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-          if(user_socket.get(socket.session.user) != undefined){
+          if(userSocket.get(socket.session.user) != undefined){
             socket.emit(`data-error`, {msg : `Está accediendo desde una ip diferente a la inicial`} );
           }
           logger.info(`Está accediendo desde una ip diferente a la inicial`);
@@ -651,7 +651,7 @@ websocket_servers.on(`connection`, function(socket){
           pool.getConnection(function(err, connection) {
           var conexion = connection;
 
-          conexion.query(bloqueo_tablas,function(error, results, fields) {
+          conexion.query(bloqueoTablas,function(error, results, fields) {
             conexion.query(`SELECT COUNT(*) AS total FROM Matriculados AS m1 WHERE usuario='${socket.session.user}' AND motivo='${data}'`,function(error, existe_matriculados, fields) {
               if(existe_matriculados[0].total != 0){
                 conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu WHERE usuario='${socket.session.user}' AND motivo='${data}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data}') AS alias`, function(error, total, fields) {
@@ -661,7 +661,7 @@ websocket_servers.on(`connection`, function(socket){
               conexion.query(`SELECT * FROM Asignaciones AS a1 WHERE motivo='${data}' AND usuario='${socket.session.user}'`,function(error, results, fields) {
                 if(results.length != 0){
 
-                  if(ip_vms.get(results[0].ip_vm) != undefined){
+                  if(ipVms.get(results[0].ip_vm) != undefined){
                     var socket_vm = getsocketfromip(results[0].ip_vm);
                     conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${results[0].ip_vm}', '${results[0].motivo}','${socket.session.user}', 'down')`,function(error, results2, fields) {
                       var json = {user : socket.session.user, motivo : data, puerto : results[0].puerto};
@@ -674,7 +674,7 @@ websocket_servers.on(`connection`, function(socket){
                   }
                   else{
                     logger.info(`no puede eliminar`);
-                    if(user_socket.get(socket.session.user) != undefined){
+                    if(userSocket.get(socket.session.user) != undefined){
                       socket.emit(`data-error`, {msg : `No se puede eliminar`} );
                     }
                     conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -685,7 +685,7 @@ websocket_servers.on(`connection`, function(socket){
                 }
 
                 else{
-                  if(user_socket.get(socket.session.user) != undefined){
+                  if(userSocket.get(socket.session.user) != undefined){
                     socket.emit(`data-error`, {msg : `No se puede eliminar`} );
                   }
                   logger.info(`no puede eliminar`);
@@ -696,7 +696,7 @@ websocket_servers.on(`connection`, function(socket){
               });
           }
             else{
-              if(user_socket.get(socket.session.user) != undefined){
+              if(userSocket.get(socket.session.user) != undefined){
                 socket.emit(`data-error`, {msg : `No se puede eliminar`} );
               }
               logger.info(`no puede eliminar`);
@@ -707,7 +707,7 @@ websocket_servers.on(`connection`, function(socket){
             });
           }
             else{
-              if(user_socket.get(socket.session.user) != undefined){
+              if(userSocket.get(socket.session.user) != undefined){
                 socket.emit(`data-error`, {msg : `No se puede eliminar`} );
               }
               logger.info(`no puede eliminar`);
@@ -718,7 +718,7 @@ websocket_servers.on(`connection`, function(socket){
           });
           }
             else{
-              if(user_socket.get(socket.session.user) != undefined){
+              if(userSocket.get(socket.session.user) != undefined){
                 socket.emit(`data-error`, {msg : `No está matriculado de este servidor`} );
               }
               logger.info(`No esta matriculado`);
@@ -743,7 +743,7 @@ websocket_servers.on(`connection`, function(socket){
       if(socket.session.user){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           logger.info(`la ip no es la misma`);
-          if(user_socket.get(socket.session.user) != undefined){
+          if(userSocket.get(socket.session.user) != undefined){
             socket.emit(`data-error`, {msg : `Está accediendo desde una ip diferente a la inicial`} );
           }
         }
@@ -755,7 +755,7 @@ websocket_servers.on(`connection`, function(socket){
 
         logger.info(`Ha pedido enlace "${data}" el usuario "${socket.session.user}"`);
         var bool = false;
-        conexion.query(bloqueo_tablas,function(error, results, fields) {
+        conexion.query(bloqueoTablas,function(error, results, fields) {
           logger.info(`Ha pedido enlace "${data}" el usuario "${socket.session.user}"`);
 
         var promise3 = new Promise(function(resolve, reject) {
@@ -790,7 +790,7 @@ websocket_servers.on(`connection`, function(socket){
                                     }
                                     else{
                                       logger.info(`supera el numero de servidores`);
-                                      if(user_socket.get(socket.session.user) != undefined){
+                                      if(userSocket.get(socket.session.user) != undefined){
                                         socket.emit(`data-error`, {msg : `Supera el número máximo de servidores`} );
                                       }
                                       resolve(`supera`);
@@ -800,7 +800,7 @@ websocket_servers.on(`connection`, function(socket){
 
                                   else{
                                     logger.info(`ya esta en la cola`);
-                                    if(user_socket.get(socket.session.user) != undefined){
+                                    if(userSocket.get(socket.session.user) != undefined){
                                       socket.emit(`data-error`, {msg : `Ya está en el sistema`} );
                                     }
                                     resolve(`ya esta`);
@@ -813,7 +813,7 @@ websocket_servers.on(`connection`, function(socket){
                   }
                   else{
                     logger.info(`pendientes fail o bbdd fail`);
-                    if(user_socket.get(socket.session.user) != undefined){
+                    if(userSocket.get(socket.session.user) != undefined){
                       socket.emit(`data-error`, {msg : `Ya está en el sistema`} );
                     }
                     resolve(`principal`);
@@ -825,7 +825,7 @@ websocket_servers.on(`connection`, function(socket){
             }
             else{
               logger.info(`Este servicio se está desmatriculando`);
-              if(user_socket.get(socket.session.user) != undefined){
+              if(userSocket.get(socket.session.user) != undefined){
                 socket.emit(`data-error`, {msg : `Este servicio se está desmatriculando`} );
               }
               resolve(`no matriculado`);
@@ -834,7 +834,7 @@ websocket_servers.on(`connection`, function(socket){
             }
               else{
                 logger.info(`No está matriculado de este servidor`);
-                if(user_socket.get(socket.session.user) != undefined){
+                if(userSocket.get(socket.session.user) != undefined){
                   socket.emit(`data-error`, {msg : `No está matriculado de este servidor`} );
                 }
                 resolve(`no matriculado`);
@@ -879,10 +879,10 @@ websocket_servers.on(`connection`, function(socket){
 
                                     promise4.then(function(result) {
 
-                                      if(ip_vms.get(ip) == undefined){ //si la vm no esta disponible
+                                      if(ipVms.get(ip) == undefined){ //si la vm no esta disponible
                                         conexion.query(`DELETE FROM Cola WHERE usuario='${socket.session.user}'`,function(error, result, fields) {
                                           logger.info(`no se puede obtener enlace`);
-                                          if(user_socket.get(socket.session.user) != undefined){
+                                          if(userSocket.get(socket.session.user) != undefined){
                                             socket.emit(`data-error`, {msg : `No se puede obtener el servidor`} );
                                           }
                                           resolve();
@@ -954,7 +954,7 @@ websocket_servers.on(`connection`, function(socket){
                                             conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
 
                                               conexion.query(`SELECT * FROM Cola AS c1 WHERE usuario='${cola_user[0].usuario}'`,function(error, cola_user1, fields) {
-                                                if(ip_vms.get(cola_vm[0].ip_vm) != undefined){
+                                                if(ipVms.get(cola_vm[0].ip_vm) != undefined){
                                                   async.forEach(cola_user1, function(item, callback) {
 
                                                         conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
@@ -1012,7 +1012,7 @@ websocket_servers.on(`connection`, function(socket){
                                                     logger.info(`enviado a vm`);
                                                     conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                                     conexion.release();
-                                                    ovirt_vms();
+                                                    ovirtVms();
 
                                                   });
                                                   });
@@ -1027,7 +1027,7 @@ websocket_servers.on(`connection`, function(socket){
                                       else{
                                         conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                         conexion.release();
-                                        //ovirt_vms();
+                                        //ovirtVms();
 
                                       });
                                       }
@@ -1043,7 +1043,7 @@ websocket_servers.on(`connection`, function(socket){
                                         else{
                                           conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                           conexion.release();
-                                          ovirt_vms();
+                                          ovirtVms();
 
                                         });
                                         }
@@ -1065,7 +1065,7 @@ websocket_servers.on(`connection`, function(socket){
                             logger.info(`bool es falso`);
                             conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                             conexion.release();
-                            ovirt_vms();
+                            ovirtVms();
 
                           });
                           }
@@ -1080,7 +1080,7 @@ websocket_servers.on(`connection`, function(socket){
 
     else{
       logger.info(`Acceso sin sesión de usuario`);
-      if(user_socket.get(socket.session.user) != undefined){
+      if(userSocket.get(socket.session.user) != undefined){
         socket.emit(`data-error`, {msg : `Accesso sin iniciar sesión`} );
       }
     }
@@ -1094,24 +1094,24 @@ websocket_servers.on(`connection`, function(socket){
   });
 
 
- websocket_vms.on('connection', function (socket) {
+ websocketVms.on('connection', function (socket) {
 
    var ipvm = functions.cleanaddress(socket.handshake.address);
    logger.info(`Conexión de "${socket.id}" Con ip "${ipvm}"`);
 
-   //ip_vms.set(ipvm, socket);
-   if(ip_vms.get(ipvm) == undefined){
-     ip_vms.set(ipvm, new Array());
+   //ipVms.set(ipvm, socket);
+   if(ipVms.get(ipvm) == undefined){
+     ipVms.set(ipvm, new Array());
    }
-   var aux = ip_vms.get(ipvm);
+   var aux = ipVms.get(ipvm);
    aux.push(socket);
-   ip_vms.set(ipvm, aux);
+   ipVms.set(ipvm, aux);
 
-   logger.info(`ip_vms tiene longitud > "${ip_vms.size}"`);
+   logger.info(`ipVms tiene longitud > "${ipVms.size}"`);
 
    pool.getConnection(function(err, connection) {
    var conexion = connection;
-   conexion.query(bloqueo_tablas,function(error, results, fields) {
+   conexion.query(bloqueoTablas,function(error, results, fields) {
 
      conexion.query(`SELECT * FROM Ovirt_Pendientes as ovp WHERE ip_vm='${ipvm}'`,function(error, existe_pendientes_ovirt, fields) {
        var bool = true;
@@ -1175,7 +1175,7 @@ websocket_servers.on(`connection`, function(socket){
                        conexion.query(`SELECT * FROM Cola as c1 WHERE usuario='${cola_user[0].usuario}'`,function(error, cola_user1, fields) {
                            conexion.query(`SELECT * FROM VMS as v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
 
-                             if(ip_vms.get(cola_vm[0].ip_vm) != undefined){
+                             if(ipVms.get(cola_vm[0].ip_vm) != undefined){
                              var promise5 = new Promise(function(resolve, reject) {
                                async.forEach(cola_user1, function(item, callback) {
 
@@ -1209,7 +1209,7 @@ websocket_servers.on(`connection`, function(socket){
                                              conexion.release();
 
                                              vmfree();
-                                             ovirt_vms();
+                                             ovirtVms();
                                            });
                                            });
                                              });
@@ -1225,7 +1225,7 @@ websocket_servers.on(`connection`, function(socket){
                                              conexion.release();
 
                                              vmfree();
-                                             ovirt_vms();
+                                             ovirtVms();
                                            });
 
                                            });
@@ -1249,7 +1249,7 @@ websocket_servers.on(`connection`, function(socket){
                                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                    conexion.release();
 
-                                   //ovirt_vms();
+                                   //ovirtVms();
                                  });
 
                                  }
@@ -1262,7 +1262,7 @@ websocket_servers.on(`connection`, function(socket){
                                else{
                                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                                  conexion.release();
-                                 ovirt_vms();
+                                 ovirtVms();
 
                                });
                                }
@@ -1274,7 +1274,7 @@ websocket_servers.on(`connection`, function(socket){
                      else{
                     conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
                        conexion.release();
-                       ovirt_vms();
+                       ovirtVms();
                      });
                      }
                      });
@@ -1289,15 +1289,15 @@ websocket_servers.on(`connection`, function(socket){
     socket.on(`disconnect`, function () {
       logger.info(`VM disconnected "${ipvm}"`);
 
-        if(ip_vms.get(ipvm)!= undefined){
-          if(ip_vms.get(ipvm).length != 0){
-        ip_vms.get(ipvm)[0].disconnect();
-        ip_vms.get(ipvm).shift();
-        if(ip_vms.get(ipvm).length == 0){
-          ip_vms.delete(ipvm);
+        if(ipVms.get(ipvm)!= undefined){
+          if(ipVms.get(ipvm).length != 0){
+        ipVms.get(ipvm)[0].disconnect();
+        ipVms.get(ipvm).shift();
+        if(ipVms.get(ipvm).length == 0){
+          ipVms.delete(ipvm);
           pool.getConnection(function(err, connection) {
           var conexion = connection;
-          conexion.query(bloqueo_tablas,function(error, results, fields) {
+          conexion.query(bloqueoTablas,function(error, results, fields) {
           conexion.query(`DELETE FROM VMS WHERE ip_vm='${ipvm}'`,function(error, result, fields) {
 
             conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -1324,7 +1324,7 @@ socket.on(`loaded`, function (data) {
   var conexion = connection;
 
   var promise = new Promise(function(resolve, reject) {
-  conexion.query(bloqueo_tablas,function(error, results, fields) {
+  conexion.query(bloqueoTablas,function(error, results, fields) {
   conexion.query(`SELECT * FROM Pendientes AS p1 WHERE ip_vm='${ipvm}' AND motivo='${data.motivo}' AND usuario='${data.user}'`,function(error, pen, fields) {
 
 
@@ -1351,7 +1351,7 @@ socket.on(`loaded`, function (data) {
                       });
                     }
                   else{
-                    if(user_socket.get(pen[0].usuario) != undefined){
+                    if(userSocket.get(pen[0].usuario) != undefined){
                       broadcastclient(pen[0].usuario, `resultado`, {motivo : data.motivo} );
                     }
                     else{
@@ -1384,7 +1384,7 @@ socket.on(`loaded`, function (data) {
                     });
                     }
                   else{
-                    if(user_socket.get(pen[0].usuario) != undefined){
+                    if(userSocket.get(pen[0].usuario) != undefined){
                       broadcastclient(pen[0].usuario, `resultado`, {motivo : data.motivo} );
                     }
                     else{
@@ -1426,7 +1426,7 @@ socket.on(`loaded`, function (data) {
     promise.then(function(result) {
       conexion.query(`SELECT COUNT(*) AS total FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu WHERE usuario='${data.user}' AND motivo='${data.motivo}' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='${data.motivo}') AS alias`,function(error, total, fields) {
         if(total[0].total != 0){
-          if(ip_vms.get(ipvm) != undefined){
+          if(ipVms.get(ipvm) != undefined){
             var socket_vm = getsocketfromip(ipvm);
             conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${ipvm}', '${data.motivo}','${data.user}', 'down')`,function(error, results2, fields) {
               var json = {user : data.user, motivo : data.motivo, puerto : data.puerto};
@@ -1450,7 +1450,7 @@ socket.on(`loaded`, function (data) {
         else{
           conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${data.motivo}'`,function(error, result, fields) {
             if(result[0].total != 0){
-              if(ip_vms.get(ipvm) != undefined){
+              if(ipVms.get(ipvm) != undefined){
                 var socket_vm = getsocketfromip(ipvm);
                 conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${ipvm}', '${data.motivo}','${data.user}', 'down')`,function(error, results2, fields) {
                   var json = {user : data.user, motivo : data.motivo, puerto : data.puerto};
@@ -1498,7 +1498,7 @@ socket.on(`loaded`, function (data) {
       logger.info(`Che server stopped "${JSON.stringify(data)}"`);
       pool.getConnection(function(err, connection) {
       var conexion = connection;
-      conexion.query(bloqueo_tablas,function(error, results, fields) {
+      conexion.query(bloqueoTablas,function(error, results, fields) {
         conexion.query(`SELECT * FROM Asignaciones AS a1 WHERE ip_vm='${ipvm}' AND motivo='${data.motivo}' AND usuario='${data.user}'`,function(error, asignaciones, fields) {
           logger.info(`tamaño "${asignaciones.length}"`);
 
@@ -1567,7 +1567,7 @@ socket.on(`loaded`, function (data) {
 
                                         }
                                         else{
-                                          if(user_socket.get(asignaciones[0].usuario) != undefined){
+                                          if(userSocket.get(asignaciones[0].usuario) != undefined){
                                             broadcastclient(asignaciones[0].usuario, `stop`, {motivo : asignaciones[0].motivo});
                                           }
                                           else{
@@ -1595,7 +1595,7 @@ socket.on(`loaded`, function (data) {
 
                                         }
                                         else{
-                                          if(user_socket.get(asignaciones[0].usuario) != undefined){
+                                          if(userSocket.get(asignaciones[0].usuario) != undefined){
                                             broadcastclient(asignaciones[0].usuario, `stop`, {motivo : asignaciones[0].motivo});
                                           }
                                           else{
@@ -1641,7 +1641,7 @@ socket.on(`loaded`, function (data) {
                           if(result[0].total == 0){
                             functions.eliminardirectoriotodo(data.motivo, function(){
                               pool.getConnection(function(err, connection) {
-                                connection.query(bloqueo_tablas,function(error, results, fields) {
+                                connection.query(bloqueoTablas,function(error, results, fields) {
                                   connection.query(`DELETE FROM Eliminar_servicio WHERE motivo='${data.motivo}'`,function(error, result, fields) {
                                     connection.query(`DELETE FROM Servicios WHERE motivo='${data.motivo}'`,function(error, result, fields) {
                                       connection.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -1657,7 +1657,7 @@ socket.on(`loaded`, function (data) {
                             conexion.release();
 
                             vmfree();
-                            ovirt_vms();
+                            ovirtVms();
                           });
                           }
                           else{
@@ -1666,7 +1666,7 @@ socket.on(`loaded`, function (data) {
                             conexion.release();
 
                             vmfree();
-                            ovirt_vms();
+                            ovirtVms();
                           });
                           }
                         });
@@ -1684,7 +1684,7 @@ socket.on(`loaded`, function (data) {
 
                       functions.eliminardirectoriosolo(data.user, data.motivo, function(){
                         pool.getConnection(function(err, conexion) {
-                          conexion.query(bloqueo_tablas,function(error, results, fields) {
+                          conexion.query(bloqueoTablas,function(error, results, fields) {
                             conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${data.motivo}'`,function(error, result, fields) {
                               if(result[0].total == 0){
                                 conexion.query(`DELETE FROM Eliminar_servicio_usuario WHERE usuario='${data.user}' AND motivo='${data.motivo}'`,function(error, result, fields) {
@@ -1705,7 +1705,7 @@ socket.on(`loaded`, function (data) {
                                         if(result[0].total == 0){
                                           functions.eliminardirectoriotodo(req.body[`nombreservicio`], function(){
                                             pool.getConnection(function(err, connection) {
-                                              connection.query(bloqueo_tablas,function(error, results, fields) {
+                                              connection.query(bloqueoTablas,function(error, results, fields) {
                                                 connection.query(`DELETE FROM Eliminar_servicio WHERE motivo='${data.motivo}'`,function(error, result, fields) {
                                                   connection.query(`DELETE FROM Servicios WHERE motivo='${data.motivo}'`,function(error, result, fields) {
                                                     connection.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -1740,7 +1740,7 @@ socket.on(`loaded`, function (data) {
                     conexion.release();
 
                     vmfree();
-                    ovirt_vms();
+                    ovirtVms();
                   });
 
 
@@ -1751,7 +1751,7 @@ socket.on(`loaded`, function (data) {
                       conexion.release();
 
                       vmfree();
-                      ovirt_vms();
+                      ovirtVms();
                     });
                     }
                   });
@@ -2023,7 +2023,7 @@ app.get(`/logout`,cas.logout, function(req,res){
         conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ip_origen}'`,function(error, results, fields) {
           conexion.release();
           setTimeout(function(){
-            if(user_socket.get(user) != undefined){
+            if(userSocket.get(user) != undefined){
               broadcastclient(user, `reload`, ``);
             }
             res.redirect(`/`);
@@ -2070,7 +2070,7 @@ app.post(`/nuevoservicio`, function(req,res){
     if(req.session.rol == `profesor`){
       req.body[`nombreservicio`] = functions.getCleanedString(req.body[`nombreservicio`]);
       pool.getConnection(function(err, connection) {
-        connection.query(bloqueo_tablas,function(error, results, fields) {
+        connection.query(bloqueoTablas,function(error, results, fields) {
           connection.query(`SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, total, fields) {
             if(total[0].total == 0){
               connection.query(`INSERT INTO Servicios (usuario, motivo) VALUES ('${req.session.user}','${req.body[`nombreservicio`]}')`,function(error, result, fields) {
@@ -2136,7 +2136,7 @@ app.post(`/eliminarservicio`, function(req,res){
   if(req.session.user != undefined){
     if(req.session.rol == `profesor`){
       pool.getConnection(function(err, connection) {
-        connection.query(bloqueo_tablas,function(error, results, fields) {
+        connection.query(bloqueoTablas,function(error, results, fields) {
           connection.query(`SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='${req.body[`nombreservicio`]}' AND usuario='${req.session.user}'`,function(error, total, fields) {
             if(total[0].total == 1){
               connection.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, total, fields) {
@@ -2165,7 +2165,7 @@ app.post(`/eliminarservicio`, function(req,res){
                                                           if(result[0].total == 0){
                                                             functions.eliminardirectoriotodo(req.body[`nombreservicio`], function(){
                                                               pool.getConnection(function(err, connection) {
-                                                                connection.query(bloqueo_tablas,function(error, results, fields) {
+                                                                connection.query(bloqueoTablas,function(error, results, fields) {
                                                                   connection.query(`DELETE FROM Eliminar_servicio WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
                                                                     connection.query(`DELETE FROM Servicios WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
                                                                       connection.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -2192,7 +2192,7 @@ app.post(`/eliminarservicio`, function(req,res){
 
                                       }
                                       else{ // si está encendido mandamos a apagar
-                                        if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
+                                        if(ipVms.get(estaasignado[0].ip_vm) != undefined){
                                           var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                           connection.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${estaasignado[0].ip_vm}', '${estaasignado[0].motivo}','${aux}', 'down')`,function(error, results2, fields) {
                                             var json = {user : aux, motivo : estaasignado[0].motivo, puerto : estaasignado[0].puerto};
@@ -2276,7 +2276,7 @@ app.post(`/aniadirusuarios`, function(req,res){
   if(req.session.user != undefined){
     if(req.session.rol == `profesor`){
       pool.getConnection(function(err, connection) {
-        connection.query(bloqueo_tablas,function(error, results, fields) {
+        connection.query(bloqueoTablas,function(error, results, fields) {
           connection.query(`SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='${req.body[`nombreservicio`]}' AND usuario='${req.session.user}'`,function(error, total, fields) {
             if(total[0].total == 1){
               connection.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
@@ -2380,7 +2380,7 @@ app.post(`/eliminarusuarios`, function(req,res){
   if(req.session.user != undefined){
     if(req.session.rol == `profesor`){
       pool.getConnection(function(err, connection) {
-        connection.query(bloqueo_tablas,function(error, results, fields) {
+        connection.query(bloqueoTablas,function(error, results, fields) {
           connection.query(`SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='${req.body[`nombreservicio`]}' AND usuario='${req.session.user}'`,function(error, total, fields) {
             if(total[0].total == 1){
               connection.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
@@ -2408,7 +2408,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                     if(estaasignado.length == 0){//si no está encendido
                                       functions.eliminardirectoriosolo(aux, req.body[`nombreservicio`], function(){
                                         pool.getConnection(function(err, conexion) {
-                                          conexion.query(bloqueo_tablas,function(error, results, fields) {
+                                          conexion.query(bloqueoTablas,function(error, results, fields) {
                                             conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
                                               if(result[0].total == 0){
                                                 conexion.query(`DELETE FROM Eliminar_servicio_usuario WHERE usuario='${aux}' AND motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
@@ -2429,7 +2429,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                                         if(result[0].total == 0){
                                                           functions.eliminardirectoriotodo(req.body[`nombreservicio`], function(){
                                                             pool.getConnection(function(err, connection) {
-                                                              connection.query(bloqueo_tablas,function(error, results, fields) {
+                                                              connection.query(bloqueoTablas,function(error, results, fields) {
                                                                 connection.query(`DELETE FROM Eliminar_servicio WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
                                                                   connection.query(`DELETE FROM Servicios WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
                                                                     connection.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -2464,7 +2464,7 @@ app.post(`/eliminarusuarios`, function(req,res){
 
                                     }
                                     else{ // si está encendido mandamos a apagar
-                                      if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
+                                      if(ipVms.get(estaasignado[0].ip_vm) != undefined){
                                         var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                         connection.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${estaasignado[0].ip_vm}', '${estaasignado[0].motivo}','${aux}', 'down')`,function(error, results2, fields) {
                                           var json = {user : aux, motivo : estaasignado[0].motivo, puerto : estaasignado[0].puerto};
@@ -2531,7 +2531,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                 if(estaasignado.length == 0){//si no está encendido
                                   functions.eliminardirectoriosolo(aux, req.body[`nombreservicio`], function(){
                                     pool.getConnection(function(err, conexion) {
-                                      conexion.query(bloqueo_tablas,function(error, results, fields) {
+                                      conexion.query(bloqueoTablas,function(error, results, fields) {
                                         conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
                                           if(result[0].total == 0){
                                             conexion.query(`DELETE FROM Eliminar_servicio_usuario WHERE usuario='${aux}' AND motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
@@ -2552,7 +2552,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                                     if(result[0].total == 0){
                                                       functions.eliminardirectoriotodo(req.body[`nombreservicio`], function(){
                                                         pool.getConnection(function(err, connection) {
-                                                          connection.query(bloqueo_tablas,function(error, results, fields) {
+                                                          connection.query(bloqueoTablas,function(error, results, fields) {
                                                             connection.query(`DELETE FROM Eliminar_servicio WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
                                                               connection.query(`DELETE FROM Servicios WHERE motivo='${req.body[`nombreservicio`]}'`,function(error, result, fields) {
                                                                 connection.query(`UNLOCK TABLES`,function(error, results, fields) {
@@ -2587,7 +2587,7 @@ app.post(`/eliminarusuarios`, function(req,res){
                                   });
                                 }
                                 else{ // si está encendido mandamos a apagar
-                                  if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
+                                  if(ipVms.get(estaasignado[0].ip_vm) != undefined){
                                     var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                     connection.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${estaasignado[0].ip_vm}', '${estaasignado[0].motivo}','${aux}', 'down')`,function(error, results2, fields) {
                                       var json = {user : aux, motivo : estaasignado[0].motivo, puerto : estaasignado[0].puerto};
