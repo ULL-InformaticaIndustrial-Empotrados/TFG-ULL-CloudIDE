@@ -77,7 +77,7 @@ function arrancaChe(user, motivo, port) {
       -e CHE_HOST=${addresses[0]} \
       -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
       --restart no \
-      eclipse/che:6.0.0-M4 start \
+      eclipse/che:${config.cheversion} start \
       --skip:preflight \
       `;
   logger.debug(`Preparamos: "${comando}"`);
