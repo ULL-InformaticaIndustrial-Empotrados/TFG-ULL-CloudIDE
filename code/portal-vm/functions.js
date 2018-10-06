@@ -1,7 +1,7 @@
 const logger = require(`winston`);
 
 const os = require(`os`);
-const MySqlAsync = require(`mysql`);
+const mysql = require(`promise-mysql`);
 const moment = require(`moment`);
 const { exec } = require(`child_process`);
 
@@ -33,7 +33,7 @@ module.exports = {
   },
 
   createnewconnection() {
-    const connectionAsync = MySqlAsync.createPool({
+    const pool = mysql.createPool({
       host: config.host_bbdd_mysql,
       user: config.user_bbdd_mysql,
       password: config.password_bbdd_mysql,
@@ -45,13 +45,13 @@ module.exports = {
       connectionLimit: 5,
       queueLimit: 0,
     });
-    logger.debug(`creada conexion MySQL`);
+    logger.debug(`creado poll conexiones MySQL`);
 
-    connectionAsync.on(`release`, (connection) => {
+    pool.on(`release`, (connection) => {
       logger.debug(`Connection MySQL "${connection.threadId}" released`);
     });
 
-    return connectionAsync;
+    return pool;
   },
 
   eliminardirectoriosolo(usuario, motivo, callback) {

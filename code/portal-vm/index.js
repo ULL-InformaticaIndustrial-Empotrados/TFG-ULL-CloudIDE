@@ -12,7 +12,7 @@ const ovirt = require(`./ovirt.js`);
 const sesion = require(`./sesion.js`);
 const addresses = functions.getiplocal();
 
-const pool = functions.createnewconnection();
+const pool = functions.createnewconnection(); // es promise-mysql
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -97,85 +97,116 @@ const cas = new CASAuthentication({
 
 // OVIRT //////////////////////
 
-function ovirtVms() {
-logger.debug(`Entramos ovirtVms`);
+// Funcion-promesa para insetar ip en tablas de arranque
+function insertaArranque(connection, ip) {
+  logger.debug(`Insertamos para levantar ip ${ip}`);
+  return connection.query(`INSERT INTO Ovirt (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${ip}', '${ip}')`)
+  .then(() => connection.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-${ip}', '${ip}', 'up')`))
+  .then(() => connection.query(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${ip}', '${ip}')`))
+}
 
-  pool.getConnection((err, connection) => {
-    connection.query(bloqueoTablas, (error, results, fields) => {
-      connection.query(`SELECT COUNT(*) AS total FROM ( SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 UNION SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='up') as t1`, (error, total, fields) => {
-        connection.query(`SELECT COUNT(DISTINCT usuario) AS total FROM Cola as c1`, (error, total_usuarios_cola, fields) => {
+// Función-promesa para arrancar las máquinas virtuales demandadas
 
-      if(((total_usuarios_cola[0].total/config.numero_max_users)+config.numero_vm_reserva) > total[0].total){
-        logger.info(`OVIRT -> hay menos en cola`);
+function arrancaVMs(connection, contador) { // TODO hacer esto una función promise para encolar el arranque.
 
+  logger.info(`Preparamos para levantar ${contador} vm`);
+  connection.query(`SELECT * FROM Banco_ip as bip WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT ${contador}`)
+  .then((escoger_ip) => {
+    var colaAñadir = Promise.resolve();
+    for(const i in escoger_ip) {
+      colaAñadir = colaAñadir.then(() => insertaArranque(connection, escoger_ip[i].ip));
+    }
+  }
+    const ip = escoger_ip[0].ip;
 
-        var inicio = 0;
-        var limite = ((total_usuarios_cola[0].total/config.numero_max_users)+config.numero_vm_reserva)-total[0].total;
+    .then(() => ), function(error, result, fields) {
 
-        var bucle = function(contador){
+        connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
+          if(contar_ovp_up[0].total == 1){
 
-          logger.info(`Añadimos vm`);
-          connection.query(`SELECT * FROM Banco_ip as bip WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT 1`, function(error, escoger_ip, fields) {
-            connection.query(`INSERT INTO Ovirt (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}')`, function(error, result, fields) {
-              connection.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}', 'up')`, function(error, result, fields) {
-                connection.query(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm) VALUES ('ULL-CloudIDE-backend-${escoger_ip[0].ip}', '${escoger_ip[0].ip}')`, function(error, result, fields) {
+            var bucle2 = function(ip){
+            ovirt.add_and_start_vm(`ULL-CloudIDE-backend-${ip}`,ip, function(){
+              pool.getConnection(function(err, conexion) {
+                conexion.query(bloqueoTablas,function(error, results, fields) {
+                  conexion.query(`DELETE FROM Ovirt_Pendientes_Up_AddStart WHERE ip_vm='${ip}'`, function(error, result, fields) {
+                      logger.info(`VM added and started "ULL-CloudIDE-backend-${ip}"`);
+                      conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
+                        if(contar_ovp_up[0].total != 0){
+                          conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes_Up_AddStart as ovpuas LIMIT 1`, function(error, escoger_ovp, fields) {
+                            bucle2(escoger_ovp[0].ip_vm);
+                            conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
+                                  logger.debug(`liberando tablas MySQL`);
 
-                connection.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
-                  if(contar_ovp_up[0].total == 1){
-
-                    var bucle2 = function(ip){
-                    ovirt.add_and_start_vm(`ULL-CloudIDE-backend-${ip}`,ip, function(){
-                      pool.getConnection(function(err, conexion) {
-                        conexion.query(bloqueoTablas,function(error, results, fields) {
-                          conexion.query(`DELETE FROM Ovirt_Pendientes_Up_AddStart WHERE ip_vm='${ip}'`, function(error, result, fields) {
-                              logger.info(`VM added and started "ULL-CloudIDE-backend-${ip}"`);
-                              conexion.query(`SELECT count(*) as total FROM Ovirt_Pendientes_Up_AddStart as ovpuas `, function(error, contar_ovp_up, fields) {
-                                if(contar_ovp_up[0].total != 0){
-                                  conexion.query(`SELECT ip_vm FROM Ovirt_Pendientes_Up_AddStart as ovpuas LIMIT 1`, function(error, escoger_ovp, fields) {
-                                    bucle2(escoger_ovp[0].ip_vm);
-                                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                          logger.debug(`liberando tablas MySQL`);
-
-                                        conexion.release();
-                                    });
-                                  });
-                                }
-                                else{
-                                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                        logger.debug(`liberando tablas MySQL`);
-                                      conexion.release();
-                                  });
-                                }
-                              });
+                                conexion.release();
+                            });
                           });
-                        });
+                        }
+                        else{
+                          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
+                                logger.debug(`liberando tablas MySQL`);
+                              conexion.release();
+                          });
+                        }
                       });
-                    });
-                  }
-                  bucle2(escoger_ip[0].ip);
-                }
-                contador++;
-                if(contador  < limite){
-                  bucle(contador);
-                }
-                else{
-                  connection.query(`UNLOCK TABLES`,function(error, results, fields) {
-                        logger.debug(`liberando tablas MySQL`);
-
-                      connection.release();
                   });
-                }
+                });
               });
             });
-              });
-            });
+          }
+          bucle2(escoger_ip[0].ip);
+        }
+        contador++;
+        if(contador  < limite){
+          bucle(contador);
+        }
+        else{
+          connection.query(`UNLOCK TABLES`,function(error, results, fields) {
+                logger.debug(`liberando tablas MySQL`);
+
+              connection.release();
           });
         }
+      });
+    });
+      });
+    });
+  });
+}
 
-        bucle(inicio);
-        }
+bucle(inicio);
+}
 
 
+
+
+function ovirtVms() {
+  logger.debug(`Entramos ovirtVms`);
+  let connection;
+  let cuentaVMs;
+  pool.getConnection()
+  .then((conexion) => {
+    connection = conexion;
+    return connection.query(bloqueoTablas);
+  })
+  .then(() => {
+    return connection.query(`
+      SELECT COUNT(*) AS total FROM
+      ( SELECT ip_vm FROM VMS as v1 WHERE prioridad=1
+        UNION SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='up')
+        as t1`);
+  })
+  .then((cuenta) => {
+    cuentaVMs = cuenta[0].total;
+    return connection.query(`SELECT COUNT(DISTINCT usuario) AS total FROM Cola as c1`);
+  })
+  .then((cuentaUsuariosCola) => {
+    const usuariosEnCola = cuentaUsuariosCola[0].total;
+    if(((usuariosEnCola/config.numero_max_users) + config.numero_vm_reserva) > cuentaVMs) {
+      logger.info(`OVIRT -> hay menos ususarios en cola que máquinas disponibles`);
+      let inicio = 0;
+      const limite = ((usuariosEnCola/config.numero_max_users) + config.numero_vm_reserva) - cuentaVMs;
+
+      // "bucle" arrancar máquinas virtuales
       else{
 
 
