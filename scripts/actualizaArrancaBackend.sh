@@ -34,6 +34,14 @@ fi
 # Carpeta para la base de datos sglite3
 mkdir -p /var/lib/cloudide
 
+
+echo ==============================
+echo Descargamos las imagenes de che
+echo ==============================
+
+docker pull eclipse/che:6.12.0 >/dev/null
+docker pull eclipse/cpp_gcc >/dev/null
+
 echo ==============================
 echo Comienza node
 echo ==============================
