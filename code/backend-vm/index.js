@@ -72,12 +72,13 @@ function arrancaChe(user, motivo, port) {
   const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
       -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
       -v /var/run/docker.sock:/var/run/docker.sock \
-      -v ${config.path_almacenamiento}${user}-${motivo}:/data \
+      -v ${config.path_almacenamiento}${user}-${motivo}/data:/data \
+      -v ${config.path_almacenamiento}${user}-${motivo}/chefile:/chefile \
       -e CHE_PORT=${port} \
       -e CHE_HOST=${addresses[0]} \
       -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
       --restart no \
-      eclipse/che:${config.cheversion} start \
+      eclipse/che:${config.cheversion} dir up \
       --skip:preflight \
       `;
   logger.debug(`Preparamos: "${comando}"`);
