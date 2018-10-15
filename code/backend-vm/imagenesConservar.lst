@@ -1,5 +1,5 @@
 alpine
-eclipse/che$
+eclipse/che
 eclipse/che-action
 eclipse/che-test
 eclipse/che-server
@@ -8,3 +8,4 @@ eclipse/che-dir
 eclipse/che-mount
 eclipse/che-ip
 docker/compose
+eclipse/cpp_gcc
