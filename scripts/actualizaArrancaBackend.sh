@@ -5,6 +5,13 @@ DESTINO=/usr/local/src
 CARPETA=TFG-ULL-CloudIDE
 BACKEND=code/backend-vm
 
+echo Actualizamos Hostname ========================
+IP=$(ifconfig eth0 | grep "inet:" | sed -e's/^.*inet:\([0-9.]*\) .*$/\1/')
+NUM_MAQ=$(echo $IP | cut -d. -f4 )
+NombreMaq="backend_${NUM_MAQ}"
+echo "Fijando nombre a -$NombreMaq-"
+hostnamectl set-hostname $NombreMaq
+
 Actualiza=0
 if ! diff -q $DESTINO/$CARPETA/$BACKEND/package.json \
         $ORIGEN/$CARPETA/$BACKEND/package.json &> /dev/null
