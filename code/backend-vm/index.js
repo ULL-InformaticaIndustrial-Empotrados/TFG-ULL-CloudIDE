@@ -1,3 +1,5 @@
+const CREDS = require('./creds');
+
 const mysql = require(`promise-mysql`);
 const sqlite3 = require(`sqlite-async`);
 
@@ -24,8 +26,8 @@ functions.cleandockerimages();
 
 const pool = mysql.createPool({
   host: config.host_bbdd_mysql,
-  user: config.user_bbdd_mysql,
-  password: config.password_bbdd_mysql,
+  user: CREDS.user_bbdd_mysql,
+  password: CREDS.password_bbdd_mysql,
   database: config.database_bbdd_mysql,
 
   // debug : true,
