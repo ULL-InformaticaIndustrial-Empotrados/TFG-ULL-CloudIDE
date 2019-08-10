@@ -1,4 +1,7 @@
 const logger = require('winston');
+
+const CREDS = require('./creds');
+
 var config = require('./config.json');
 module.exports = {
 
@@ -22,7 +25,7 @@ module.exports = {
        modo = 3;
      }
 
-    child = exec('./sh/dnat.sh ' + modo + " " + ip_source +" "+ ip_dest +" "+ port+" "+config.password_root,
+    child = exec('./sh/dnat.sh ' + modo + " " + ip_source +" "+ ip_dest +" "+ port+" "+CREDS.password_root,
       function (error, stdout, stderr) {
         // controlamos el error
         if (error !== null) {
@@ -42,7 +45,7 @@ module.exports = {
     logger.debug(`Eliminar todo de la ip de origen "${ip_source}"`);
     var exec = require('child_process').exec, child;
 
-    child = exec('./sh/deletednat0.sh '+ ip_source +" "+config.password_root,
+    child = exec('./sh/deletednat0.sh '+ ip_source +" "+CREDS.password_root,
       function (error, stdout, stderr) {
         // controlamos el error
         if (error !== null) {
@@ -61,7 +64,7 @@ module.exports = {
   inicializar : function(){
     var exec = require('child_process').exec, child;
 
-    child = exec('./sh/inicializar.sh '+config.password_root +" "+ config.interfaz_exterior +" "+ config.interfaz_interior +" "+ config.ip_server_interior,
+    child = exec('./sh/inicializar.sh '+CREDS.password_root +" "+ config.interfaz_exterior +" "+ config.interfaz_interior +" "+ config.ip_server_interior,
       function (error, stdout, stderr) {
         // controlamos el error
         if (error !== null) {
@@ -75,7 +78,7 @@ module.exports = {
   tcpkillestablished : function(ip_source){
     var exec = require('child_process').exec, child;
 
-    child = exec('./sh/tcpkillestablished.sh '+config.password_root +" "+ ip_source,
+    child = exec('./sh/tcpkillestablished.sh '+CREDS.password_root +" "+ ip_source,
       function (error, stdout, stderr) {
         // controlamos el error
         if (error !== null) {

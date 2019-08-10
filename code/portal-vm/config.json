@@ -10,13 +10,8 @@
   "puerto_websocket_clients" : 8081,
   "puerto_websocket_servers" : 4001,
   "host_bbdd_mysql" : "10.6.134.50",
-  "user_bbdd_mysql" : "***",
-  "password_bbdd_mysql" : "***",
   "database_bbdd_mysql" : "cloudIDE",
   "host_redis" : "localhost",
-  "password_root" : "***",
   "numero_vm_reserva" : 5,
   "path_almacenamiento" : "/mnt/cloudIDE"
-
-
 }

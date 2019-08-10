@@ -1,10 +1,12 @@
+const CREDS = require('./creds');
+
 const config = require('./config.json');
 const mysql = require('mysql');
 
 const connection = mysql.createConnection({
   host: config.host_bbdd_mysql,
-  user: config.user_bbdd_mysql,
-  password: config.password_bbdd_mysql,
+  user: CREDS.user_bbdd_mysql,
+  password: CREDS.password_bbdd_mysql,
   database : config.database_bbdd_mysql,
   acquireTimeout : 60 * 60 * 1000,
   connectTimeout : 60 * 60 * 1000,

@@ -1,5 +1,7 @@
 const logger = require('winston');
 
+const CREDS = require('./creds');
+
 var os = require('os');
 var MySqlAsync = require('mysql');
 var config = require('./config.json');
@@ -34,8 +36,8 @@ module.exports = {
     createnewconnection : function(){
       var connectionAsync = MySqlAsync.createPool({
         host: config.host_bbdd_mysql,
-        user: config.user_bbdd_mysql,
-        password: config.password_bbdd_mysql,
+        user: CREDS.user_bbdd_mysql,
+        password: CREDS.password_bbdd_mysql,
         database : config.database_bbdd_mysql,
         //debug : true,
         acquireTimeout : 60 * 60 * 1000,
@@ -56,7 +58,7 @@ module.exports = {
     eliminardirectoriosolo : function(usuario, motivo, callback){
       var exec = require('child_process').exec, child, salida;
 
-      child = exec('./sh/eliminardirectorio.sh '+config.password_root +" "+ 1 +" "+ config.path_almacenamiento + " " + usuario +" "+ motivo,
+      child = exec('./sh/eliminardirectorio.sh '+CREDS.password_root +" "+ 1 +" "+ config.path_almacenamiento + " " + usuario +" "+ motivo,
         function (error, stdout, stderr) {
           // Imprimimos en pantalla con console.log
           salida = stdout;
@@ -73,7 +75,7 @@ module.exports = {
     eliminardirectoriotodo : function(motivo, callback){
       var exec = require('child_process').exec, child, salida;
 
-      child = exec('./sh/eliminardirectorio.sh '+config.password_root +" "+ 2 +" "+ config.path_almacenamiento + " " + motivo,
+      child = exec('./sh/eliminardirectorio.sh '+CREDS.password_root +" "+ 2 +" "+ config.path_almacenamiento + " " + motivo,
         function (error, stdout, stderr) {
           // Imprimimos en pantalla con console.log
           salida = stdout;
