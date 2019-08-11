@@ -1,14 +1,14 @@
-const logger = require(`winston`);
+const logger = require('winston');
 
-const os = require(`os`);
+const os = require('os');
 
-const { exec } = require(`child-process-promise`);
+const { exec } = require('child-process-promise');
 
 function getiplocal() {
   const interfaces = os.networkInterfaces();
   const addresses = [];
-  for (let k in interfaces) {
-    for (let k2 in interfaces[k]) {
+  for (const k in interfaces) {
+    for (const k2 in interfaces[k]) {
       const address = interfaces[k][k2];
       if (address.family === 'IPv4' && !address.internal) {
         addresses.push(address.address);
@@ -21,12 +21,12 @@ function getiplocal() {
 }
 
 function cleandockerimages() {
-  const comando = `/usr/bin/docker images --format "{{.ID}}:{{.Repository}}" \
+  const comando = '/usr/bin/docker images --format "{{.ID}}:{{.Repository}}" \
       | grep -v -f imagenesConservar.lst \
       | cut -d: -f1 \
       | uniq \
-      | tr '\n' ' ' \
-  `;
+      | tr \'\n\' \' \' \
+  ';
   logger.debug(`cleandockerimages comando: "${comando}"`);
   exec(comando)
     .then((result) => {
@@ -34,7 +34,7 @@ function cleandockerimages() {
         logger.debug(`Borrando imagenes docker "${result.stdout}"`);
         return exec(`/usr/bin/docker rmi ${result.stdout}`);
       }
-      return { stdout: `No hay imagenes que borrar` };
+      return { stdout: 'No hay imagenes que borrar' };
     })
     .then((result) => {
       if (result) { // puede no haberse ejecutado rmi
