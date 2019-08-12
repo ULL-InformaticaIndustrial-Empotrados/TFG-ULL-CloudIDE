@@ -4,7 +4,7 @@
   "puerto_websocket_vms" : 4000,
   "host_bbdd_mysql" : "10.6.134.50",
   "database_bbdd_mysql" : "cloudIDE",
-  "tiempo_actualizacion" : 12000,
+  "tiempo_actualizacion" : 60000,
   "numero_max_users" : 2,
   "numero_max_serverxuser" : 3,
   "puerto_inicial" : 8082,
