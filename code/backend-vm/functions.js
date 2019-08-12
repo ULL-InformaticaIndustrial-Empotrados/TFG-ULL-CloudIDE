@@ -20,28 +20,26 @@ function getiplocal() {
   return addresses;
 }
 
-function cleandockerimages() {
-  const comando = '/usr/bin/docker images --format "{{.ID}}:{{.Repository}}" \
+async function cleandockerimages() {
+  const comando = `/usr/bin/docker images --format "{{.ID}}:{{.Repository}}" \
       | grep -v -f imagenesConservar.lst \
       | cut -d: -f1 \
       | uniq \
-      | tr \'\n\' \' \' \
-  ';
+      | tr '\n' ' ' \
+  `;
   logger.debug(`cleandockerimages comando: "${comando}"`);
-  exec(comando)
-    .then((result) => {
-      if (result.stdout.length > 0) {
-        logger.debug(`Borrando imagenes docker "${result.stdout}"`);
-        return exec(`/usr/bin/docker rmi ${result.stdout}`);
-      }
-      return { stdout: 'No hay imagenes que borrar' };
-    })
-    .then((result) => {
-      if (result) { // puede no haberse ejecutado rmi
-        logger.debug(`Borrando imagenes salida : "${result.stdout}"`);
-      }
-    })
-    .catch(error => logger.warn(`Error borrando images: "${error}"`));
+  try {
+    const result = await exec(comando);
+    if (result.stdout.length <= 0) {
+      logger.debug('No hay imagenes que borrar');
+      return;
+    }
+    logger.debug(`Borrando imagenes docker "${result.stdout}"`);
+    const resultRmi = await exec(`/usr/bin/docker rmi ${result.stdout}`);
+    logger.debug(`Borrando imagenes salida : "${resultRmi.stdout}"`);
+  } catch (error) {
+    logger.warn(`Error borrando images: "${error}"`);
+  }
 }
 
 module.exports.cleandockerimages = cleandockerimages;
