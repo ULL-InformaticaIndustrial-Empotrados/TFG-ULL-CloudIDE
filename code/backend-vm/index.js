@@ -141,57 +141,54 @@ async function configuraServidor(item) {
     [port] = puertosRestantes;
     puertosUsados.add(port);
 
-    colaLoad = colaLoad.then(() => {
+    colaLoad = colaLoad.then(async () => {
       logger.info(`Ejecutando load "${JSON.stringify(data)}"`);
-      return arrancaChe(data.user, data.motivo, port)
-      .then(() => {
-        logger.debug(`Arrancado docker para ${data.user}-${data.motivo}`);
-      })
-      .then(() => {
-        functions.cleandockerimages();
-        logger.debug(`Informamos al servidor ${ipServer}`);
-        const json = { user: data.user, motivo: data.motivo, puerto: port };
-        socketClientServers.get(ipServer).emit('loaded', json);
-        const consulta = `INSERT INTO Asignaciones(usuario, motivo, puerto)
-          VALUES('${data.user}', '${data.motivo}', ${port})`;
-        logger.debug(`Guardamos en Asignaciones con "${consulta}"`);
-        db3.run(consulta)
-        .then(() => {
-          logger.debug(`Guardado en Asignaciones (${data.user},${data.motivo}, ${port})`);
-        })
-        .catch((error) => {
-          logger.warn(`Error al insertar en Asiganciones: "${error}"`);
-        });
-      });
+      await arrancaChe(data.user, data.motivo, port);
+      logger.debug(`Arrancado docker para ${data.user}-${data.motivo}`);
+      await functions.cleandockerimages();
+      logger.debug(`Informamos al servidor ${ipServer}`);
+      const json = { user: data.user, motivo: data.motivo, puerto: port };
+      socketClientServers.get(ipServer).emit('loaded', json);
+      const consulta = `INSERT INTO Asignaciones(usuario, motivo, puerto)
+        VALUES('${data.user}', '${data.motivo}', ${port})`;
+      logger.debug(`Guardamos en Asignaciones con "${consulta}"`);
+      try {
+        await db3.run(consulta);
+        logger.debug(`Guardado en Asignaciones (${data.user},${data.motivo}, ${port})`);
+      } catch (error) {
+        logger.warn(`Error al insertar en Asiganciones: "${error}"`);
+      }
     });
   }); // de on load
 
   socket.on('stop', async (data) => {
     logger.info(`recibido stop "${JSON.stringify(data)}"`);
-    colaStop = colaStop.then(() => {
+    colaStop = colaStop.then(async () => {
       logger.debug(`Ejecutando stop "${JSON.stringify(data)}"`);
-      return paraChe(data.puerto)
-      .then(() => {
+      try {
+        await paraChe(data.puerto);
         logger.debug(`Parado docker ${data.puerto}`);
-        functions.cleandockerimages();
+        await functions.cleandockerimages();
 
         // puertos.add(data.puerto);
         puertosUsados.delete(data.puerto);
-        db3.run(`DELETE FROM Asignaciones
-          WHERE usuario='${data.user}' AND motivo='${data.motivo}' AND puerto=${data.puerto}`)
-        .then(() => {
+        try {
+          await db3.run(`DELETE FROM Asignaciones
+            WHERE usuario='${data.user}' AND motivo='${data.motivo}'
+            AND puerto=${data.puerto}`);
           logger.debug(`Borrado en Asignaciones (${data.user},${data.motivo}, ${data.puerto})`);
-        })
-        .catch((err) => {
+        } catch (err) {
           logger.warn(`Error al borrar de Asignaciones "${err.message}"`);
-        });
+        }
 
         const json = { user: data.user, motivo: data.motivo, puerto: data.puerto };
         socket.emit('stopped', json);
-      })
-      .catch(error => logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`));
+      } catch (error) {
+        logger.warn(`Error Parada contenedor ${data.puerto}: "${error}"`);
+      }
     });
   }); // del on stop
+
   logger.info(`Servidor ${ipServer} configurado`);
 }
 
