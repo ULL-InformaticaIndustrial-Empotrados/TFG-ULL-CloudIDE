@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Ejemplo de uso: ./deletednat.sh ip_source passwordroot
+#Ejemplo de uso: ./deletednat.sh ip_source
 #echo $1
 for line_num in $(iptables -w -n --line-numbers --list PREROUTING -t nat | awk -v ip=$1 '$5==ip {print $8"-"$9"-"$10"-"$11}')
 do

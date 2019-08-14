@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Ejemplo de uso: ./dnat.sh 1/2/3/4 ip_origen ip_destino puerto_server passwordroot
+# Ejemplo de uso: ./dnat.sh 1/2/3/4 ip_origen ip_destino puerto_server
 echo $1
 
 if [ $1 -eq 1 ]

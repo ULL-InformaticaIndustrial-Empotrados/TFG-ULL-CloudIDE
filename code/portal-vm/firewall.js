@@ -1,91 +1,76 @@
 const logger = require('winston');
+const { exec } = require('child-process-promise');
 
-const CREDS = require('./creds');
+const config = require('./config.json');
 
-var config = require('./config.json');
 module.exports = {
 
-  dnatae : function(modo, ip_source, ip_dest, port, callback){
-    var exec = require('child_process').exec, child;
+  async dnatae(modo, ipSource, ipDest, port, callback) {
+    let modoNum = 0;
+    // añadirtodo -> 1, eliminar -> 4, añadirsolo -> 3
+    if (modo === 'añadirtodo') {
+      logger.debug(`Añadir todo de la ip de origen "${ipSource}"`);
+      modoNum = 1;
+    }
+    if (modo === 'añadircomienzo') {
+      logger.debug(`Añadir comienzo de la ip de origen "${ipSource}"`);
+      modoNum = 2;
+    }
+    if (modo === 'eliminarsolo') {
+      logger.debug(`Eliminar solo de la ip de origen "${ipSource}"`);
+      modoNum = 4;
+    }
+    if (modo === 'añadirsolo') {
+      logger.debug(`Añadir solo de la ip de origen "${ipSource}"`);
+      modoNum = 3;
+    }
 
-     if(modo == "añadirtodo"){ //añadirtodo -> 1, eliminar -> 4, añadirsolo -> 3
-       logger.debug(`Añadir todo de la ip de origen "${ip_source}"`);
-       modo = 1;
-     }
-      if(modo == "añadircomienzo"){
-       logger.debug(`Añadir comienzo de la ip de origen "${ip_source}"`);
-       modo = 2;
-     }
-     if(modo == "eliminarsolo"){
-       logger.debug(`Eliminar solo de la ip de origen "${ip_source}"`);
-       modo = 4;
-     }
-      if(modo == "añadirsolo"){
-       logger.debug(`Añadir solo de la ip de origen "${ip_source}"`);
-       modo = 3;
-     }
-
-    child = exec('./sh/dnat.sh ' + modo + " " + ip_source +" "+ ip_dest +" "+ port+" "+CREDS.password_root,
-      function (error, stdout, stderr) {
-        // controlamos el error
-        if (error !== null) {
-          logger.error(`dnat.sh exec error: "${error}"`);
-        }
-        logger.debug(`dnat.sh exec salida: "${stdout}"`);
-
-        if(callback != null){
-          callback();
-        }
-      });
-
+    try {
+      const result = await exec(`./sh/dnat.sh ${modoNum} ${ipSource} \
+        ${ipDest} ${port}`);
+      logger.debug(`dnat.sh exec salida: "${result.stdout}"`);
+      if (callback != null) {
+        callback();
+      }
+    } catch (error) {
+      logger.error(`dnat.sh exec error: "${error}"`);
+    }
   },
 
 
-  deletednat : function(ip_source, callback){
-    logger.debug(`Eliminar todo de la ip de origen "${ip_source}"`);
-    var exec = require('child_process').exec, child;
-
-    child = exec('./sh/deletednat0.sh '+ ip_source +" "+CREDS.password_root,
-      function (error, stdout, stderr) {
-        // controlamos el error
-        if (error !== null) {
-          logger.error(`deletednat0.sh exec error: "${error}"`);
-        }
-        logger.debug(`deletednat0.sh exec salida: "${stdout}"`);
-
-        if(callback != null){
-          callback();
-        }
-    });
-
+  async deletednat(ipSource, callback) {
+    logger.debug(`Eliminar todo de la ip de origen "${ipSource}"`);
+    try {
+      const result = await exec(`./sh/deletednat0.sh ${ipSource}`);
+      logger.debug(`deletednat0.sh exec salida: "${result.stdout}"`);
+      if (callback != null) {
+        callback();
+      }
+    } catch (error) {
+      logger.error(`deletednat0.sh exec error: "${error}"`);
+    }
   },
 
 
-  inicializar : function(){
-    var exec = require('child_process').exec, child;
-
-    child = exec('./sh/inicializar.sh '+CREDS.password_root +" "+ config.interfaz_exterior +" "+ config.interfaz_interior +" "+ config.ip_server_interior,
-      function (error, stdout, stderr) {
-        // controlamos el error
-        if (error !== null) {
-          logger.error(`inicializar.sh exec error: "${error}"`);
-        }
-        logger.debug(`inicializar.sh exec salida: "${stdout}"`);
-    });
+  async inicializar() {
+    try {
+      const result = await exec(`./sh/inicializar.sh \
+        ${config.interfaz_exterior} ${config.interfaz_interior} \
+        ${config.ip_server_interior}`);
+      logger.debug(`inicializar.sh exec salida: "${result.stdout}"`);
+    } catch (error) {
+      logger.error(`inicializar.sh exec error: "${error}"`);
+    }
   },
 
 
-  tcpkillestablished : function(ip_source){
-    var exec = require('child_process').exec, child;
+  async tcpkillestablished(ipSource) {
+    try {
+      const result = await exec(`./sh/tcpkillestablished.sh ${ipSource}`);
+      logger.debug(`tcpkillestablished.sh exec salida: "${result.stdout}"`);
+    } catch (error) {
+      logger.error(`tcpkillestablished.sh exec error: "${error}"`);
+    }
+  },
 
-    child = exec('./sh/tcpkillestablished.sh '+CREDS.password_root +" "+ ip_source,
-      function (error, stdout, stderr) {
-        // controlamos el error
-        if (error !== null) {
-          logger.error(`tcpkillestablished.sh exec error: "${error}"`);
-        }
-        logger.debug(`tcpkillestablished.sh exec salida: "${stdout}"`);
-    });
-  }
-
-}
+};
