@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "async": "^2.6.1",
+    "child-process-promise": "2.2.1",
     "connect-redis": "^3.3.2",
     "ejs": "^2.5.7",
     "express": "^4.16.2",
