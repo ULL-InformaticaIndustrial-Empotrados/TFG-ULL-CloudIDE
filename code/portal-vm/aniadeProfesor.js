@@ -1,34 +1,31 @@
-const CREDS = require('./creds');
+const logger = require('./logger.js').child({ label: 'aniadeProfesor' });
 
-const config = require('./config.json');
-const mysql = require('mysql');
+logger.info('Comienza aniadeProfesor');
 
-const connection = mysql.createConnection({
-  host: config.host_bbdd_mysql,
-  user: CREDS.user_bbdd_mysql,
-  password: CREDS.password_bbdd_mysql,
-  database : config.database_bbdd_mysql,
-  acquireTimeout : 60 * 60 * 1000,
-  connectTimeout : 60 * 60 * 1000,
-  timeout : 60 * 60 * 1000,
-  connectionLimit : 5,
-  queueLimit : 0
-});
+const db = require('./database.js');
+
+async function añade(user) {
+  logger.info(`Añadiendo profesor: "${user}"`);
+  const pool = await db.pool;
+  const connection = await pool.getConnection();
+  const consulta = `INSERT INTO Profesores (usuario) VALUES ('${user}')`;
+  logger.debug(`Consulta de inserción: "${consulta}"`);
+  try {
+    const result = await connection.query(consulta);
+    logger.info(`RESULTADO consulta: ${JSON.stringify(result, null, 2)}`);
+  //   if (fields)
+  //     console.log(`FIELD consulta: ${JSON.stringify(fields, null, 2)}`);
+  // });
+  } catch (error) {
+    logger.error(`ERROR consulta: ${JSON.stringify(error, null, 2)}`);
+  }
+  await connection.release();
+  await pool.end();
+}
 
 if (process.argv.length < 3) {
-  console.error('No se ha pasado nombre de usuario');
+  logger.error('No se ha pasado nombre de usuario');
 } else {
-  const user = process.argv[2]
-  const consulta = `INSERT INTO Profesores (usuario) VALUES ('${user}')`;
-  console.log(`Consulta de inserción: "${consulta}"`);
-  connection.connect();
-  connection.query(consulta, (error, result, fields) => {
-    if (error)
-      console.log(`ERROR consulta: ${JSON.stringify(error, null, 2)}`);
-    if (result)
-      console.log(`RESULTADO consulta: ${JSON.stringify(result, null, 2)}`);
-    if (fields)
-      console.log(`FIELD consulta: ${JSON.stringify(fields, null, 2)}`);
-  });
-  connection.end();
+  const user = process.argv[2];
+  añade(user);
 }
