@@ -1,7 +1,11 @@
 
 const PythonShell = require('python-shell');
+
+const logger = require('./logger.js').child({ label: 'restauraservicio' });
+
+logger.info('Comienza restauraservicio');
+
 const db = require('./database.js');
-const logger = require('./logger.js');
 
 async function restaura() {
   const pool = await db.pool;
@@ -61,3 +65,4 @@ async function restaura() {
 }
 
 restaura();
+logger.info('Finaliza restauraservicio');
