@@ -1,7 +1,7 @@
 const session = require('express-session');
 const redis = require('redis');
 const socketIOSession = require('socket.io.session');
-const redisStore = require('connect-redis')(session);
+const RedisStore = require('connect-redis')(session);
 
 const logger = require('./logger.js').child({ label: 'sesion' });
 
@@ -10,7 +10,6 @@ const config = require('./config.json');
 module.exports = {
 
   createsession(app, websocketClient) {
-
     const client = redis.createClient(6379, config.host_redis);
 
     client.on('connect', () => {
@@ -18,7 +17,7 @@ module.exports = {
     });
 
 
-    const sessionStore = new redisStore({
+    const sessionStore = new RedisStore({
       client,
       host: config.host_redis,
       port: 6379,
