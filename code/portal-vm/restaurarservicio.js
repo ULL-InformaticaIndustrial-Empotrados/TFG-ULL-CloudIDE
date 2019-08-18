@@ -3,10 +3,8 @@ const PythonShell = require('python-shell');
 const db = require('./database.js');
 const logger = require('./logger.js');
 
-logger.info(`Tenemos db: ${JSON.stringify(db, null, 2)}`);
-
 async function restaura() {
-  const pool = await db.creaPool();
+  const pool = await db.pool;
   // logger.info(`Tenemos pool: ${pool.constructor.name}`);
   logger.info(`Tenemos pool: ${pool.constructor.name}`);
   // console.log(`Tenemos pool: ${JSON.stringify(pool, null, 2)}`);
