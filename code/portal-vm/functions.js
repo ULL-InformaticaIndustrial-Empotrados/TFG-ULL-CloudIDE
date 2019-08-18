@@ -1,8 +1,9 @@
-const logger = require('winston');
 
 const os = require('os');
 const moment = require('moment');
 const { exec } = require('child-process-promise');
+
+const logger = require('./logger.js').child({ label: 'functions' });
 
 const CREDS = require('./creds');
 

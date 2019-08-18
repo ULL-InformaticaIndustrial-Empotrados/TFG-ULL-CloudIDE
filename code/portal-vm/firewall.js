@@ -1,6 +1,6 @@
-const logger = require('winston');
 const { exec } = require('child-process-promise');
 
+const logger = require('./logger.js').child({ label: 'firewall' });
 const config = require('./config.json');
 
 module.exports = {
