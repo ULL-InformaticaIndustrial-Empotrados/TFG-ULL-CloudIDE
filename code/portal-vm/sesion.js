@@ -1,48 +1,45 @@
-const logger = require('winston');
-var config = require('./config.json');
+const session = require('express-session');
+const redis = require('redis');
+const socketIOSession = require('socket.io.session');
+const redisStore = require('connect-redis')(session);
+
+const logger = require('./logger.js').child({ label: 'sesion' });
+
+const config = require('./config.json');
 
 module.exports = {
 
-  createsession : function(app, websocket_client){
+  createsession(app, websocketClient) {
 
-var session = require("express-session");
-var redis   = require("redis");
-var socketIOSession = require("socket.io.session");
-var redisStore = require('connect-redis')(session);
+    const client = redis.createClient(6379, config.host_redis);
 
-var client  = redis.createClient(6379, config.host_redis);
-
-client.on("connect",function(){
-  logger.info(`redis conected`);
-
-});
-
-
-var sessionStore = new redisStore({
-      "client": client,
-      "host": config.host_redis,
-      "port": 6379
+    client.on('connect', () => {
+      logger.info('redis conected');
     });
 
-var sessionSettings = {
-    secret: "my-secret",
-    resave: true,
-    saveUninitialized: true,
-    store: sessionStore,
-    /*cookie : {
+
+    const sessionStore = new redisStore({
+      client,
+      host: config.host_redis,
+      port: 6379,
+    });
+
+    const sessionSettings = {
+      secret: 'my-secret',
+      resave: true,
+      saveUninitialized: true,
+      store: sessionStore,
+      /* cookie : {
         expires: new Date(253402300000000),
         maxAge: 253402300000000
-    }*/
+    } */
+
+    };
+
+    const socketSession = socketIOSession(sessionSettings);
+
+    app.use(session(sessionSettings));
+    websocketClient.use(socketSession.parser);
+  },
 
 };
-
-
-var socketSession = socketIOSession(sessionSettings);
-
-
-app.use(session(sessionSettings));
-websocket_client.use(socketSession.parser);
-
-}
-
-}
