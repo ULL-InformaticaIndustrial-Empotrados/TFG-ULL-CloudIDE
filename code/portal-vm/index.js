@@ -1,53 +1,49 @@
-const logger = require('./logger.js');
+const express = require('express');
+const bodyParser = require('body-parser');
 
-logger.info(`Comienza la aplicacion portal`);
+const logger = require('./logger.js').child({ label: 'index' });
 
-var express = require('express');
-var config = require('./config.json');
-var functions = require('./functions.js');
-var firewall = require('./firewall.js');
-var bodyParser = require('body-parser');
-async = require("async");
-var ovirt = require('./ovirt.js');
-var sesion = require('./sesion.js');
-var addresses = functions.getiplocal();
+logger.info('Comienza la aplicacion portal');
+
+const config = require('./config.json');
+const functions = require('./functions.js');
+const firewall = require('./firewall.js');
+
+// async = require("async");
+const ovirt = require('./ovirt.js');
+const sesion = require('./sesion.js');
+
+const addresses = functions.getiplocal();
 
 
+const db = require('./database.js');
+// const pool = await db.pool;
 
 
-var pool = functions.createnewconnection();
-var app = express();
-app.use(bodyParser.urlencoded({extended : false}));
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use('/cloud', express.static('./client/views'));
 app.use('/', express.static('./client/views'));
 
-app.set('views', './client/views'); //Configuramos el directorio de vistas
+app.set('views', './client/views'); // Configuramos el directorio de vistas
 app.set('view engine', 'ejs');
 
-firewall.inicializar(); //borramos iptables anteriores
-
-var regexp = /\balu\d{10}\b/; //Expresion regular para saber si el usuario es un alumno o un profesor
-
+firewall.inicializar(); // borramos iptables anteriores
 
 // Funcion-promesa para determinar rol del usuario
-function getRoll(user) {
-  return new Promise((resolve, reject) => {
-    const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
-    logger.debug(`Obetemos roll con consulta: "${consulta}"`);
-    pool.query(consulta, (error, result, fields) => {
-        logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 4)}`);
-        if (result[0].total == 1)
-          resolve('profesor');
-        else
-          resolve('alumno');
-      }
-    )
-  });
+async function getRoll(user) {
+  const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
+  logger.debug(`Obetemos roll con consulta: "${consulta}"`);
+  try {
+    const result = await pool.query(consulta);
+    logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 2)}`);
+    if (result[0].total === 1) return 'profesor';
+  } catch (error) {
+    logger.warn(`Error al consultar roll: ${error}`);
+  }
+  return 'alumno';
 }
-
-
-
 
 var websocket_client = require("socket.io").listen(config.puerto_websocket_clients);
 var websocket_vms = require('socket.io')(config.puerto_websocket_vms,{
