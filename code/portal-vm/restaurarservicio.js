@@ -7,6 +7,15 @@ logger.info('Comienza restauraservicio');
 
 const db = require('./database.js');
 
+function pythonShellPromise(command, options) {
+  return new Promise((resolve, reject) => {
+    PythonShell.run(command, options, (err, results) => {
+      if (err) reject(err);
+      resolve(results);
+    });
+  });
+}
+
 async function restaura() {
   const pool = await db.pool;
   // logger.info(`Tenemos pool: ${pool.constructor.name}`);
@@ -49,20 +58,18 @@ async function restaura() {
   await connection.query(sentencia);
   logger.info(sentencia);
   logger.info('empty BBDD');
-  connection.release();
+  await connection.release();
+  await pool.end();
 
   const options = {
     mode: 'text',
     scriptPath: './ovirtpython',
   };
 
-  PythonShell.run('stop_and_remove_all_vm.py', options, (err, results) => {
-    if (err) throw err;
-    // results is an array consisting of messages collected during execution
-    logger.info(`results: ${results}`);
-    process.exit();
-  });
+  const results = await pythonShellPromise('stop_and_remove_all_vm.py', options);
+  // results is an array consisting of messages collected during execution
+  logger.info(`results: ${results}`);
+  logger.info('Finaliza restauraservicio');
 }
 
 restaura();
-logger.info('Finaliza restauraservicio');
