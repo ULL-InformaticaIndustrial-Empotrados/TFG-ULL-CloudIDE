@@ -45,26 +45,26 @@ async function getRoll(user) {
   return 'alumno';
 }
 
-var websocket_client = require("socket.io").listen(config.puerto_websocket_clients);
-var websocket_vms = require('socket.io')(config.puerto_websocket_vms,{
+const websocket_client = require('socket.io').listen(config.puerto_websocket_clients);
+const websocket_vms = require('socket.io')(config.puerto_websocket_vms,{
   pingTimeout: 3000,
   pingInterval: 3000
 });
-var websocket_servers = require('socket.io').listen(config.puerto_websocket_servers);
-var n = config.numero_max_serverxuser;
-var maxusers = config.numero_max_users;
-var socket_client_servers = new Map();
+const websocket_servers = require('socket.io').listen(config.puerto_websocket_servers);
+const n = config.numero_max_serverxuser;
+const maxusers = config.numero_max_users;
+const socket_client_servers = new Map();
 sesion.createsession(app, websocket_client); //creamos la sesion
-var ip_vms = new Map();
-var user_socket = new Map();
-var bloqueo_tablas = "LOCK TABLES VMS WRITE, VMS as v1 READ, Ovirt_Pendientes_Up_AddStart WRITE, Ovirt_Pendientes_Up_AddStart as ovpuas READ, Ultima_conexion WRITE, Ultima_conexion as uc READ, Eliminar_servicio_usuario WRITE, Eliminar_servicio_usuario as esu READ, Eliminar_servicio WRITE, Eliminar_servicio as es READ, Servicios WRITE, Servicios as s1 READ, Matriculados WRITE, Matriculados as m1 READ, Ovirt WRITE, Ovirt as ov READ, Ovirt_Pendientes WRITE, Ovirt_Pendientes as ovp READ, Banco_ip WRITE, Banco_ip as bip READ, Firewall WRITE, Firewall as f1 READ, Pendientes WRITE, Pendientes as p1 READ, Asignaciones WRITE, Asignaciones as a1 READ, Cola WRITE, Cola as c1 READ";
+const ip_vms = new Map();
+const user_socket = new Map();
+const bloqueo_tablas = "LOCK TABLES VMS WRITE, VMS as v1 READ, Ovirt_Pendientes_Up_AddStart WRITE, Ovirt_Pendientes_Up_AddStart as ovpuas READ, Ultima_conexion WRITE, Ultima_conexion as uc READ, Eliminar_servicio_usuario WRITE, Eliminar_servicio_usuario as esu READ, Eliminar_servicio WRITE, Eliminar_servicio as es READ, Servicios WRITE, Servicios as s1 READ, Matriculados WRITE, Matriculados as m1 READ, Ovirt WRITE, Ovirt as ov READ, Ovirt_Pendientes WRITE, Ovirt_Pendientes as ovp READ, Banco_ip WRITE, Banco_ip as bip READ, Firewall WRITE, Firewall as f1 READ, Pendientes WRITE, Pendientes as p1 READ, Asignaciones WRITE, Asignaciones as a1 READ, Cola WRITE, Cola as c1 READ";
 
 
 //AUTENTICACION POR CAS ULL
-var CASAuthentication = require('./cas-authentication.js');
+const CASAuthentication = require('./cas-authentication.js');
 
 // Create a new instance of CASAuthentication.
-var cas = new CASAuthentication({
+const cas = new CASAuthentication({
     cas_url     : 'https://login.ull.es/cas-1',
     service_url : 'http://cloudide.iaas.ull.es',
     session_info     : 'cas_userinfo',
