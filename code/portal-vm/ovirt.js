@@ -71,15 +71,26 @@ class Ovirt {
     }
   }
 
+  async realizaQuery(consulta) {
+    try {
+      logger.debug(`Realizamos consulta: "${consulta}"`);
+      const resultado = await this.dbConn.query(consulta);
+      return resultado;
+    } catch (error) {
+      logger.warn(`Error al realiza consulta "${consulta}": ${error}`);
+      throw error;
+    }
+  }
+
   async bloqueaTablas() {
     if (this.bloqueadas) return;
-    await this.dbConn.query(db.bloqueoTablas);
+    await this.realizaQuery(db.bloqueoTablas);
     this.bloqueadas = true;
   }
 
   async desbloqueaTablas() {
     if (!this.bloqueadas) return;
-    await this.dbConn.query(db.desbloqueoTablas);
+    await this.realizaQuery(db.desbloqueoTablas);
     this.bloqueadas = false;
   }
 
@@ -87,18 +98,18 @@ class Ovirt {
     logger.info(`Tenemos que levantar ${cuantas} maquinas`);
     let quedan = cuantas;
     while (quedan > 0) {
-      const ipEscogida = (await this.dbConn.query(`SELECT * FROM Banco_ip as ip
+      const ipEscogida = (await this.realizaQuery(`SELECT * FROM Banco_ip as ip
         WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT 1`))[0].ip;
       logger.debug(`Elegida ip ${ipEscogida} para levantar`);
-      await this.dbConn.query(`INSERT INTO Ovirt (Name, ip_vm)
+      await this.realizaQuery(`INSERT INTO Ovirt (Name, ip_vm)
         VALUES ('ULL-CloudIDE-backend-${ipEscogida}', '${ipEscogida}')`);
-      await this.dbConn.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo)
+      await this.realizaQuery(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo)
         VALUES ('ULL-CloudIDE-backend-${ipEscogida}', '${ipEscogida}', 'up')`);
-      await this.dbConn.query(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm)
+      await this.realizaQuery(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm)
         VALUES ('ULL-CloudIDE-backend-${ipEscogida}', '${ipEscogida}')`);
 
       await this.addAndStartVm(`ULL-CloudIDE-backend-${ipEscogida}`, ipEscogida);
-      await this.dbConn.query(`DELETE FROM Ovirt_Pendientes_Up_AddStart
+      await this.realizaQuery(`DELETE FROM Ovirt_Pendientes_Up_AddStart
           WHERE ip_vm='${ipEscogida}'`);
       logger.info(`VM added and started "ULL-CloudIDE-backend-${ipEscogida}"`);
 
@@ -110,18 +121,18 @@ class Ovirt {
     logger.info(`Tenemos que bajar ${cuantas} maquinas`);
     let quedan = cuantas;
     while (quedan > 0) {
-      const ipBajar = (await this.dbConn.query(`SELECT ip_vm FROM VMS as v1
+      const ipBajar = (await this.realizaQuery(`SELECT ip_vm FROM VMS as v1
         WHERE prioridad=1 LIMIT 1`))[0].ip_vm;
-      await this.dbConn.query(`DELETE FROM VMS WHERE ip_vm='${ipBajar}`);
-      await this.dbConn.query(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo)
+      await this.realizaQuery(`DELETE FROM VMS WHERE ip_vm='${ipBajar}`);
+      await this.realizaQuery(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo)
         VALUES ('ULL-CloudIDE-backend-${ipBajar}', '${ipBajar}', 'down')`);
 
-      // const contar_ovp_down = (await this.dbConn.query(`SELECT count(*) as total
+      // const contar_ovp_down = (await this.realizaQuery(`SELECT count(*) as total
       //   FROM Ovirt_Pendientes as ovp WHERE tipo='down'`))[0].total;
 
       await this.stopAndRemoveVm(`ULL-CloudIDE-backend-${ipBajar}`);
-      await this.dbConn.query(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ipBajar}'`);
-      await this.dbConn.query(`DELETE FROM Ovirt WHERE ip_vm='${ipBajar}'`);
+      await this.realizaQuery(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ipBajar}'`);
+      await this.realizaQuery(`DELETE FROM Ovirt WHERE ip_vm='${ipBajar}'`);
       logger.info(`VM stopped and removed "ULL-CloudIDE-backend-${ipBajar}"`);
 
       quedan -= 1;
@@ -134,11 +145,10 @@ class Ovirt {
     await this.obtieneConn();
     await this.bloqueaTablas();
     try {
-      await this.dbConn.query(db.bloqueoTablas);
-      const maqActivas = (await this.dbConn.query(`SELECT COUNT(*) AS total FROM
+      const maqActivas = (await this.realizaQuery(`SELECT COUNT(*) AS total FROM
         ( SELECT ip_vm FROM VMS as v1 WHERE prioridad=1 UNION
           SELECT ip_vm FROM Ovirt_Pendientes as ovp WHERE tipo='up') as t1`))[0].total;
-      const usuariosEnCola = (await this.dbConn.query(`SELECT
+      const usuariosEnCola = (await this.realizaQuery(`SELECT
         COUNT(DISTINCT usuario) AS total FROM Cola as c1`))[0].total;
 
       const maqNecesarias = (usuariosEnCola / config.numero_max_users)
@@ -147,7 +157,7 @@ class Ovirt {
         logger.info(`Hay menos máquinas de las necesarias: ${maqActivas} < ${maqNecesarias}`);
         await this.levantaMaquinas(maqNecesarias - maqActivas);
       } else { // Hay mas en cola
-        const maqPrioridad = (await this.dbConn.query(`SELECT COUNT(*) AS total
+        const maqPrioridad = (await this.realizaQuery(`SELECT COUNT(*) AS total
           FROM VMS as v1 WHERE prioridad=1`))[0].total;
         if (maqPrioridad > config.numero_vm_reserva) {
           logger.info(`Hay más máquinas de las necesarias: ${maqPrioridad} > ${config.numero_vm_reserva}`);
