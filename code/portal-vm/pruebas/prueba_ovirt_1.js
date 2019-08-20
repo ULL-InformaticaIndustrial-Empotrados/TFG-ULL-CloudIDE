@@ -8,7 +8,7 @@ async function main() {
 
   await ovr.ajustaVMArrancadas();
 
-  await ovr.poll.end();
+  await ovr.pool.end();
 
   logger.info('Termina prueba_ovirt_1');
 }
