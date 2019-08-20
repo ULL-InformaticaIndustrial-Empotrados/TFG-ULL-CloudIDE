@@ -127,7 +127,7 @@ class Ovirt {
     while (quedan > 0) {
       const ipBajar = (await this.realizaQuery(`SELECT ip_vm FROM VMS as v1
         WHERE prioridad=1 LIMIT 1`))[0].ip_vm;
-      await this.realizaQuery(`DELETE FROM VMS WHERE ip_vm='${ipBajar}`);
+      await this.realizaQuery(`DELETE FROM VMS WHERE ip_vm='${ipBajar}'`);
       await this.realizaQuery(`INSERT INTO Ovirt_Pendientes (Name, ip_vm, tipo)
         VALUES ('ULL-CloudIDE-backend-${ipBajar}', '${ipBajar}', 'down')`);
 
