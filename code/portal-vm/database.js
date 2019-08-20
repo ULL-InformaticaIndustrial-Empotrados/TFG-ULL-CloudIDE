@@ -54,7 +54,8 @@ module.exports = {
     Pendientes as p1 READ,
     Asignaciones WRITE,
     Asignaciones as a1 READ,
-    Cola WRITE, Cola as c1 READ
+    Cola WRITE,
+    Cola as c1 READ
     `,
-  desbloqueoTablas: 'UNLOCK TABLES'
+  desbloqueoTablas: 'UNLOCK TABLES',
 };
