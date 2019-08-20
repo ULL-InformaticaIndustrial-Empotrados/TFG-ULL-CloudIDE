@@ -7,6 +7,9 @@ async function main() {
   const ovr = new ovirt.Ovirt();
 
   await ovr.ajustaVMArrancadas();
+
+  await ovr.poll.end();
+
   logger.info('Termina prueba_ovirt_1');
 }
 
