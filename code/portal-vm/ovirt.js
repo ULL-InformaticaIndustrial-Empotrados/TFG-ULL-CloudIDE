@@ -72,6 +72,10 @@ class Ovirt {
   }
 
   async realizaQuery(consulta) {
+    if (this.dbConn === undefined) {
+      logger.warn('Se pidió realiar colsulta cuando NO teníamos conexión a DB');
+      return undefined;
+    }
     try {
       logger.debug(`Realizamos consulta: "${consulta}"`);
       const resultado = await this.dbConn.query(consulta);
@@ -98,7 +102,7 @@ class Ovirt {
     logger.info(`Tenemos que levantar ${cuantas} maquinas`);
     let quedan = cuantas;
     while (quedan > 0) {
-      const ipEscogida = (await this.realizaQuery(`SELECT * FROM Banco_ip as ip
+      const ipEscogida = (await this.realizaQuery(`SELECT ip FROM Banco_ip
         WHERE ip NOT IN ( SELECT ip_vm FROM Ovirt as ov) LIMIT 1`))[0].ip;
       logger.debug(`Elegida ip ${ipEscogida} para levantar`);
       await this.realizaQuery(`INSERT INTO Ovirt (Name, ip_vm)
@@ -108,7 +112,7 @@ class Ovirt {
       await this.realizaQuery(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm)
         VALUES ('ULL-CloudIDE-backend-${ipEscogida}', '${ipEscogida}')`);
 
-      await this.addAndStartVm(`ULL-CloudIDE-backend-${ipEscogida}`, ipEscogida);
+      await Ovirt.addAndStartVm(`ULL-CloudIDE-backend-${ipEscogida}`, ipEscogida);
       await this.realizaQuery(`DELETE FROM Ovirt_Pendientes_Up_AddStart
           WHERE ip_vm='${ipEscogida}'`);
       logger.info(`VM added and started "ULL-CloudIDE-backend-${ipEscogida}"`);
@@ -130,7 +134,7 @@ class Ovirt {
       // const contar_ovp_down = (await this.realizaQuery(`SELECT count(*) as total
       //   FROM Ovirt_Pendientes as ovp WHERE tipo='down'`))[0].total;
 
-      await this.stopAndRemoveVm(`ULL-CloudIDE-backend-${ipBajar}`);
+      await Ovirt.stopAndRemoveVm(`ULL-CloudIDE-backend-${ipBajar}`);
       await this.realizaQuery(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ipBajar}'`);
       await this.realizaQuery(`DELETE FROM Ovirt WHERE ip_vm='${ipBajar}'`);
       logger.info(`VM stopped and removed "ULL-CloudIDE-backend-${ipBajar}"`);
