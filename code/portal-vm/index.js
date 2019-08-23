@@ -123,34 +123,11 @@ async function vmfree() {
 }
 // FIN Funcion vmfree
 
+// //////////////////"/ Firewall
 
-  ////////////////////"/ Firewall
+firewall.firewall();
 
-  pool.getConnection(function(err, connection) {
-    logger.info(`ZONA FIREWALL`);
-    var conexion = connection;
-
-    conexion.query("SELECT * FROM Firewall NATURAL JOIN Asignaciones",function(error, results, fields) {
-      var auxiliar = new Map();
-      conexion.release();
-      async.forEach(results, function(item, callback) {
-        logger.info(`firewall usuario "${item.usuario}"`);
-        if(auxiliar.get({"ip_origen" : item.ip_origen,"usuario" : item.usuario}) == undefined){
-          firewall.dnatae("añadircomienzo", item.ip_origen, item.ip_vm,0);
-          auxiliar.set({"ip_origen" : item.ip_origen, "usuario" : item.usuario}, true);
-        }
-
-        firewall.dnatae("añadirsolo", item.ip_origen, item.ip_vm, item.puerto);
-
-          }, function(err) {
-              if (err) logger.info(err);}
-        );
-      });
-  });
-
-
-
-  /////////////////////
+//  ///////////////////
 
 
 
