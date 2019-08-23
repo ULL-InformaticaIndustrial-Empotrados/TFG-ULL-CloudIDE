@@ -72,24 +72,26 @@ async function vmfree() {
   const pool = await db.pool;
   const conexion = await pool.getConnection();
   await conexion.query(db.bloqueoTablas);
-  const cola_ = await conexion.query("SELECT COUNT(*) AS total FROM Cola AS c1");
-  const vms_ = await conexion.query("SELECT COUNT(*) AS total FROM VMS AS v1");
+  const nEnCola = (await conexion.query(`SELECT COUNT(*)
+    AS total FROM Cola AS c1`))[0].total;
+  const nVMs = (await conexion.query(`SELECT COUNT(*)
+    AS total FROM VMS AS v1`))[0].total;
 
-  if((vms_[0].total != 0) && (cola_[0].total != 0)){
+  if((nVMs != 0) && (nEnCola != 0)){
     logger.info(`Existen vm libres y hay motivos en cola`);
-    const cola_user = await conexion.query("SELECT * FROM Cola AS c1 LIMIT 1");
-    const cola_user1 = await conexion.query(`SELECT * FROM Cola AS c1
-      WHERE usuario='${cola_user[0].usuario}'`);
-    const cola_vm = conexion.query(`SELECT * FROM VMS AS v1
-      ORDER BY prioridad ASC LIMIT 1`);
-    if(mapIpVMS.get(cola_vm[0].ip_vm) !== undefined){
-      for (const item of cola_user1) {
+    const usuario = (await conexion.query("SELECT * FROM Cola AS c1 LIMIT 1"))[0].usuario;
+    const motivos = await conexion.query(`SELECT * FROM Cola AS c1
+      WHERE usuario='${usuario}'`);
+    const ipVM = (await conexion.query(`SELECT * FROM VMS AS v1
+      ORDER BY prioridad ASC LIMIT 1`))[0].ip_vm;
+    if(mapIpVMS.get(ipVM) !== undefined){
+      logger.debug(`La máquina ${ipVM} tiene socket (está activa)`);
+      for (const item of motivos) {
+        logger.info(`Asignamos (${usuario}, ${item.motivo}) a máquina ${ipVM}`);
         await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
-          VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}'
-          ,'${cola_user[0].usuario}'
-          , 'up')`);
-        const json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
-        getsocketfromip(cola_vm[0].ip_vm).emit("load", json);
+          VALUES ('${ipVM}', '${item.motivo}', '${usuario}', 'up')`);
+        const json = {"user" : usuario, "motivo" : item.motivo};
+        getsocketfromip(ipVM).emit("load", json);
       }
     } else {
       const cola_user = conexion.query("SELECT * FROM Cola AS c1 LIMIT 1");
