@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const sio = require('socket.io');
 
 const logger = require('./logger.js').child({ label: 'index' });
 
@@ -8,17 +9,13 @@ logger.info('Comienza la aplicacion portal');
 const config = require('./config.json');
 const functions = require('./functions.js');
 const firewall = require('./firewall.js');
+const db = require('./database.js');
 
 // async = require("async");
 const ovirt = require('./ovirt.js');
 const sesion = require('./sesion.js');
 
 const addresses = functions.getiplocal();
-
-
-const db = require('./database.js');
-// const pool = await db.pool;
-
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -36,6 +33,7 @@ async function getRoll(user) {
   const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
   logger.debug(`Obetemos roll con consulta: "${consulta}"`);
   try {
+    const pool = await db.pool;
     const result = await pool.query(consulta);
     logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 2)}`);
     if (result[0].total === 1) return 'profesor';
@@ -45,39 +43,29 @@ async function getRoll(user) {
   return 'alumno';
 }
 
-const websocket_client = require('socket.io').listen(config.puerto_websocket_clients);
-const websocket_vms = require('socket.io')(config.puerto_websocket_vms,{
+const wsClient = sio.listen(config.puerto_wsClients);
+const wsVMs = sio(config.puerto_wsVMs, {
   pingTimeout: 3000,
-  pingInterval: 3000
+  pingInterval: 3000,
 });
-const websocket_servers = require('socket.io').listen(config.puerto_websocket_servers);
+const wsServers = sio.listen(config.puerto_websocket_servers);
 const n = config.numero_max_serverxuser;
-const maxusers = config.numero_max_users;
-const socket_client_servers = new Map();
-sesion.createsession(app, websocket_client); //creamos la sesion
-const ip_vms = new Map();
-const user_socket = new Map();
+// const maxusers = config.numero_max_users;
+const mapSockClientServers = new Map();
+sesion.createsession(app, wsClient); // creamos la sesion
+const mapIpVMS = new Map();
+const mapUserSocket = new Map();
 
-//AUTENTICACION POR CAS ULL
+// AUTENTICACION POR CAS ULL
 const CASAuthentication = require('./cas-authentication.js');
 
 // Create a new instance of CASAuthentication.
 const cas = new CASAuthentication({
-    cas_url     : 'https://login.ull.es/cas-1',
-    service_url : 'http://cloudide.iaas.ull.es',
-    session_info     : 'cas_userinfo',
-    destroy_session : false
-
+  cas_url: 'https://login.ull.es/cas-1',
+  service_url: 'http://cloudide.iaas.ull.es',
+  session_info: 'cas_userinfo',
+  destroy_session: false,
 });
-
-///////
-
-
-
-/////////////////////////////////////////
-
-
-
 
 var comprobarservidor = function(){
   // INSERTAR SERVIDOR EN BBDD
@@ -107,18 +95,18 @@ pool.getConnection(function(err, connection) {
     async.forEach(servers, function(item, callback) {
 
             var ip_server = item.ip_server;
-            socket_client_servers.set(ip_server, require('socket.io-client')('http://'+ip_server+':'+config.puerto_websocket_servers, {
+            mapSockClientServers.set(ip_server, require('socket.io-client')('http://'+ip_server+':'+config.puerto_websocket_servers, {
             reconnection : true,
             reconnectionDelay:0,
             reconnectionDelay:100}));
 
-            socket_client_servers.get(ip_server).on('disconnect', function () {
+            mapSockClientServers.get(ip_server).on('disconnect', function () {
               pool.getConnection(function(err, connection) {
               var conexion = connection;
               conexion.query(db.bloqueoTablas,function(error, results, fields) {
                 conexion.query("DELETE FROM Servidores WHERE ip_server='"+ip_server+"'",function(error, result, fields) {
-                  socket_client_servers.get(ip_server).disconnect();
-                  socket_client_servers.delete(ip_server);
+                  mapSockClientServers.get(ip_server).disconnect();
+                  mapSockClientServers.delete(ip_server);
                   logger.info(`server disconnected`);
                   conexion.query("UNLOCK TABLES",function(error, results, fields) {
                     logger.debug(`liberando tablas MySQL`);
@@ -132,40 +120,40 @@ pool.getConnection(function(err, connection) {
         });
       });
 
-          socket_client_servers.get(ip_server).on('prueba', function (data) {
+          mapSockClientServers.get(ip_server).on('prueba', function (data) {
             logger.info(`prueba recibida`);
           });
 
-          socket_client_servers.get(ip_server).on('enviar-resultado', function (data) {
+          mapSockClientServers.get(ip_server).on('enviar-resultado', function (data) {
             logger.info(`enviar resultado`);
-            if(user_socket.get(data.user) != undefined){
+            if(mapUserSocket.get(data.user) != undefined){
               broadcastclient(data.user, "resultado", {"motivo" : data.motivo});
             }
           });
 
-          socket_client_servers.get(ip_server).on('enviar-stop', function (data) {
+          mapSockClientServers.get(ip_server).on('enviar-stop', function (data) {
             logger.info(`enviar stopp`);
-            if(user_socket.get(data.user) != undefined){
+            if(mapUserSocket.get(data.user) != undefined){
               broadcastclient(data.user, "stop", {"motivo" : data.motivo});
             }
           });
 
-          socket_client_servers.get(ip_server).on('deletednat', function (data) {
+          mapSockClientServers.get(ip_server).on('deletednat', function (data) {
             logger.info(`servers deletednat`);
             firewall.deletednat(data);
           });
 
-          socket_client_servers.get(ip_server).on("dnatae-eliminarsolo", function (data) {
+          mapSockClientServers.get(ip_server).on("dnatae-eliminarsolo", function (data) {
             logger.info(`servers deletednat`);
             firewall.dnatae("eliminarsolo", data.ip_origen, data.ipvm, data.puerto);
           });
 
-          socket_client_servers.get(ip_server).on("añadirsolo", function (data) {
+          mapSockClientServers.get(ip_server).on("añadirsolo", function (data) {
             logger.info(`servers deletednat`);
             firewall.dnatae("añadirsolo", data.ip_origen, data.ipvm, data.puerto);
           });
 
-          socket_client_servers.get(ip_server).on("añadircomienzo", function (data) {
+          mapSockClientServers.get(ip_server).on("añadircomienzo", function (data) {
             logger.info(`servers deletednat`);
             firewall.dnatae("añadircomienzo", data.ip_origen, data.ipvm, data.puerto);
           });
@@ -193,7 +181,7 @@ pool.getConnection(function(err, connection) {
                       conexion.query("SELECT * FROM Cola AS c1 LIMIT 1",function(error, cola_user, fields) {
                         conexion.query("SELECT * FROM Cola AS c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
                             conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
-                              if(ip_vms.get(cola_vm[0].ip_vm)!= undefined){
+                              if(mapIpVMS.get(cola_vm[0].ip_vm)!= undefined){
                               async.forEach(cola_user1, function(item, callback) {
                                     conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
                                       var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
@@ -269,24 +257,24 @@ pool.getConnection(function(err, connection) {
 }
 
   var getsocketfromip = function(ip){
-    return ip_vms.get(ip)[ip_vms.get(ip).length-1];
+    return mapIpVMS.get(ip)[mapIpVMS.get(ip).length-1];
   }
 
   var broadcastservers = function(evento, data){
     logger.info(`Enviando broadcastservers`);
 
-    socket_client_servers.forEach(function(value, key, map){
+    mapSockClientServers.forEach(function(value, key, map){
       value.emit(evento, data);
     });
 
-    websocket_servers.sockets.emit(evento,data);
+    wsServers.sockets.emit(evento,data);
 
 
   }
 
 
   var broadcastclient = function(user, evento, data){
-    var socks = user_socket.get(user);
+    var socks = mapUserSocket.get(user);
     if(socks != undefined){
       socks.forEach(function(value, key, map){
         value.emit(evento, data);
@@ -328,10 +316,10 @@ pool.getConnection(function(err, connection) {
 //WEBSOCKET////////////////////////////
 
 
-websocket_servers.on('connection', function(socket){
+wsServers.on('connection', function(socket){
   logger.info(`server conectado`);
 
-  socket_client_servers.set(functions.cleanaddress(socket.handshake.address), socket);
+  mapSockClientServers.set(functions.cleanaddress(socket.handshake.address), socket);
 
   socket.on('disconnect', function () {
 
@@ -339,8 +327,8 @@ websocket_servers.on('connection', function(socket){
       var conexion = connection;
       conexion.query(db.bloqueoTablas,function(error, results, fields) {
         conexion.query("DELETE FROM Servidores WHERE ip_server='"+functions.cleanaddress(socket.handshake.address)+"'",function(error, result, fields) {
-          socket_client_servers.get(functions.cleanaddress(socket.handshake.address)).disconnect();
-          socket_client_servers.delete(functions.cleanaddress(socket.handshake.address));
+          mapSockClientServers.get(functions.cleanaddress(socket.handshake.address)).disconnect();
+          mapSockClientServers.delete(functions.cleanaddress(socket.handshake.address));
           logger.info(`server disconnected`);
           conexion.query("UNLOCK TABLES",function(error, results, fields) {
             logger.debug(`liberando tablas MySQL`);
@@ -360,7 +348,7 @@ websocket_servers.on('connection', function(socket){
 
   socket.on('enviar-resultado', function (data) {
     logger.info(`enviar resultado`);
-    if(user_socket.get(data.user) != undefined){
+    if(mapUserSocket.get(data.user) != undefined){
       broadcastclient(data.user, "resultado", {"motivo" : data.motivo});
     }
     else{
@@ -371,7 +359,7 @@ websocket_servers.on('connection', function(socket){
   socket.on('enviar-stop', function (data) {
     logger.info(`enviar stopp`);
 
-    if(user_socket.get(data.user) != undefined){
+    if(mapUserSocket.get(data.user) != undefined){
       broadcastclient(data.user, "stop", {"motivo" : data.motivo});
     }
     else{
@@ -404,31 +392,31 @@ websocket_servers.on('connection', function(socket){
 
 
 
- websocket_client.on('connection', function (socket) {
+ wsClient.on('connection', function (socket) {
 
     logger.info(`Conexión cliente de "${socket.id}" Con ip "${socket.handshake.address}"`);
     if(socket.session.user){
-      if(user_socket.get(socket.session.user) == undefined){
-        user_socket.set(socket.session.user, new Map());
+      if(mapUserSocket.get(socket.session.user) == undefined){
+        mapUserSocket.set(socket.session.user, new Map());
       }
-      var aux = user_socket.get(socket.session.user);
+      var aux = mapUserSocket.get(socket.session.user);
       aux.set(socket.id, socket);
       logger.info(`tiene conectados a la vez "${aux.size}"`);
-      user_socket.set(socket.session.user, aux);
+      mapUserSocket.set(socket.session.user, aux);
     }
 
     socket.on('disconnect', function () {
       logger.info(`client disconnected`);
       if(socket.session.user){
-        if(user_socket.get(socket.session.user) != undefined){
-          var aux = user_socket.get(socket.session.user);
+        if(mapUserSocket.get(socket.session.user) != undefined){
+          var aux = mapUserSocket.get(socket.session.user);
           aux.delete(socket.id);
           if(aux.size == 0){
             logger.info(`no hay mas usuario "${socket.session.user}"`);
-            user_socket.delete(socket.session.user);
+            mapUserSocket.delete(socket.session.user);
           }
           else{
-            user_socket.set(socket.session.user, aux);
+            mapUserSocket.set(socket.session.user, aux);
           }
           logger.info(`tiene conectados a la vez "${aux.size}"`);
         }
@@ -439,7 +427,7 @@ websocket_servers.on('connection', function(socket){
   socket.on('stopenlace', function(data){
       if(socket.session.user){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-          if(user_socket.get(socket.session.user) != undefined){
+          if(mapUserSocket.get(socket.session.user) != undefined){
             socket.emit("data-error", {"msg" : "Está accediendo desde una ip diferente a la inicial"} );
           }
           logger.info(`Está accediendo desde una ip diferente a la inicial`);
@@ -460,7 +448,7 @@ websocket_servers.on('connection', function(socket){
               conexion.query("SELECT * FROM Asignaciones AS a1 WHERE motivo='"+data+"' AND usuario='"+socket.session.user+"'",function(error, results, fields) {
                 if(results.length != 0){
 
-                  if(ip_vms.get(results[0].ip_vm) != undefined){
+                  if(mapIpVMS.get(results[0].ip_vm) != undefined){
                     var socket_vm = getsocketfromip(results[0].ip_vm);
                     conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+results[0].ip_vm+"', '"+results[0].motivo+"','"+socket.session.user+"', 'down')",function(error, results2, fields) {
                       var json = {"user" : socket.session.user, "motivo" : data, "puerto" : results[0].puerto};
@@ -473,7 +461,7 @@ websocket_servers.on('connection', function(socket){
                   }
                   else{
                     logger.info(`no puede eliminar`);
-                    if(user_socket.get(socket.session.user) != undefined){
+                    if(mapUserSocket.get(socket.session.user) != undefined){
                       socket.emit("data-error", {"msg" : "No se puede eliminar"} );
                     }
                     conexion.query("UNLOCK TABLES",function(error, results, fields) {
@@ -484,7 +472,7 @@ websocket_servers.on('connection', function(socket){
                 }
 
                 else{
-                  if(user_socket.get(socket.session.user) != undefined){
+                  if(mapUserSocket.get(socket.session.user) != undefined){
                     socket.emit("data-error", {"msg" : "No se puede eliminar"} );
                   }
                   logger.info(`no puede eliminar`);
@@ -495,7 +483,7 @@ websocket_servers.on('connection', function(socket){
               });
           }
             else{
-              if(user_socket.get(socket.session.user) != undefined){
+              if(mapUserSocket.get(socket.session.user) != undefined){
                 socket.emit("data-error", {"msg" : "No se puede eliminar"} );
               }
               logger.info(`no puede eliminar`);
@@ -506,7 +494,7 @@ websocket_servers.on('connection', function(socket){
             });
           }
             else{
-              if(user_socket.get(socket.session.user) != undefined){
+              if(mapUserSocket.get(socket.session.user) != undefined){
                 socket.emit("data-error", {"msg" : "No se puede eliminar"} );
               }
               logger.info(`no puede eliminar`);
@@ -517,7 +505,7 @@ websocket_servers.on('connection', function(socket){
           });
           }
             else{
-              if(user_socket.get(socket.session.user) != undefined){
+              if(mapUserSocket.get(socket.session.user) != undefined){
                 socket.emit("data-error", {"msg" : "No está matriculado de este servidor"} );
               }
               logger.info(`No esta matriculado`);
@@ -542,7 +530,7 @@ websocket_servers.on('connection', function(socket){
       if(socket.session.user){
         if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           logger.info(`la ip no es la misma`);
-          if(user_socket.get(socket.session.user) != undefined){
+          if(mapUserSocket.get(socket.session.user) != undefined){
             socket.emit("data-error", {"msg" : "Está accediendo desde una ip diferente a la inicial"} );
           }
         }
@@ -589,7 +577,7 @@ websocket_servers.on('connection', function(socket){
                                     }
                                     else{
                                       logger.info(`supera el numero de servidores`);
-                                      if(user_socket.get(socket.session.user) != undefined){
+                                      if(mapUserSocket.get(socket.session.user) != undefined){
                                         socket.emit("data-error", {"msg" : "Supera el número máximo de servidores"} );
                                       }
                                       resolve("supera");
@@ -599,7 +587,7 @@ websocket_servers.on('connection', function(socket){
 
                                   else{
                                     logger.info(`ya esta en la cola`);
-                                    if(user_socket.get(socket.session.user) != undefined){
+                                    if(mapUserSocket.get(socket.session.user) != undefined){
                                       socket.emit("data-error", {"msg" : "Ya está en el sistema"} );
                                     }
                                     resolve("ya esta");
@@ -612,7 +600,7 @@ websocket_servers.on('connection', function(socket){
                   }
                   else{
                     logger.info(`pendientes fail o bbdd fail`);
-                    if(user_socket.get(socket.session.user) != undefined){
+                    if(mapUserSocket.get(socket.session.user) != undefined){
                       socket.emit("data-error", {"msg" : "Ya está en el sistema"} );
                     }
                     resolve("principal");
@@ -624,7 +612,7 @@ websocket_servers.on('connection', function(socket){
             }
             else{
               logger.info(`Este servicio se está desmatriculando`);
-              if(user_socket.get(socket.session.user) != undefined){
+              if(mapUserSocket.get(socket.session.user) != undefined){
                 socket.emit("data-error", {"msg" : "Este servicio se está desmatriculando"} );
               }
               resolve("no matriculado");
@@ -633,7 +621,7 @@ websocket_servers.on('connection', function(socket){
             }
               else{
                 logger.info(`No está matriculado de este servidor`);
-                if(user_socket.get(socket.session.user) != undefined){
+                if(mapUserSocket.get(socket.session.user) != undefined){
                   socket.emit("data-error", {"msg" : "No está matriculado de este servidor"} );
                 }
                 resolve("no matriculado");
@@ -678,10 +666,10 @@ websocket_servers.on('connection', function(socket){
 
                                     promise4.then(function(result) {
 
-                                      if(ip_vms.get(ip) == undefined){ //si la vm no esta disponible
+                                      if(mapIpVMS.get(ip) == undefined){ //si la vm no esta disponible
                                         conexion.query("DELETE FROM Cola WHERE usuario='"+socket.session.user+"'",function(error, result, fields) {
                                           logger.info(`no se puede obtener enlace`);
-                                          if(user_socket.get(socket.session.user) != undefined){
+                                          if(mapUserSocket.get(socket.session.user) != undefined){
                                             socket.emit("data-error", {"msg" : "No se puede obtener el servidor"} );
                                           }
                                           resolve();
@@ -753,7 +741,7 @@ websocket_servers.on('connection', function(socket){
                                             conexion.query("SELECT * FROM Cola AS c1 LIMIT 1",function(error, cola_user, fields) {
 
                                               conexion.query("SELECT * FROM Cola AS c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
-                                                if(ip_vms.get(cola_vm[0].ip_vm) != undefined){
+                                                if(mapIpVMS.get(cola_vm[0].ip_vm) != undefined){
                                                   async.forEach(cola_user1, function(item, callback) {
 
                                                         conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
@@ -879,7 +867,7 @@ websocket_servers.on('connection', function(socket){
 
     else{
       logger.info(`Acceso sin sesión de usuario`);
-      if(user_socket.get(socket.session.user) != undefined){
+      if(mapUserSocket.get(socket.session.user) != undefined){
         socket.emit("data-error", {"msg" : "Accesso sin iniciar sesión"} );
       }
     }
@@ -893,20 +881,20 @@ websocket_servers.on('connection', function(socket){
   });
 
 
- websocket_vms.on('connection', function (socket) {
+ wsVMs.on('connection', function (socket) {
 
    var ipvm = functions.cleanaddress(socket.handshake.address);
    logger.info(`Conexión de "${socket.id}" Con ip "${ipvm}"`);
 
-   //ip_vms.set(ipvm, socket);
-   if(ip_vms.get(ipvm) == undefined){
-     ip_vms.set(ipvm, new Array());
+   //mapIpVMS.set(ipvm, socket);
+   if(mapIpVMS.get(ipvm) == undefined){
+     mapIpVMS.set(ipvm, new Array());
    }
-   var aux = ip_vms.get(ipvm);
+   var aux = mapIpVMS.get(ipvm);
    aux.push(socket);
-   ip_vms.set(ipvm, aux);
+   mapIpVMS.set(ipvm, aux);
 
-   logger.info(`ip_vms tiene longitud > "${ip_vms.size}"`);
+   logger.info(`mapIpVMS tiene longitud > "${mapIpVMS.size}"`);
 
    pool.getConnection(function(err, connection) {
    var conexion = connection;
@@ -974,7 +962,7 @@ websocket_servers.on('connection', function(socket){
                        conexion.query("SELECT * FROM Cola as c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
                            conexion.query("SELECT * FROM VMS as v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
 
-                             if(ip_vms.get(cola_vm[0].ip_vm) != undefined){
+                             if(mapIpVMS.get(cola_vm[0].ip_vm) != undefined){
                              var promise5 = new Promise(function(resolve, reject) {
                                async.forEach(cola_user1, function(item, callback) {
 
@@ -1088,12 +1076,12 @@ websocket_servers.on('connection', function(socket){
     socket.on('disconnect', function () {
       logger.info(`VM disconnected "${ipvm}"`);
 
-        if(ip_vms.get(ipvm)!= undefined){
-          if(ip_vms.get(ipvm).length != 0){
-        ip_vms.get(ipvm)[0].disconnect();
-        ip_vms.get(ipvm).shift();
-        if(ip_vms.get(ipvm).length == 0){
-          ip_vms.delete(ipvm);
+        if(mapIpVMS.get(ipvm)!= undefined){
+          if(mapIpVMS.get(ipvm).length != 0){
+        mapIpVMS.get(ipvm)[0].disconnect();
+        mapIpVMS.get(ipvm).shift();
+        if(mapIpVMS.get(ipvm).length == 0){
+          mapIpVMS.delete(ipvm);
           pool.getConnection(function(err, connection) {
           var conexion = connection;
           conexion.query(db.bloqueoTablas,function(error, results, fields) {
@@ -1150,7 +1138,7 @@ socket.on('loaded', function (data) {
                       });
                     }
                   else{
-                    if(user_socket.get(pen[0].usuario) != undefined){
+                    if(mapUserSocket.get(pen[0].usuario) != undefined){
                       broadcastclient(pen[0].usuario, "resultado", {"motivo" : data.motivo} );
                     }
                     else{
@@ -1183,7 +1171,7 @@ socket.on('loaded', function (data) {
                     });
                     }
                   else{
-                    if(user_socket.get(pen[0].usuario) != undefined){
+                    if(mapUserSocket.get(pen[0].usuario) != undefined){
                       broadcastclient(pen[0].usuario, "resultado", {"motivo" : data.motivo} );
                     }
                     else{
@@ -1225,7 +1213,7 @@ socket.on('loaded', function (data) {
     promise.then(function(result) {
       conexion.query("SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='"+data.user+"' AND motivo='"+data.motivo+"' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='"+data.motivo+"') AS alias",function(error, total, fields) {
         if(total[0].total != 0){
-          if(ip_vms.get(ipvm) != undefined){
+          if(mapIpVMS.get(ipvm) != undefined){
             var socket_vm = getsocketfromip(ipvm);
             conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+ipvm+"', '"+data.motivo+"','"+data.user+"', 'down')",function(error, results2, fields) {
               var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
@@ -1249,7 +1237,7 @@ socket.on('loaded', function (data) {
         else{
           conexion.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+data.motivo+"'",function(error, result, fields) {
             if(result[0].total != 0){
-              if(ip_vms.get(ipvm) != undefined){
+              if(mapIpVMS.get(ipvm) != undefined){
                 var socket_vm = getsocketfromip(ipvm);
                 conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+ipvm+"', '"+data.motivo+"','"+data.user+"', 'down')",function(error, results2, fields) {
                   var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
@@ -1366,7 +1354,7 @@ socket.on('loaded', function (data) {
 
                                         }
                                         else{
-                                          if(user_socket.get(asignaciones[0].usuario) != undefined){
+                                          if(mapUserSocket.get(asignaciones[0].usuario) != undefined){
                                             broadcastclient(asignaciones[0].usuario, "stop", {"motivo" : asignaciones[0].motivo});
                                           }
                                           else{
@@ -1394,7 +1382,7 @@ socket.on('loaded', function (data) {
 
                                         }
                                         else{
-                                          if(user_socket.get(asignaciones[0].usuario) != undefined){
+                                          if(mapUserSocket.get(asignaciones[0].usuario) != undefined){
                                             broadcastclient(asignaciones[0].usuario, "stop", {"motivo" : asignaciones[0].motivo});
                                           }
                                           else{
@@ -1822,7 +1810,7 @@ app.get('/logout',cas.logout, function(req,res){
         conexion.query("DELETE FROM Firewall WHERE ip_origen='"+ip_origen+"'",function(error, results, fields) {
           conexion.release();
           setTimeout(function(){
-            if(user_socket.get(user) != undefined){
+            if(mapUserSocket.get(user) != undefined){
               broadcastclient(user, "reload","");
             }
             res.redirect('/');
@@ -1991,7 +1979,7 @@ app.post('/eliminarservicio', function(req,res){
 
                                       }
                                       else{ // si está encendido mandamos a apagar
-                                        if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
+                                        if(mapIpVMS.get(estaasignado[0].ip_vm) != undefined){
                                           var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                           connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                             var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
@@ -2263,7 +2251,7 @@ app.post('/eliminarusuarios', function(req,res){
 
                                     }
                                     else{ // si está encendido mandamos a apagar
-                                      if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
+                                      if(mapIpVMS.get(estaasignado[0].ip_vm) != undefined){
                                         var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                         connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                           var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
@@ -2386,7 +2374,7 @@ app.post('/eliminarusuarios', function(req,res){
                                   });
                                 }
                                 else{ // si está encendido mandamos a apagar
-                                  if(ip_vms.get(estaasignado[0].ip_vm) != undefined){
+                                  if(mapIpVMS.get(estaasignado[0].ip_vm) != undefined){
                                     var socket_vm = getsocketfromip(estaasignado[0].ip_vm);
                                     connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                       var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
