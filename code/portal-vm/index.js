@@ -66,96 +66,54 @@ const cas = new CASAuthentication({
 });
 
 
+// Funcion vmfree
+async function vmfree() {
+  logger.info('Entramos vmfree');
+  const pool = await db.pool;
+  const conexion = await pool.getConnection();
+  await conexion.query(db.bloqueoTablas);
+  const cola_ = await conexion.query("SELECT COUNT(*) AS total FROM Cola AS c1");
+  const vms_ = await conexion.query("SELECT COUNT(*) AS total FROM VMS AS v1");
 
-  var vmfree = function(){
+  if((vms_[0].total != 0) && (cola_[0].total != 0)){
+    logger.info(`Existen vm libres y hay motivos en cola`);
+    const cola_user = await conexion.query("SELECT * FROM Cola AS c1 LIMIT 1");
+    const cola_user1 = await conexion.query(`SELECT * FROM Cola AS c1
+      WHERE usuario='${cola_user[0].usuario}'`);
+    const cola_vm = conexion.query(`SELECT * FROM VMS AS v1
+      ORDER BY prioridad ASC LIMIT 1`);
+    if(mapIpVMS.get(cola_vm[0].ip_vm) !== undefined){
+      for (const item of cola_user1) {
+        await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
+          VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}'
+          ,'${cola_user[0].usuario}'
+          , 'up')`);
+        const json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
+        getsocketfromip(cola_vm[0].ip_vm).emit("load", json);
+      }
+    } else {
+      const cola_user = conexion.query("SELECT * FROM Cola AS c1 LIMIT 1");
+      const cola_vm = conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1");
+      const numero_users_vm = conexion.query(`SELECT count(DISTINCT usuario) AS total
+        FROM (SELECT DISTINCT usuario from Asignaciones WHERE ip_vm='${cola_vm[0].ip_vm}'
+        UNION SELECT DISTINCT usuario FROM Pendientes WHERE ip_vm='${cola_vm[0].ip_vm}') AS tmp`);
+      logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
+      if(numero_users_vm[0].total == config.numero_max_users){
+        await conexion.query(`DELETE FROM VMS WHERE ip_vm='${cola_vm[0].ip_vm}'`);
+      } else{
+        await conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${cola_vm[0].ip_vm}'`);
+        logger.info(`actualizamos vm`);
+      }
 
-    pool.getConnection(function(err, connection) {
-      var conexion = connection;
-      logger.info(`VMFREE`);
-        conexion.query(db.bloqueoTablas,function(error, results, fields) {
-          conexion.query("SELECT COUNT(*) AS total FROM Cola AS c1",function(error, cola_, fields) {
-            conexion.query("SELECT COUNT(*) AS total FROM VMS AS v1",function(error, vms_, fields) {
-
-                  if((vms_[0].total != 0)&&(cola_[0].total != 0)){
-                    var promise2 = new Promise(function(resolve, reject) {
-                    logger.info(`Existen vm libres y hay motivos en cola`);
-                      conexion.query("SELECT * FROM Cola AS c1 LIMIT 1",function(error, cola_user, fields) {
-                        conexion.query("SELECT * FROM Cola AS c1 WHERE usuario='"+cola_user[0].usuario+"'",function(error, cola_user1, fields) {
-                            conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
-                              if(mapIpVMS.get(cola_vm[0].ip_vm)!= undefined){
-                              async.forEach(cola_user1, function(item, callback) {
-                                    conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
-                                      var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
-                                      getsocketfromip(cola_vm[0].ip_vm).emit("load", json);
-
-                                      if(item == cola_user1[cola_user1.length-1]){
-                                        resolve();
-                                      }
-                                    });
-
-                                  }, function(err) {
-                                      if (err) logger.info(err);}
-                                );
-                              }
-                              else{
-                                resolve("false");
-                              }
-                            });
-                        });
-                      });
-                    });
-
-                    promise2.then(function(result) {
-                      if(result != "false"){
-                      conexion.query("SELECT * FROM Cola AS c1 LIMIT 1",function(error, cola_user, fields) {
-                        conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1",function(error, cola_vm, fields) {
-                          conexion.query("SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones WHERE ip_vm='"+cola_vm[0].ip_vm+"' UNION SELECT DISTINCT usuario FROM Pendientes WHERE ip_vm='"+cola_vm[0].ip_vm+"') AS tmp",function(error, numero_users_vm, fields) {
-                            logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
-                            if(numero_users_vm[0].total == config.numero_max_users){
-                              conexion.query("DELETE FROM VMS WHERE ip_vm='"+cola_vm[0].ip_vm+"'",function(error, cola_vm, fields) {
-                              });
-                            }
-                            else{
-                              conexion.query("UPDATE VMS SET prioridad=0 WHERE ip_vm='"+cola_vm[0].ip_vm+"'",function(error, results, fields) {
-                                logger.info(`actualizamos vm`);
-                              });
-
-                            }
-
-                                conexion.query("DELETE FROM Cola WHERE usuario='"+cola_user[0].usuario+"'",function(error, results, fields) {
-                                  logger.info(`enviado a vm`);
-                                  conexion.query("UNLOCK TABLES");
-                                  conexion.release();
-                                  vmfree();
-                                });
-
-                        });
-                      });
-                    });
-                  }
-                  else{
-                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
-                    conexion.release();
-                    vmfree();
-
-                  });
-                  }
-
-
-                    }, function(err) {
-                      logger.info(err);
-                    });
-              }
-              else{
-                conexion.query("UNLOCK TABLES");
-                conexion.release();
-
-              }
-            });
-          });
-        });
-  });
+      await conexion.query(`DELETE FROM Cola WHERE usuario='${cola_user[0].usuario}'`);
+      logger.info(`enviado a vm`);
+    }
+  }
+  await conexion.query("UNLOCK TABLES");
+  await conexion.release();
+  vmfree();
 }
+// FIN Funcion vmfree
 
   var getsocketfromip = function(ip){
     return mapIpVMS.get(ip)[mapIpVMS.get(ip).length-1];
