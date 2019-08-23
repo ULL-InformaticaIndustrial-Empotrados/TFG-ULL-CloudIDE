@@ -134,81 +134,6 @@ firewall.firewall();
 //WEBSOCKET////////////////////////////
 
 
-wsServers.on('connection', function(socket){
-  logger.info(`server conectado`);
-
-  ser.mapSockClientServers.set(functions.cleanaddress(socket.handshake.address), socket);
-
-  socket.on('disconnect', function () {
-
-      pool.getConnection(function(err, connection) {
-      var conexion = connection;
-      conexion.query(db.bloqueoTablas,function(error, results, fields) {
-        conexion.query("DELETE FROM Servidores WHERE ip_server='"+functions.cleanaddress(socket.handshake.address)+"'",function(error, result, fields) {
-          ser.mapSockClientServers.get(functions.cleanaddress(socket.handshake.address)).disconnect();
-          ser.mapSockClientServers.delete(functions.cleanaddress(socket.handshake.address));
-          logger.info(`server disconnected`);
-          conexion.query("UNLOCK TABLES",function(error, results, fields) {
-            logger.debug(`liberando tablas MySQL`);
-
-          conexion.release();
-          comprobarservidor();
-
-      });
-      });
-    });
-  });
-});
-
-  socket.on('prueba', function (data) {
-    logger.info(`prueba recibida`);
-  });
-
-  socket.on('enviar-resultado', function (data) {
-    logger.info(`enviar resultado`);
-    if(mapUserSocket.get(data.user) != undefined){
-      cli.broadcastClient(data.user, "resultado", {"motivo" : data.motivo});
-    }
-    else{
-      logger.info(`no tengo el usuario`);
-    }
-  });
-
-  socket.on('enviar-stop', function (data) {
-    logger.info(`enviar stopp`);
-
-    if(mapUserSocket.get(data.user) != undefined){
-      cli.broadcastClient(data.user, "stop", {"motivo" : data.motivo});
-    }
-    else{
-      logger.info(`no tengo el usuario`);
-    }
-  });
-
-  socket.on('deletednat', function (data) {
-    logger.info(`servers deletednat`);
-    firewall.deletednat(data);
-  });
-
-  socket.on("dnatae-eliminarsolo", function (data) {
-    logger.info(`servers eliminarsolo`);
-    firewall.dnatae("eliminarsolo", data.ip_origen, data.ipvm, data.puerto);
-  });
-
-  socket.on("añadirsolo", function (data) {
-    logger.info(`servers añadirsolo`);
-    firewall.dnatae("añadirsolo", data.ip_origen, data.ipvm, data.puerto);
-  });
-
-  socket.on("añadircomienzo", function (data) {
-    logger.info(`servers deletednat`);
-    firewall.dnatae("añadircomienzo", data.ip_origen, data.ipvm, data.puerto);
-  });
-
-
-})
-
-
 
  wsClient.on('connection', function (socket) {
 
@@ -244,7 +169,7 @@ wsServers.on('connection', function(socket){
 
   socket.on('stopenlace', function(data){
       if(socket.session.user){
-        if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
+        if(functions.cleanAddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           if(mapUserSocket.get(socket.session.user) != undefined){
             socket.emit("data-error", {"msg" : "Está accediendo desde una ip diferente a la inicial"} );
           }
@@ -346,7 +271,7 @@ wsServers.on('connection', function(socket){
 
     socket.on('obtenerenlace', function (data) {
       if(socket.session.user){
-        if(functions.cleanaddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
+        if(functions.cleanAddress(socket.handshake.address) != socket.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
           logger.info(`la ip no es la misma`);
           if(mapUserSocket.get(socket.session.user) != undefined){
             socket.emit("data-error", {"msg" : "Está accediendo desde una ip diferente a la inicial"} );
@@ -701,7 +626,7 @@ wsServers.on('connection', function(socket){
 
  wsVMs.on('connection', function (socket) {
 
-   var ipvm = functions.cleanaddress(socket.handshake.address);
+   var ipvm = functions.cleanAddress(socket.handshake.address);
    logger.info(`Conexión de "${socket.id}" Con ip "${ipvm}"`);
 
    //mapIpVMS.set(ipvm, socket);
@@ -1386,13 +1311,13 @@ socket.on('loaded', function (data) {
 
 
 app.get('/', function(req,res){
-var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
+var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
   if(req.session.user == undefined){
     serv.broadcastServers('deletednat', ip_origen);
     firewall.deletednat(ip_origen, function(){
       pool.getConnection(function(err, connection) {
       var conexion = connection;
-      conexion.query("DELETE FROM Firewall WHERE ip_origen='"+functions.cleanaddress(req.connection.remoteAddress)+"'",function(error, results, fields) {
+      conexion.query("DELETE FROM Firewall WHERE ip_origen='"+functions.cleanAddress(req.connection.remoteAddress)+"'",function(error, results, fields) {
         conexion.release();
         res.render('index', {});
       });
@@ -1411,7 +1336,7 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
 });
 
 app.get('/controlpanel', function(req,res){
-  var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
+  var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
 if(req.session.user != undefined){
   if(ip_origen != req.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
     res.redirect('/logout');
@@ -1493,7 +1418,7 @@ res.redirect('/');
 });
 
 app.get('/cloud/:motivo', function(req,res){
-  var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
+  var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
   if(req.session.user != undefined){
     if(ip_origen != req.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
       res.redirect('/logout');
@@ -1523,7 +1448,7 @@ app.get('/cloud/:motivo', function(req,res){
 });
 
 app.get('/autenticacion', cas.bounce, function(req,res){
-var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
+var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
 
   if(req.session.user != undefined){
     if(ip_origen != req.session.ip_origen){ //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
@@ -1608,7 +1533,7 @@ var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
 
 app.get('/logout',cas.logout, function(req,res){
 
-  var ip_origen = functions.cleanaddress(req.connection.remoteAddress);
+  var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
 
   firewall.tcpkillestablished(ip_origen);
 

@@ -9,6 +9,7 @@ const config = require('./config.json');
 const db = require('./database.js');
 const firewall = require('./firewall.js');
 const cli = require('./clientes.js');
+const functions = require('./functions.js');
 
 
 const wsServers = sio.listen(config.puerto_websocket_servers);
@@ -133,6 +134,72 @@ async function conectaDemasServidores() {
     logger.warn(`Error conectando con los demás servidores: ${err}`);
   }
 }
+
+
+wsServers.on('connection', (socket) => {
+  logger.info('server conectado');
+
+  const cleanAdd = functions.cleanAddress(socket.handshake.address);
+  mapSockClientServers.set(cleanAdd, socket);
+
+  socket.on('disconnect', async () => {
+    const pool = await db.pool;
+    const conexion = await pool.getConnection();
+    await conexion.query(db.bloqueoTablas);
+    await conexion.query(`DELETE FROM Servidores
+      WHERE ip_server='${cleanAdd}'`);
+    mapSockClientServers.get(cleanAdd).disconnect();
+    mapSockClientServers.delete(cleanAdd);
+    logger.info(`server disconnected ${cleanAdd}`);
+    await conexion.query('UNLOCK TABLES');
+    logger.debug('liberando tablas MySQL');
+    await conexion.release();
+    comprobarservidor();
+  });
+
+  socket.on('prueba', (data) => {
+    logger.info(`prueba recibida: ${data}`);
+  });
+
+  socket.on('enviar-resultado', (data) => {
+    logger.info(`enviar resultado: ${data}`);
+    if (cli.mapUserSocket.get(data.user) !== undefined) {
+      cli.broadcastClient(data.user, 'resultado', { motivo: data.motivo });
+    } else {
+      logger.info(`no tengo el usuario ${data.user}`);
+    }
+  });
+
+  socket.on('enviar-stop', (data) => {
+    logger.info(`enviar stop: ${data}`);
+
+    if (cli.mapUserSocket.get(data.user) !== undefined) {
+      cli.broadcastClient(data.user, 'stop', { motivo: data.motivo });
+    } else {
+      logger.info(`no tengo el usuario '${data.user}'`);
+    }
+  });
+
+  socket.on('deletednat', (data) => {
+    logger.info(`servers deletednat: ${data}`);
+    firewall.deletednat(data);
+  });
+
+  socket.on('dnatae-eliminarsolo', (data) => {
+    logger.info(`servers eliminarsolo: ${data}`);
+    firewall.dnatae('eliminarsolo', data.ip_origen, data.ipvm, data.puerto);
+  });
+
+  socket.on('añadirsolo', (data) => {
+    logger.info(`servers añadirsolo: ${data}`);
+    firewall.dnatae('añadirsolo', data.ip_origen, data.ipvm, data.puerto);
+  });
+
+  socket.on('añadircomienzo', (data) => {
+    logger.info(`servers deletednat: ${data}`);
+    firewall.dnatae('añadircomienzo', data.ip_origen, data.ipvm, data.puerto);
+  });
+});
 
 comprobarservidor();
 

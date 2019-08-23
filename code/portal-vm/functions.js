@@ -10,7 +10,7 @@ const config = require('./config.json');
 
 module.exports = {
 
-  cleanaddress(ip) {
+  cleanAddress(ip) {
     let aux = ip;
     if (aux.substr(0, 7) === '::ffff:') {
       aux = aux.substr(7);
