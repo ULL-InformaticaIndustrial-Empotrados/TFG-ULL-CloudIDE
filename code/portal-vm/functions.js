@@ -1,5 +1,4 @@
 
-const os = require('os');
 const moment = require('moment');
 const { exec } = require('child-process-promise');
 
@@ -17,21 +16,6 @@ module.exports = {
       aux = aux.substr(7);
     }
     return aux;
-  },
-
-  getiplocal() {
-    const interfaces = os.networkInterfaces();
-    const addresses = [];
-    for (const k of Object.keys(interfaces)) {
-      for (const addrAct of Object.keys(interfaces[k])) {
-        const { address, family, internal } = interfaces[k][addrAct];
-        if (family === 'IPv4' && !internal) {
-          addresses.push(address);
-          logger.info(`IP local encontrada: "${address}"`);
-        }
-      }
-    }
-    return addresses;
   },
 
 

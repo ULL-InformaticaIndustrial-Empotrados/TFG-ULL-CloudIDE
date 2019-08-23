@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const sio = require('socket.io');
+const sioC = require('socket.io-client');
 
 const logger = require('./logger.js').child({ label: 'index' });
 
@@ -14,8 +15,6 @@ const db = require('./database.js');
 // async = require("async");
 const ovirt = require('./ovirt.js');
 const sesion = require('./sesion.js');
-
-const addresses = functions.getiplocal();
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -51,7 +50,6 @@ const wsVMs = sio(config.puerto_wsVMs, {
 const wsServers = sio.listen(config.puerto_websocket_servers);
 const n = config.numero_max_serverxuser;
 // const maxusers = config.numero_max_users;
-const mapSockClientServers = new Map();
 sesion.createsession(app, wsClient); // creamos la sesion
 const mapIpVMS = new Map();
 const mapUserSocket = new Map();
@@ -65,103 +63,6 @@ const cas = new CASAuthentication({
   service_url: 'http://cloudide.iaas.ull.es',
   session_info: 'cas_userinfo',
   destroy_session: false,
-});
-
-var comprobarservidor = function(){
-  // INSERTAR SERVIDOR EN BBDD
-  logger.info(`Comprobando servidor...`);
-  pool.getConnection(function(err, connection) {
-    if(err) logger.info(`comprobarservidor error obteniendo conexión: "${err}"`);
-    connection.query("INSERT INTO Servidores (ip_server) SELECT '"+addresses[1]+"' FROM dual WHERE NOT EXISTS (SELECT * FROM Servidores WHERE ip_server='"+addresses[1]+"')", function(error, results, fields){
-      connection.release();
-    });
-  });
-}
-
-comprobarservidor();
-
-setInterval(comprobarservidor, 600000);
-
-
-
-//ESTABLECEMOS CONEXION CON LOS DEMÁS SERVIDORES
-pool.getConnection(function(err, connection) {
-  var conexion = connection;
-  if(err) logger.info(`comprobarservidor error obteniendo conexión: "${err}"`);
-  conexion.query("SELECT * FROM Servidores WHERE ip_server<>'"+addresses[1]+"'",function(error, results, fields) {
-
-    var servers = results;
-    conexion.release();
-    async.forEach(servers, function(item, callback) {
-
-            var ip_server = item.ip_server;
-            mapSockClientServers.set(ip_server, require('socket.io-client')('http://'+ip_server+':'+config.puerto_websocket_servers, {
-            reconnection : true,
-            reconnectionDelay:0,
-            reconnectionDelay:100}));
-
-            mapSockClientServers.get(ip_server).on('disconnect', function () {
-              pool.getConnection(function(err, connection) {
-              var conexion = connection;
-              conexion.query(db.bloqueoTablas,function(error, results, fields) {
-                conexion.query("DELETE FROM Servidores WHERE ip_server='"+ip_server+"'",function(error, result, fields) {
-                  mapSockClientServers.get(ip_server).disconnect();
-                  mapSockClientServers.delete(ip_server);
-                  logger.info(`server disconnected`);
-                  conexion.query("UNLOCK TABLES",function(error, results, fields) {
-                    logger.debug(`liberando tablas MySQL`);
-
-                  conexion.release();
-                  comprobarservidor();
-              });
-
-            });
-          });
-        });
-      });
-
-          mapSockClientServers.get(ip_server).on('prueba', function (data) {
-            logger.info(`prueba recibida`);
-          });
-
-          mapSockClientServers.get(ip_server).on('enviar-resultado', function (data) {
-            logger.info(`enviar resultado`);
-            if(mapUserSocket.get(data.user) != undefined){
-              broadcastclient(data.user, "resultado", {"motivo" : data.motivo});
-            }
-          });
-
-          mapSockClientServers.get(ip_server).on('enviar-stop', function (data) {
-            logger.info(`enviar stopp`);
-            if(mapUserSocket.get(data.user) != undefined){
-              broadcastclient(data.user, "stop", {"motivo" : data.motivo});
-            }
-          });
-
-          mapSockClientServers.get(ip_server).on('deletednat', function (data) {
-            logger.info(`servers deletednat`);
-            firewall.deletednat(data);
-          });
-
-          mapSockClientServers.get(ip_server).on("dnatae-eliminarsolo", function (data) {
-            logger.info(`servers deletednat`);
-            firewall.dnatae("eliminarsolo", data.ip_origen, data.ipvm, data.puerto);
-          });
-
-          mapSockClientServers.get(ip_server).on("añadirsolo", function (data) {
-            logger.info(`servers deletednat`);
-            firewall.dnatae("añadirsolo", data.ip_origen, data.ipvm, data.puerto);
-          });
-
-          mapSockClientServers.get(ip_server).on("añadircomienzo", function (data) {
-            logger.info(`servers deletednat`);
-            firewall.dnatae("añadircomienzo", data.ip_origen, data.ipvm, data.puerto);
-          });
-
-        }, function(err) {
-            if (err) logger.info(err);
-      });
-  });
 });
 
 
