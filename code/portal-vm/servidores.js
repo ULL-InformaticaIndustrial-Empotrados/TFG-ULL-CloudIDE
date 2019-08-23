@@ -8,6 +8,10 @@ const logger = require('./logger.js').child({ label: 'index' });
 const config = require('./config.json');
 const db = require('./database.js');
 const firewall = require('./firewall.js');
+const cli = require('./clientes.js');
+
+
+const wsServers = sio.listen(config.puerto_websocket_servers);
 
 const mapSockClientServers = new Map();
 
@@ -25,6 +29,16 @@ function getiplocal() {
     }
   }
   return addresses;
+}
+
+function broadcastServers(evento, data) {
+  logger.info('Enviando broadcastServers');
+
+  mapSockClientServers.forEach((value) => {
+    value.emit(evento, data);
+  });
+
+  wsServers.sockets.emit(evento, data);
 }
 
 async function comprobarservidor() {
@@ -67,20 +81,20 @@ async function configuraServidor(itemServidor) {
   });
 
   sockToServer.on('prueba', (data) => {
-    logger.info('prueba recibida');
+    logger.debug(`prueba recibida: ${data}`);
   });
 
   sockToServer.on('enviar-resultado', (data) => {
     logger.info('enviar resultado');
-    if (mapUserSocket.get(data.user) !== undefined) {
-      broadcastclient(data.user, 'resultado', { motivo: data.motivo });
+    if (cli.mapUserSocket.get(data.user) !== undefined) {
+      cli.broadcastClient(data.user, 'resultado', { motivo: data.motivo });
     }
   });
 
   sockToServer.on('enviar-stop', (data) => {
     logger.info('enviar stopp');
-    if (mapUserSocket.get(data.user) !== undefined) {
-      broadcastclient(data.user, 'stop', { motivo: data.motivo });
+    if (cli.mapUserSocket.get(data.user) !== undefined) {
+      cli.broadcastClient(data.user, 'stop', { motivo: data.motivo });
     }
   });
 
@@ -123,3 +137,9 @@ async function conectaDemasServidores() {
 comprobarservidor();
 
 setInterval(comprobarservidor, 600000);
+
+module.exports = {
+  mapSockClientServers,
+  broadcastServers,
+  conectaDemasServidores,
+};
