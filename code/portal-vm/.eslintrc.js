@@ -10,6 +10,7 @@ module.exports = {
     'no-prototype-builtins': 'off',
     'no-restricted-syntax': ['off', 'ForStatement'],
     'no-trailing-spaces': 'off', // editor se encarga de quitarlos
+    'no-await-in-loop': 'off', // permite await en bucles for
   },
 
 };

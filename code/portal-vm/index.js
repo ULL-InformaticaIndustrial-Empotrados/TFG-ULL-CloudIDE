@@ -56,6 +56,10 @@ const n = config.numero_max_serverxuser;
 sesion.createsession(app, wsClient); // creamos la sesion
 const mapIpVMS = new Map();
 
+function getSocketFromIP(ip) {
+  return mapIpVMS.get(ip)[mapIpVMS.get(ip).length - 1];
+}
+
 // AUTENTICACION POR CAS ULL
 const CASAuthentication = require('./cas-authentication.js');
 
@@ -79,49 +83,45 @@ async function vmfree() {
   const nVMs = (await conexion.query(`SELECT COUNT(*)
     AS total FROM VMS AS v1`))[0].total;
 
-  if((nVMs != 0) && (nEnCola != 0)){
-    logger.info(`Existen vm libres y hay motivos en cola`);
-    const usuario = (await conexion.query("SELECT * FROM Cola AS c1 LIMIT 1"))[0].usuario;
+  if ((nVMs !== 0) && (nEnCola !== 0)) {
+    logger.info('Existen vm libres y hay motivos en cola');
+    const { usuario } = (await conexion.query('SELECT * FROM Cola AS c1 LIMIT 1'))[0];
     const motivos = await conexion.query(`SELECT * FROM Cola AS c1
       WHERE usuario='${usuario}'`);
     const ipVM = (await conexion.query(`SELECT * FROM VMS AS v1
       ORDER BY prioridad ASC LIMIT 1`))[0].ip_vm;
-    if(mapIpVMS.get(ipVM) !== undefined){
+    if (mapIpVMS.get(ipVM) !== undefined) {
       logger.debug(`La máquina ${ipVM} tiene socket (está activa)`);
       for (const item of motivos) {
         logger.info(`Asignamos (${usuario}, ${item.motivo}) a máquina ${ipVM}`);
         await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
           VALUES ('${ipVM}', '${item.motivo}', '${usuario}', 'up')`);
-        const json = {"user" : usuario, "motivo" : item.motivo};
-        getScoketFromIP(ipVM).emit("load", json);
+        const json = { user: usuario, motivo: item.motivo };
+        getSocketFromIP(ipVM).emit('load', json);
       }
     } else {
-      const cola_user = conexion.query("SELECT * FROM Cola AS c1 LIMIT 1");
-      const cola_vm = conexion.query("SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1");
+      const cola_user = conexion.query('SELECT * FROM Cola AS c1 LIMIT 1');
+      const cola_vm = conexion.query('SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1');
       const numero_users_vm = conexion.query(`SELECT count(DISTINCT usuario) AS total
         FROM (SELECT DISTINCT usuario from Asignaciones WHERE ip_vm='${cola_vm[0].ip_vm}'
         UNION SELECT DISTINCT usuario FROM Pendientes WHERE ip_vm='${cola_vm[0].ip_vm}') AS tmp`);
       logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
-      if(numero_users_vm[0].total == config.numero_max_users){
+      if (numero_users_vm[0].total === config.numero_max_users) {
         await conexion.query(`DELETE FROM VMS WHERE ip_vm='${cola_vm[0].ip_vm}'`);
-      } else{
+      } else {
         await conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${cola_vm[0].ip_vm}'`);
-        logger.info(`actualizamos vm`);
+        logger.info('actualizamos vm');
       }
 
       await conexion.query(`DELETE FROM Cola WHERE usuario='${cola_user[0].usuario}'`);
-      logger.info(`enviado a vm`);
+      logger.info('enviado a vm');
     }
   }
-  await conexion.query("UNLOCK TABLES");
+  await conexion.query('UNLOCK TABLES');
   await conexion.release();
   vmfree();
 }
 // FIN Funcion vmfree
-
-function getScoketFromIP(ip) {
-  return mapIpVMS.get(ip)[mapIpVMS.get(ip).length - 1];
-}
 
 
   ////////////////////"/ Firewall
@@ -290,7 +290,7 @@ wsServers.on('connection', function(socket){
                 if(results.length != 0){
 
                   if(mapIpVMS.get(results[0].ip_vm) != undefined){
-                    var socket_vm = getScoketFromIP(results[0].ip_vm);
+                    var socket_vm = getSocketFromIP(results[0].ip_vm);
                     conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+results[0].ip_vm+"', '"+results[0].motivo+"','"+socket.session.user+"', 'down')",function(error, results2, fields) {
                       var json = {"user" : socket.session.user, "motivo" : data, "puerto" : results[0].puerto};
                       socket_vm.emit("stop", json);
@@ -517,7 +517,7 @@ wsServers.on('connection', function(socket){
                                         });
                                       }
                                       else{
-                                        socket_vm = getScoketFromIP(ip);
+                                        socket_vm = getSocketFromIP(ip);
                                         conexion.query("SELECT motivo FROM Cola AS c1 WHERE usuario='"+socket.session.user+"'",function(error, cola_user_motivos, fields) {
                                           var servers = cola_user_motivos;
                                           var promise = new Promise(function(resolve, reject) {
@@ -587,7 +587,7 @@ wsServers.on('connection', function(socket){
 
                                                         conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
                                                           var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
-                                                          getScoketFromIP(cola_vm[0].ip_vm).emit("load", json);
+                                                          getSocketFromIP(cola_vm[0].ip_vm).emit("load", json);
 
                                                           if(item == cola_user1[cola_user1.length-1]){
                                                             logger.info(`es el ultimo`);
@@ -809,7 +809,7 @@ wsServers.on('connection', function(socket){
 
                                    conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+cola_vm[0].ip_vm+"', '"+item.motivo+"','"+cola_user[0].usuario+"', 'up')",function(error, results, fields) {
                                      var json = {"user" : cola_user[0].usuario, "motivo" : item.motivo};
-                                     getScoketFromIP(cola_vm[0].ip_vm).emit("load", json);
+                                     getSocketFromIP(cola_vm[0].ip_vm).emit("load", json);
                                      if(item == cola_user1[cola_user1.length-1]){
                                        resolve();
                                      }
@@ -1055,7 +1055,7 @@ socket.on('loaded', function (data) {
       conexion.query("SELECT COUNT(*) AS total FROM (SELECT motivo FROM `Eliminar_servicio_usuario` as esu WHERE usuario='"+data.user+"' AND motivo='"+data.motivo+"' UNION SELECT motivo FROM Eliminar_servicio as es WHERE motivo='"+data.motivo+"') AS alias",function(error, total, fields) {
         if(total[0].total != 0){
           if(mapIpVMS.get(ipvm) != undefined){
-            var socket_vm = getScoketFromIP(ipvm);
+            var socket_vm = getSocketFromIP(ipvm);
             conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+ipvm+"', '"+data.motivo+"','"+data.user+"', 'down')",function(error, results2, fields) {
               var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
               socket_vm.emit("stop", json);
@@ -1079,7 +1079,7 @@ socket.on('loaded', function (data) {
           conexion.query("SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='"+data.motivo+"'",function(error, result, fields) {
             if(result[0].total != 0){
               if(mapIpVMS.get(ipvm) != undefined){
-                var socket_vm = getScoketFromIP(ipvm);
+                var socket_vm = getSocketFromIP(ipvm);
                 conexion.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+ipvm+"', '"+data.motivo+"','"+data.user+"', 'down')",function(error, results2, fields) {
                   var json = {"user" : data.user, "motivo" : data.motivo, "puerto" : data.puerto};
                   socket_vm.emit("stop", json);
@@ -1821,7 +1821,7 @@ app.post('/eliminarservicio', function(req,res){
                                       }
                                       else{ // si está encendido mandamos a apagar
                                         if(mapIpVMS.get(estaasignado[0].ip_vm) != undefined){
-                                          var socket_vm = getScoketFromIP(estaasignado[0].ip_vm);
+                                          var socket_vm = getSocketFromIP(estaasignado[0].ip_vm);
                                           connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                             var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
                                             socket_vm.emit("stop", json);
@@ -2093,7 +2093,7 @@ app.post('/eliminarusuarios', function(req,res){
                                     }
                                     else{ // si está encendido mandamos a apagar
                                       if(mapIpVMS.get(estaasignado[0].ip_vm) != undefined){
-                                        var socket_vm = getScoketFromIP(estaasignado[0].ip_vm);
+                                        var socket_vm = getSocketFromIP(estaasignado[0].ip_vm);
                                         connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                           var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
                                           socket_vm.emit("stop", json);
@@ -2216,7 +2216,7 @@ app.post('/eliminarusuarios', function(req,res){
                                 }
                                 else{ // si está encendido mandamos a apagar
                                   if(mapIpVMS.get(estaasignado[0].ip_vm) != undefined){
-                                    var socket_vm = getScoketFromIP(estaasignado[0].ip_vm);
+                                    var socket_vm = getSocketFromIP(estaasignado[0].ip_vm);
                                     connection.query("INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('"+estaasignado[0].ip_vm+"', '"+estaasignado[0].motivo+"','"+aux+"', 'down')",function(error, results2, fields) {
                                       var json = {"user" : aux, "motivo" : estaasignado[0].motivo, "puerto" : estaasignado[0].puerto};
                                       socket_vm.emit("stop", json);
