@@ -23,6 +23,11 @@ function broadcastClient(user, evento, data) {
   }
 }
 
+class Condicion {
+  constructor(msg) {
+    this.msg = msg;
+  }
+}
 
 wsClient.on('connection', (socket) => {
   const usuario = socket.session.user;
@@ -71,81 +76,57 @@ wsClient.on('connection', (socket) => {
     const conexion = await pool.getConnection();
     await conexion.query(db.bloqueoTablas);
 
-    const existeMatriculados = (await conexion.query(`SELECT COUNT(*) AS total
-      FROM Matriculados AS m1
-      WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
-    if (existeMatriculados <= 0) {
-      const msg = 'No está matriculado de este servidor';
-      if (mapUserSocket.get(usuario) !== undefined) {
-        socket.emit('data-error', { msg });
+    try {
+      const existeMatriculados = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Matriculados AS m1
+        WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
+      if (existeMatriculados <= 0) {
+        throw new Condicion('No está matriculado de este servidor');
       }
-      logger.info(msg);
-      await conexion.query('UNLOCK TABLES');
-      await conexion.release();
-      return;
-    }
 
-    const eliminando = (await conexion.query(`SELECT COUNT(*) AS total
-      FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu
-      WHERE usuario='${usuario}' AND motivo='${motivo}'
-      UNION SELECT motivo FROM Eliminar_servicio as es
-      WHERE motivo='${motivo}') AS alias`))[0].total;
-    if (eliminando > 0) {
-      const msg = 'No se puede parar, se está eliminando servicio (individual o global)';
-      if (mapUserSocket.get(usuario) !== undefined) {
-        socket.emit('data-error', { msg });
+      const eliminando = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu
+        WHERE usuario='${usuario}' AND motivo='${motivo}'
+        UNION SELECT motivo FROM Eliminar_servicio as es
+        WHERE motivo='${motivo}') AS alias`))[0].total;
+      if (eliminando > 0) {
+        throw new Condicion('No se puede parar, se está eliminando servicio (individual o global)');
       }
-      logger.info(msg);
-      await conexion.query('UNLOCK TABLES');
-      await conexion.release();
-      return;
-    }
 
-    const numPendientes = (await conexion.query(`SELECT COUNT(*) AS total
-      FROM Pendientes AS p1 WHERE motivo='${motivo}'
-      AND usuario='${usuario}'`))[0].total;
-    if (numPendientes > 0) {
-      const msg = 'No se puede parar, hay solicitud pendiente';
-      if (mapUserSocket.get(usuario) !== undefined) {
-        socket.emit('data-error', { msg });
+      const numPendientes = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Pendientes AS p1 WHERE motivo='${motivo}'
+        AND usuario='${usuario}'`))[0].total;
+      if (numPendientes > 0) {
+        throw new Condicion('No se puede parar, hay solicitud pendiente');
       }
-      logger.info(msg);
-      await conexion.query('UNLOCK TABLES');
-      await conexion.release();
-      return;
-    }
 
-    const results = await conexion.query(`SELECT * FROM Asignaciones AS a1
-      WHERE motivo='${motivo}' AND usuario='${usuario}'`);
-    if (results.length <= 0) {
-      const msg = 'No hay asignación para este usuario y servicio';
-      if (mapUserSocket.get(usuario) !== undefined) {
-        socket.emit('data-error', { msg });
+      const results = await conexion.query(`SELECT * FROM Asignaciones AS a1
+        WHERE motivo='${motivo}' AND usuario='${usuario}'`);
+      if (results.length <= 0) {
+        throw new Condicion('No hay asignación para este usuario y servicio');
       }
-      logger.info(msg);
-      await conexion.query('UNLOCK TABLES');
-      await conexion.release();
-      return;
-    }
-    const ipVM = results[0].ip_vm;
-    if (vms.mapIpVMS.get(ipVM) === undefined) {
-      const msg = 'No hay conexión con el servidor de la asignación';
-      if (mapUserSocket.get(usuario) !== undefined) {
-        socket.emit('data-error', { msg });
+      const ipVM = results[0].ip_vm;
+      if (vms.mapIpVMS.get(ipVM) === undefined) {
+        throw new Condicion('No hay conexión con el servidor de la asignación');
       }
-      logger.info(msg);
-      await conexion.query('UNLOCK TABLES');
-      await conexion.release();
-      return;
-    }
-    const socketVM = vms.getSocketFromIP(ipVM);
-    await conexion.query(`INSERT INTO Pendientes
-      (ip_vm, motivo, usuario, tipo) VALUES
-      ('${ipVM}', '${motivo}','${usuario}', 'down')`);
-    const json = { user: usuario, motivo, puerto: results[0].puerto };
-    socketVM.emit('stop', json);
+      const socketVM = vms.getSocketFromIP(ipVM);
+      await conexion.query(`INSERT INTO Pendientes
+        (ip_vm, motivo, usuario, tipo) VALUES
+        ('${ipVM}', '${motivo}','${usuario}', 'down')`);
+      const json = { user: usuario, motivo, puerto: results[0].puerto };
+      socketVM.emit('stop', json);
 
-    logger.info(`enviado stop a ${ipVM} para ${usuario}-${motivo}`);
+      logger.info(`enviado stop a ${ipVM} para ${usuario}-${motivo}`);
+    } catch (err) {
+      if (err instanceof Condicion) {
+        if (mapUserSocket.get(usuario) !== undefined) {
+          socket.emit('data-error', { msg: err.msg });
+        }
+        logger.info(err.msg);
+      } else {
+        logger.warn(`Error en 'stopenlace' '${usuario}'- '${motivo}': ${err}`);
+      }
+    }
     await conexion.query('UNLOCK TABLES');
     await conexion.release();
   });
