@@ -6,5 +6,6 @@ function getSocketFromIP(ip) {
 }
 
 module.exports = {
+  mapIpVMS,
   getSocketFromIP,
 };
