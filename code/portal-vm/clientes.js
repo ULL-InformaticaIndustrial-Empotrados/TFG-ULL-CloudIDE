@@ -135,8 +135,8 @@ wsClient.on('connection', (socket) => {
   socket.on('obtenerenlace', async (motivo) => {
     if (!usuario) {
       logger.warn('En obtenerenlace pero no hay usuario definido');
-      if (mapUserSocket.get(usuario) != undefined) {
-        socket.emit('data-error', { msg: 'Accesso sin iniciar sesión'} );
+      if (mapUserSocket.get(usuario) !== undefined) {
+        socket.emit('data-error', { msg: 'Accesso sin iniciar sesión' });
       }
       return;
     }
@@ -182,9 +182,9 @@ wsClient.on('connection', (socket) => {
         throw new Condicion('Servicio ya pendiente');
       }
       logger.info('no esta en pendientes ni en asignaciones');
-      const cola_user = (await conexion.query(`SELECT COUNT(*) AS total
+      const userEnCola = (await conexion.query(`SELECT COUNT(*) AS total
         FROM Cola AS c1 WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
-      if (cola_user > 0) {
+      if (userEnCola > 0) {
         throw new Condicion('El servicio ya está en cola');
       }
       const asignasUser = (await conexion.query(`SELECT COUNT(*) AS total
@@ -197,7 +197,7 @@ wsClient.on('connection', (socket) => {
       if ((asignasUser + colasUser + pendientesUserUp) >= config.numero_max_serverxuser) {
         throw new Condicion('Supera el número máximo de servidores');
       }
-      logger.info(`se inserta en la cola ${user}-${motivo}`);
+      logger.info(`se inserta en la cola ${usuario}-${motivo}`);
       await conexion.query(`INSERT INTO Cola (motivo, usuario)
         VALUES ('${motivo}','${usuario}')`);
 
@@ -213,16 +213,16 @@ wsClient.on('connection', (socket) => {
             WHERE usuario='${usuario}'`))[0].ip_vm;
         }
 
-        if (mapIpVMS.get(ip) == undefined) { //si la vm no esta disponible
+        if (vms.mapIpVMS.get(ip) === undefined) { // si la vm no esta disponible
           await conexion.query(`DELETE FROM Cola WHERE usuario='${usuario}'`);
           throw new Condicion('No se puede obtener el servidor');
         } else {
-          let socket_vm = getSocketFromIP(ip);
+          const socketVM = vms.getSocketFromIP(ip);
           const colaUserMotivos = (await conexion.query(`SELECT motivo
             FROM Cola AS c1 WHERE usuario='${usuario}'`));
           await Promise.all(colaUserMotivos.map(async (item) => {
             const json = { user: usuario, motivo: item.motivo };
-            socket_vm.emit('load', json);
+            socketVM.emit('load', json);
             logger.info(`enviado ${usuario}-${motivo} a maquina ${ip}`);
             await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
               VALUES ('${ip}', '${item.motivo}','${usuario}', 'up')`);
@@ -231,146 +231,66 @@ wsClient.on('connection', (socket) => {
         }
       } else {
         logger.info(`todavia ${usuario} no tiene nada asignado`);
-  // ESLINT
+        const cola_ = (await conexion.query(`SELECT COUNT(*) AS total
+          FROM Cola AS c1`))[0].total;
+        const vms_ = (await conexion.query(`SELECT COUNT(*) AS total
+          FROM VMS AS v1`))[0].total;
 
+        if ((vms_ > 0) && (cola_ > 0)) {
+          logger.info(`Hay maquinas ${vms_} libres y ${cola_} en la cola`);
 
-        conexion.query(`SELECT COUNT(*) AS total FROM Cola AS c1`,function(error, cola_, fields) {
-          conexion.query(`SELECT COUNT(*) AS total FROM VMS AS v1`,function(error, vms_, fields) {
+          const ipVM = (await conexion.query(`SELECT * FROM VMS AS v1
+            ORDER BY prioridad ASC LIMIT 1`))[0];
+          const userCola = (await conexion.query(`SELECT * FROM Cola
+            AS c1 LIMIT 1`))[0].usuario;
+          const colaUser = await conexion.query(`SELECT * FROM Cola AS c1
+            WHERE usuario='${userCola}'`);
+          if (vms.mapIpVMS.get(ipVM) === undefined) {
+            throw new Condicion('La primera máquina en cola no tiene IP');
+          }
+          await Promise.all(colaUser.map(async (item) => {
+            await conexion.query(`INSERT INTO Pendientes
+              (ip_vm, motivo, usuario, tipo)
+              VALUES ('${ipVM}', '${item.motivo}','${userCola}', 'up')`);
+            const json = { user: userCola, motivo: item.motivo };
+            vms.getSocketFromIP(ipVM).emit('load', json);
+          }));
+          await conexion.query(`DELETE FROM Cola WHERE usuario='${userCola}'`);
+          logger.info(`Usurio ${userCola} enviado a VM ${ipVM} y borrado Cola`);
 
-                if ((vms_[0].total != 0)&&(cola_[0].total != 0)) {
-                  var promise2 = new Promise(function(resolve, reject) {
-                  logger.info(`hay maquinas libres y algo en la cola`);
-                    conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
-                      conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
-
-                        conexion.query(`SELECT * FROM Cola AS c1 WHERE usuario='${cola_user[0].usuario}'`,function(error, cola_user1, fields) {
-                          if (mapIpVMS.get(cola_vm[0].ip_vm) != undefined) {
-                            async.forEach(cola_user1, function(item, callback) {
-
-                                  conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${cola_vm[0].ip_vm}', '${item.motivo}','${cola_user[0].usuario}', 'up')`,function(error, results, fields) {
-                                    var json = {'user' : cola_user[0].usuario, 'motivo' : item.motivo};
-                                    getSocketFromIP(cola_vm[0].ip_vm).emit('load', json);
-
-                                    if (item == cola_user1[cola_user1.length-1]) {
-                                      logger.info(`es el ultimo`);
-                                      resolve('salir');
-                                    }
-                                  });
-
-
-                                }, function(err) {
-                                    if (err) logger.info(err);}
-                              );
-                            }
-                            else{
-                              resolve('false');
-                            }
-
-                          });
-
-
-
-
-                      });
-
-                    });
-
-                  });
-
-
-
-                  promise2.then(function(result) {
-                    if (result != 'false') {
-                    conexion.query(`SELECT * FROM Cola AS c1 LIMIT 1`,function(error, cola_user, fields) {
-                      conexion.query(`SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1`,function(error, cola_vm, fields) {
-                      conexion.query(`SELECT count(DISTINCT usuario) AS total FROM (SELECT DISTINCT usuario from Asignaciones as a1 WHERE ip_vm='${cola_vm[0].ip_vm}' UNION SELECT DISTINCT usuario FROM Pendientes as p1 WHERE ip_vm='${cola_vm[0].ip_vm}') AS tmp`,function(error, numero_users_vm, fields) {
-                        logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
-                        if (numero_users_vm[0].total == config.numero_max_users) {
-                        conexion.query(`DELETE FROM VMS WHERE ip_vm='${cola_vm[0].ip_vm}'`,function(error, cola_vm, fields) {
-                            logger.info(`eliminado 1`);
-                              });
-                        }
-                        else{
-
-                          conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${cola_vm[0].ip_vm}'`,function(error, results, fields) {
-                            logger.info(`actualizamos vm`);
-                          });
-
-                        }
-
-                            conexion.query(`DELETE FROM Cola WHERE usuario='${cola_user[0].usuario}'`,function(error, results, fields) {
-                              logger.info(`enviado a vm`);
-                              conexion.query('UNLOCK TABLES',function(error, results, fields) {
-                              conexion.release();
-                              ajustaVMArrancadas();
-
-                            });
-                            });
-
-                        });
-
-                    });
-
-
-                  });
-                }
-                else{
-                  conexion.query('UNLOCK TABLES',function(error, results, fields) {
-                  conexion.release();
-                  //ajustaVMArrancadas();
-
-                });
-                }
-
-
-                  }, function(err) {
-                    logger.info(err);
-                  });
-
-
-
-                  }
-                  else{
-                    conexion.query('UNLOCK TABLES',function(error, results, fields) {
-                    conexion.release();
-                    ajustaVMArrancadas();
-
-                  });
-                  }
-                });
-                });
-
-
-
-
-
-
-    }, function(err) {
-      logger.info(err);
-    });
-
-
-              }
-                else{
-                  logger.info(`bool es falso`);
-                  conexion.query('UNLOCK TABLES',function(error, results, fields) {
-                  conexion.release();
-                  ajustaVMArrancadas();
-
-                });
-                }
-
-              }, function(err) {
-                        logger.info(err);
-                      });
-              });
-            });
+          // Actulizamos estado de la VM
+          const numeroUsersVM = (await conexion.query(`SELECT
+            count(DISTINCT usuario) AS total FROM
+            (SELECT DISTINCT usuario from Asignaciones as a1
+               WHERE ip_vm='${ipVM}' UNION
+               SELECT DISTINCT usuario FROM Pendientes as p1
+               WHERE ip_vm='${ipVM}')
+             AS tmp`))[0].total;
+          logger.info(`La VM ${ipVM} tiene ${numeroUsersVM}" usuarios`);
+          if (numeroUsersVM >= config.numero_max_users) {
+            await conexion.query(`DELETE FROM VMS WHERE ip_vm='${ipVM}'`);
+            logger.info(`Eliminada VM ${ipVM} de las VMs disponibles`);
+          } else {
+            await conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${ipVM}'`);
+            logger.info(`Bajamos a prioridad 0 la VM ${ipVM}`);
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof Condicion) {
+        if (mapUserSocket.get(usuario) !== undefined) {
+          socket.emit('data-error', { msg: err.msg });
+        }
+        logger.info(err.msg);
+      } else {
+        logger.warn(`Error en 'stopenlace' '${usuario}'- '${motivo}': ${err}`);
+      }
+    }
+    await conexion.query('UNLOCK TABLES');
+    await conexion.release();
+    ajustaVMArrancadas();
   });
-
-
-
-  });
-
+});
 
 module.exports = {
   wsClient,
