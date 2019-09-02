@@ -135,7 +135,7 @@ wsClient.on('connection', (socket) => {
         }
         logger.info(err.msg);
       } else {
-        logger.warn(`Error en 'stopenlace' '${usuario}'- '${motivo}': ${err}`);
+        logger.warn(`Error en 'stopenlace' '${usuario}'-'${motivo}': ${err}`);
       }
     }
     await conexion.query('UNLOCK TABLES');
