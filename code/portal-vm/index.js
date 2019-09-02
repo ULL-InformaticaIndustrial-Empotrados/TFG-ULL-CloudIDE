@@ -61,57 +61,6 @@ const cas = new CASAuthentication({
 });
 
 
-// Funcion vmfree
-async function vmfree() {
-  logger.info('Entramos vmfree');
-  const pool = await db.pool;
-  const conexion = await pool.getConnection();
-  await conexion.query(db.bloqueoTablas);
-  const nEnCola = (await conexion.query(`SELECT COUNT(*)
-    AS total FROM Cola AS c1`))[0].total;
-  const nVMs = (await conexion.query(`SELECT COUNT(*)
-    AS total FROM VMS AS v1`))[0].total;
-
-  if ((nVMs !== 0) && (nEnCola !== 0)) {
-    logger.info('Existen vm libres y hay motivos en cola');
-    const { usuario } = (await conexion.query('SELECT * FROM Cola AS c1 LIMIT 1'))[0];
-    const motivos = await conexion.query(`SELECT * FROM Cola AS c1
-      WHERE usuario='${usuario}'`);
-    const ipVM = (await conexion.query(`SELECT * FROM VMS AS v1
-      ORDER BY prioridad ASC LIMIT 1`))[0].ip_vm;
-    if (vms.mapIpVMS.get(ipVM) !== undefined) {
-      logger.debug(`La máquina ${ipVM} tiene socket (está activa)`);
-      for (const item of motivos) {
-        logger.info(`Asignamos (${usuario}, ${item.motivo}) a máquina ${ipVM}`);
-        await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
-          VALUES ('${ipVM}', '${item.motivo}', '${usuario}', 'up')`);
-        const json = { user: usuario, motivo: item.motivo };
-        vms.getSocketFromIP(ipVM).emit('load', json);
-      }
-    } else {
-      const cola_user = conexion.query('SELECT * FROM Cola AS c1 LIMIT 1');
-      const cola_vm = conexion.query('SELECT * FROM VMS AS v1 ORDER BY prioridad ASC LIMIT 1');
-      const numero_users_vm = conexion.query(`SELECT count(DISTINCT usuario) AS total
-        FROM (SELECT DISTINCT usuario from Asignaciones WHERE ip_vm='${cola_vm[0].ip_vm}'
-        UNION SELECT DISTINCT usuario FROM Pendientes WHERE ip_vm='${cola_vm[0].ip_vm}') AS tmp`);
-      logger.info(`tiene "${numero_users_vm[0].total}" usuarios la maquina virtual`);
-      if (numero_users_vm[0].total === config.numero_max_users) {
-        await conexion.query(`DELETE FROM VMS WHERE ip_vm='${cola_vm[0].ip_vm}'`);
-      } else {
-        await conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${cola_vm[0].ip_vm}'`);
-        logger.info('actualizamos vm');
-      }
-
-      await conexion.query(`DELETE FROM Cola WHERE usuario='${cola_user[0].usuario}'`);
-      logger.info('enviado a vm');
-    }
-  }
-  await conexion.query('UNLOCK TABLES');
-  await conexion.release();
-  vmfree();
-}
-// FIN Funcion vmfree
-
 // //////////////////"/ Firewall
 
 firewall.firewall();

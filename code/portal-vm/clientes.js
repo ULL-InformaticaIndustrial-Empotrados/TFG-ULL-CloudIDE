@@ -8,7 +8,7 @@ const config = require('./config.json');
 const db = require('./database.js');
 const functions = require('./functions.js');
 const vms = require('./vms.js');
-const ovirt = require('./ovirt.js')
+const ovirt = require('./ovirt.js');
 
 const mapUserSocket = new Map();
 
@@ -80,7 +80,7 @@ wsClient.on('connection', (socket) => {
       conexion = await pool.getConnection();
       await conexion.query(db.bloqueoTablas);
     } catch (err) {
-      const msg = `Al obtrner pool, conexion o bloquear tablas: ${err}`;
+      const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
       if (mapUserSocket.get(usuario) !== undefined) {
         socket.emit('data-error', { msg });
       }
@@ -167,7 +167,7 @@ wsClient.on('connection', (socket) => {
       conexion = await pool.getConnection();
       await conexion.query(db.bloqueoTablas);
     } catch (err) {
-      const msg = `Al obtrner pool, conexion o bloquear tablas: ${err}`;
+      const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
       if (mapUserSocket.get(usuario) !== undefined) {
         socket.emit('data-error', { msg });
       }
@@ -237,64 +237,11 @@ wsClient.on('connection', (socket) => {
           await conexion.query(`DELETE FROM Cola WHERE usuario='${usuario}'`);
           throw new Condicion('No se puede obtener el servidor');
         } else {
-          const socketVM = vms.getSocketFromIP(ip);
-          const colaUserMotivos = (await conexion.query(`SELECT motivo
-            FROM Cola AS c1 WHERE usuario='${usuario}'`));
-          await Promise.all(colaUserMotivos.map(async (item) => {
-            const json = { user: usuario, motivo: item.motivo };
-            socketVM.emit('load', json);
-            logger.info(`enviado ${usuario}-${motivo} a maquina ${ip}`);
-            await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
-              VALUES ('${ip}', '${item.motivo}','${usuario}', 'up')`);
-          }));
-          await conexion.query(`DELETE FROM Cola WHERE usuario='${usuario}'`);
+          await vms.mandaUsuarioVM(conexion, usuario, ip);
         }
       } else {
         logger.info(`todavia ${usuario} no tiene nada asignado`);
-        const cola_ = (await conexion.query(`SELECT COUNT(*) AS total
-          FROM Cola AS c1`))[0].total;
-        const vms_ = (await conexion.query(`SELECT COUNT(*) AS total
-          FROM VMS AS v1`))[0].total;
-
-        if ((vms_ > 0) && (cola_ > 0)) {
-          logger.info(`Hay maquinas ${vms_} libres y ${cola_} en la cola`);
-
-          const ipVM = (await conexion.query(`SELECT * FROM VMS AS v1
-            ORDER BY prioridad ASC LIMIT 1`))[0];
-          const userCola = (await conexion.query(`SELECT * FROM Cola
-            AS c1 LIMIT 1`))[0].usuario;
-          const colaUser = await conexion.query(`SELECT * FROM Cola AS c1
-            WHERE usuario='${userCola}'`);
-          if (vms.mapIpVMS.get(ipVM) === undefined) {
-            throw new Condicion('La primera máquina en cola no tiene IP');
-          }
-          await Promise.all(colaUser.map(async (item) => {
-            await conexion.query(`INSERT INTO Pendientes
-              (ip_vm, motivo, usuario, tipo)
-              VALUES ('${ipVM}', '${item.motivo}','${userCola}', 'up')`);
-            const json = { user: userCola, motivo: item.motivo };
-            vms.getSocketFromIP(ipVM).emit('load', json);
-          }));
-          await conexion.query(`DELETE FROM Cola WHERE usuario='${userCola}'`);
-          logger.info(`Usurio ${userCola} enviado a VM ${ipVM} y borrado Cola`);
-
-          // Actulizamos estado de la VM
-          const numeroUsersVM = (await conexion.query(`SELECT
-            count(DISTINCT usuario) AS total FROM
-            (SELECT DISTINCT usuario from Asignaciones as a1
-               WHERE ip_vm='${ipVM}' UNION
-               SELECT DISTINCT usuario FROM Pendientes as p1
-               WHERE ip_vm='${ipVM}')
-             AS tmp`))[0].total;
-          logger.info(`La VM ${ipVM} tiene ${numeroUsersVM}" usuarios`);
-          if (numeroUsersVM >= config.numero_max_users) {
-            await conexion.query(`DELETE FROM VMS WHERE ip_vm='${ipVM}'`);
-            logger.info(`Eliminada VM ${ipVM} de las VMs disponibles`);
-          } else {
-            await conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${ipVM}'`);
-            logger.info(`Bajamos a prioridad 0 la VM ${ipVM}`);
-          }
-        }
+        vms.miraCola(conexion);
       }
     } catch (err) {
       if (err instanceof Condicion) {
