@@ -159,37 +159,40 @@ wsVMs.on('connection', async (socket) => {
   await conexion.release();
   ovirt.ajustaVMArrancadas();
 
-// POR AQUI
+  socket.on('disconnect', async () => {
+    logger.info(`VM disconnected "${ipVM}"`);
 
-    socket.on('disconnect', function () {
-      logger.info(`VM disconnected "${ipVM}"`);
-
-        if (mapIpVMS.get(ipVM)!= undefined) {
-          if (vms.mapIpVMS.get(ipVM).length != 0) {
-        mapIpVMS.get(ipVM)[0].disconnect();
-        mapIpVMS.get(ipVM).shift();
-        if (mapIpVMS.get(ipVM).length == 0) {
-          mapIpVMS.delete(ipVM);
-          pool.getConnection(function(err, connection) {
-          var conexion = connection;
-          conexion.query(db.bloqueoTablas,function(error, results, fields) {
-          conexion.query("DELETE FROM VMS WHERE ip_vm='${ipVM}'",function(error, result, fields) {
-
-            conexion.query("UNLOCK TABLES",function(error, results, fields) {
-              logger.debug(`liberando tablas MySQL`);
-            conexion.release();
-
-          });
-        });
-      });
-    });
-        }
-      }
+    if (mapIpVMS.get(ipVM) === undefined) {
+      logger.warn(`La VM ${ipVM} se está desconectando pero no estaba registrada`);
+      return;
     }
-    comprobarservidor();
+    if (mapIpVMS.get(ipVM).length <= 0) {
+      logger.warn(`La VM ${ipVM} se está desconectando pero no tiene sockests`);
+      return;
+    }
+    mapIpVMS.get(ipVM).shift().disconnect();
+    if (mapIpVMS.get(ipVM).length > 0) {
+      logger.error(`La VM ${ipVM} se está desconectando y tiene + de 1 socket`);
+      return;
+    }
+    mapIpVMS.delete(ipVM);
+    let conex;
+    try {
+      const pool = await db.pool;
+      conex = await pool.getConnection();
+      await conex.query(db.bloqueoTablas);
+    } catch (err) {
+      const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
+      logger.err(msg);
+      return;
+    }
+    await conex.query(`DELETE FROM VMS WHERE ip_vm='${ipVM}'`);
+    await conex.query('UNLOCK TABLES');
+    await conex.release();
+  });
 
-});
 
+// POR AQUI
 
 
 
