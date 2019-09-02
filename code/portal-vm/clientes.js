@@ -73,11 +73,20 @@ wsClient.on('connection', (socket) => {
       return;
     }
 
+    let conexion;
     try {
       const pool = await db.pool;
-      const conexion = await pool.getConnection();
+      conexion = await pool.getConnection();
       await conexion.query(db.bloqueoTablas);
-
+    } catch (err) {
+      const msg = `Al obtrner pool, conexion o bloquear tablas: ${err}`;
+      if (mapUserSocket.get(usuario) !== undefined) {
+        socket.emit('data-error', { msg });
+      }
+      logger.err(msg);
+      return;
+    }
+    try {
       const existeMatriculados = (await conexion.query(`SELECT COUNT(*) AS total
         FROM Matriculados AS m1
         WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
@@ -150,11 +159,21 @@ wsClient.on('connection', (socket) => {
       logger.warn(msg);
       return;
     }
+
+    let conexion;
     try {
       const pool = await db.pool;
-      const conexion = await pool.getConnection();
+      conexion = await pool.getConnection();
       await conexion.query(db.bloqueoTablas);
-
+    } catch (err) {
+      const msg = `Al obtrner pool, conexion o bloquear tablas: ${err}`;
+      if (mapUserSocket.get(usuario) !== undefined) {
+        socket.emit('data-error', { msg });
+      }
+      logger.err(msg);
+      return;
+    }
+    try {
       const existeMatriculados = (await conexion.query(`SELECT COUNT(*) AS total
         FROM Matriculados AS m1
         WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
