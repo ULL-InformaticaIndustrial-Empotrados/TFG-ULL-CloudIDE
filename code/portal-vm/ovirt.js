@@ -178,6 +178,4 @@ class Ovirt {
   }
 }
 
-module.exports = {
-  Ovirt,
-};
+module.exports = new Ovirt();

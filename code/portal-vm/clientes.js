@@ -8,6 +8,7 @@ const config = require('./config.json');
 const db = require('./database.js');
 const functions = require('./functions.js');
 const vms = require('./vms.js');
+const ovirt = require('./ovirt.js')
 
 const mapUserSocket = new Map();
 
@@ -307,7 +308,7 @@ wsClient.on('connection', (socket) => {
     }
     await conexion.query('UNLOCK TABLES');
     await conexion.release();
-    ajustaVMArrancadas();
+    ovirt.ajustaVMArrancadas();
   });
 });
 

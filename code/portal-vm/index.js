@@ -245,7 +245,7 @@ firewall.firewall();
                                              conexion.release();
 
                                              vmfree();
-                                             ajustaVMArrancadas();
+                                             ovirt.ajustaVMArrancadas();
                                            });
                                            });
                                              });
@@ -261,7 +261,7 @@ firewall.firewall();
                                              conexion.release();
 
                                              vmfree();
-                                             ajustaVMArrancadas();
+                                             ovirt.ajustaVMArrancadas();
                                            });
 
                                            });
@@ -285,7 +285,7 @@ firewall.firewall();
                                    conexion.query("UNLOCK TABLES",function(error, results, fields) {
                                    conexion.release();
 
-                                   //ajustaVMArrancadas();
+                                   //ovirt.ajustaVMArrancadas();
                                  });
 
                                  }
@@ -298,7 +298,7 @@ firewall.firewall();
                                else{
                                  conexion.query("UNLOCK TABLES",function(error, results, fields) {
                                  conexion.release();
-                                 ajustaVMArrancadas();
+                                 ovirt.ajustaVMArrancadas();
 
                                });
                                }
@@ -310,7 +310,7 @@ firewall.firewall();
                      else{
                     conexion.query("UNLOCK TABLES",function(error, results, fields) {
                        conexion.release();
-                       ajustaVMArrancadas();
+                       ovirt.ajustaVMArrancadas();
                      });
                      }
                      });
@@ -693,7 +693,7 @@ socket.on('loaded', function (data) {
                             conexion.release();
 
                             vmfree();
-                            ajustaVMArrancadas();
+                            ovirt.ajustaVMArrancadas();
                           });
                           }
                           else{
@@ -702,7 +702,7 @@ socket.on('loaded', function (data) {
                             conexion.release();
 
                             vmfree();
-                            ajustaVMArrancadas();
+                            ovirt.ajustaVMArrancadas();
                           });
                           }
                         });
@@ -776,7 +776,7 @@ socket.on('loaded', function (data) {
                     conexion.release();
 
                     vmfree();
-                    ajustaVMArrancadas();
+                    ovirt.ajustaVMArrancadas();
                   });
 
 
@@ -787,7 +787,7 @@ socket.on('loaded', function (data) {
                       conexion.release();
 
                       vmfree();
-                      ajustaVMArrancadas();
+                      ovirt.ajustaVMArrancadas();
                     });
                     }
                   });
