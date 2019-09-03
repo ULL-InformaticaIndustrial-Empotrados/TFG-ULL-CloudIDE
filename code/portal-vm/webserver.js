@@ -40,6 +40,29 @@ async function getRoll(user) {
   return 'alumno';
 }
 
+// Funcion añade usuarios a un servicio en las tablas de la BD
+// Recibe conexion con las tablas bloqueadas.
+async function aniadeUsuarioServicio(conexion, usuarios, servicio) {
+  let valores = ususarios;
+  if (!(valores instanceof Array)) {
+    valores = [ valores ];
+  }
+  for (const item of valores) {
+    const aux = item.match(palabraInicial);
+
+    await conexion.query(`INSERT INTO Matriculados (usuario, motivo)
+      SELECT '${aux}','${servicio}' FROM dual WHERE NOT EXISTS (
+        SELECT * FROM Matriculados as m1 WHERE usuario='${aux}'
+        AND motivo='${servicio}')`);
+    await conexion.query(`INSERT INTO Ultima_conexion (usuario, motivo)
+      SELECT '${aux}','${servicio}' FROM dual WHERE NOT EXISTS (
+        SELECT * FROM Ultima_conexion as uc WHERE usuario='${aux}'
+        AND motivo='${servicio}')`);
+    await conexion.query(`DELETE FROM Eliminar_servicio_usuario
+      WHERE usuario='${aux}' AND motivo='${servicio}'`);
+  }
+}
+
 app.get('/', async (req, res) => {
   const ip_origen = functions.cleanAddress(req.conexion.remoteAddress);
   if (req.session.user === undefined) {
@@ -330,24 +353,11 @@ app.post('/nuevoservicio', async (req, res) => {
     }
     await conexion.query(`INSERT INTO Servicios (usuario, motivo)
       VALUES ('${req.session.user}','${nombServi}')`);
-    let valores = req.body['usuario'];
-    if (valores !== undefined) {
-      if (!valores instanceof Array) {
-        valores = [ valores ];
-      }
-      for (const item of valores) {
-        const aux = item.match(palabraInicial);
-        await conexion.query(`INSERT INTO Matriculados (usuario, motivo)
-          SELECT '${aux}','${nombServi}' FROM dual
-          WHERE NOT EXISTS (
-            SELECT * FROM Matriculados as m1 WHERE usuario='${aux}'
-            AND motivo='${nombServi}')`);
-        await conexion.query(`INSERT INTO Ultima_conexion (usuario, motivo)
-          SELECT '${aux}','${nombServi}' FROM dual
-          WHERE NOT EXISTS (
-            SELECT * FROM Ultima_conexion as uc WHERE usuario='${aux}'
-            AND motivo='${nombServi}')`);
-      }
+    const usuarios = req.body['usuario'];
+    if (usuarios === undefined) {
+      logger.info(`No se indicaron usuarios al crear servicio ${nombServi}`);
+    } else {
+      aniadeUsuarioServicio(conexion, usuarios, nombServi);
     }
   } catch (err) {
     if (err instanceof Condicion) {
@@ -461,32 +471,11 @@ app.post('/aniadirusuarios', async (req, res) => {
     if (elimServi > 0) {
       throw new Condicion(`El servicio ${nombServi} ya se está eliminando`);
     }
-    let valores = req.body['usuario'];
-    if (valores === undefined) {
-      throw new Condicion(`No se han indicado usuarios a eliminar`);
+    const usuarios = req.body['usuario'];
+    if (usuarios === undefined) {
+      throw new Condicion(`No se han indicado usuarios a añadir`);
     }
-    if (!valores instanceof Array) {
-      valores = [ valores ];
-    }
-    for (const item of valores) {
-      const aux = item.match(palabraInicial);
-
-      const totElim = (await conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu
-        WHERE motivo='${nombServi}' AND usuario='${aux}'`))[0].total;
-      if (totElim <= 0) {
-        await conexion.query(`INSERT INTO Matriculados (usuario, motivo)
-          SELECT '${aux}','${nombServi}' FROM dual WHERE NOT EXISTS (
-            SELECT * FROM Matriculados as m1 WHERE usuario='${aux}'
-            AND motivo='${nombServi}')`);
-        await conexion.query(`INSERT INTO Ultima_conexion (usuario, motivo)
-          SELECT '${aux}','${nombServi}' FROM dual
-          WHERE NOT EXISTS (
-            SELECT * FROM Ultima_conexion as uc WHERE usuario='${aux}'
-            AND motivo='${nombServi}')`);
-        await conexion.query(`DELETE FROM Eliminar_servicio_usuario
-          WHERE usuario='${aux}' AND motivo='${nombServi}'`);
-      }
-    }
+    aniadeUsuarioServicio(conexion, usuarios, nombServi);
   } catch (err) {
     if (err instanceof Condicion) {
       logger.info(err.msg);
