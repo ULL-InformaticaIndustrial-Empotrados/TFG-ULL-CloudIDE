@@ -17,6 +17,21 @@ app.use('/', express.static('./client/views'));
 app.set('views', './client/views'); // Configuramos el directorio de vistas
 app.set('view engine', 'ejs');
 
+// Funcion asíncrona para determinar rol del usuario
+async function getRoll(user) {
+  const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
+  logger.debug(`Obetemos roll con consulta: "${consulta}"`);
+  try {
+    const pool = await db.pool;
+    const result = await pool.query(consulta);
+    logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 2)}`);
+    if (result[0].total === 1) return 'profesor';
+  } catch (error) {
+    logger.warn(`Error al consultar roll: ${error}`);
+  }
+  return 'alumno';
+}
+
 app.get('/', async (req, res) => {
   const ip_origen = functions.cleanAddress(req.connection.remoteAddress);
   if (req.session.user === undefined) {
@@ -176,91 +191,60 @@ app.get('/cloud/:motivo', async (req, res) => {
   res.render(destino, data);
 });
 
-// FIN de /cloud/:motivo
-
-app.get('/autenticacion', cas.bounce, function(req,res) {
-var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
-
-  if (req.session.user != undefined) {
-    if (ip_origen != req.session.ip_origen) { //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-      res.redirect('/logout');
-    }
-    else{
-      res.redirect('/');
-    }
+app.get('/autenticacion', cas.bounce, async (req, res) => {
+  const ip_origen = functions.cleanAddress(req.connection.remoteAddress);
+  if (req.session.user === undefined) {
+    res.redirect('/');
+    return;
   }
-    else{
+  if (ip_origen != req.session.ip_origen) {
+    logger.info(`IP logueo ${ip_orige} != de la de sesión ${req.session.ip_origen}`);
+    res.redirect('/logout');
+    return;
+  }
 
-//borrar iptables de esta ip por si acaso
-      serv.broadcastServers('deletednat', ip_origen);
-      firewall.deletednat(ip_origen, function() {
-      pool.getConnection(function(err, connection) {
-        var conexion = connection;
-        conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ip_origen}'`,function(error, results, fields) {
+  //borrar iptables de esta ip por si acaso
+  serv.broadcastServers('deletednat', ip_origen);
+  await firewall.deletednat(ip_origen);
+  let conexion = undefined;
+  try {
+    const pool = await db.pool;
+    conexion = await pool.getConnection();
+    await conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ip_origen}'`);
 
-
-          req.session.user = req.session[`cas_userinfo`].username;
-
-  //req.session.user = req.session[`cas_userinfo`].username;
-  req.session.ip_origen = ip_origen;
-  getRoll(req.session.user)
-  .then((rol) => {
-    logger.info(`Usuario considerado `${rol}``);
+    const user = req.session[`cas_userinfo`].username;
+    req.session.user = user;
+    req.session.ip_origen = ip_origen;
+    const rol = await getRoll(user);
     req.session.rol = rol;
-  })
-  .then(() => {
-    conexion.query(`INSERT INTO Firewall (usuario, ip_origen) VALUES ('${req.session.user}','${ip_origen}')`,function(error, results, fields) {
+    logger.info(`Usuario ${user} considerado '${rol}'`);
+    await conexion.query(`INSERT INTO Firewall (usuario, ip_origen)
+      VALUES ('${user}','${ip_origen}')`);
 
-      //Actualizamos iptables
-      conexion.query(`SELECT ip_vm, puerto FROM Asignaciones WHERE usuario='${req.session.user}'`, function(err,row) {
-
-        conexion.release();
-
-        if (err) logger.info(err);
-
-        var min = 0;
-        var max = row.length;
-
-        var bucle = function() {
-          if (min < max) {
-            if (min == 0) {
-              serv.broadcastServers(`añadircomienzo`, ip_origen } ${ row[min].ip_vm } ${ row[min].puerto)
-              firewall.dnatae(`añadircomienzo`, ip_origen, row[min].ip_vm, 0, function() {
-                serv.broadcastServers(`añadirsolo`, ip_origen } ${ row[min].ip_vm } ${ row[min].puerto);
-                firewall.dnatae(`añadirsolo`, ip_origen, row[min].ip_vm, row[min].puerto, function() {
-                  min++;
-                  bucle();
-                });
-              });
-            }
-            else{
-              serv.broadcastServers(`añadirsolo`, ip_origen } ${ row[min].ip_vm } ${ row[min].puerto);
-              firewall.dnatae(`añadirsolo`, ip_origen, row[min].ip_vm, row[min].puerto, function() {
-                min++;
-                bucle();
-              });
-            }
-
-          }
-          else{
-            setTimeout(function() {
-              res.redirect('/controlpanel');
-  	        }, 3000);
-          }
-
-        }
-
-        bucle();
-
-      });
-  });
-});
-});
-});
-});
-}
+    //Actualizamos iptables
+    const asignasUser = await conexion.query(`SELECT ip_vm, puerto FROM Asignaciones
+      WHERE usuario='${user}'`);
+    conexion.release();
+    if (asignasUser.length > 0) {
+      const asigIni = asignasUser[0];   // Primera asignación
+      //TODO esto debería ser objeto, no string
+      serv.broadcastServers('añadircomienzo', `${ip_origen } ${asigIni.ip_vm} ${asigIni.puerto}`);
+      await firewall.dnatae('añadircomienzo', ip_origen, asigIni.ip_vm, 0);
+      for (const asigA of asignasUser) {
+        //TODO esto debería ser objeto, no string
+        serv.broadcastServers('añadirsolo', `${ip_origen} ${asigA.ip_vm} ${asigA.puerto}`);
+        await firewall.dnatae('añadirsolo', ip_origen, asigA.ip_vm, asigA.puerto);
+      }
+    }
+  } catch (err) {
+    logger.error(`Error al tratar /autenticacion`);
+  }
+  setTimeout(() => {
+    res.redirect('/controlpanel');
+  }, 3000);
 });
 
+// AQUI ///////////////////////////////
 
 app.get('/logout',cas.logout, function(req,res) {
 
