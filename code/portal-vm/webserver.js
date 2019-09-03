@@ -614,9 +614,6 @@ app.post('/eliminarusuarios', async (req, res) => {
   res.redirect('/controlpanel');
 });
 
-// AQUI ///////////////////////////////
-
-
 app.get('*', (req, res) => {
   res.render('error', {});
 });
