@@ -224,7 +224,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
     //Actualizamos iptables
     const asignasUser = await conexion.query(`SELECT ip_vm, puerto FROM Asignaciones
       WHERE usuario='${user}'`);
-    conexion.release();
+    await conexion.release();
     if (asignasUser.length > 0) {
       const asigIni = asignasUser[0];   // Primera asignación
       //TODO esto debería ser objeto, no string
@@ -274,34 +274,32 @@ app.get('/logout',cas.logout, async (req, res) => {
   },4000);
 });
 
+app.get('/comprobardisponibilidad', async (req, res) => {
+  if (req.session.user === undefined) {
+    res.send('no disponible');
+    return;
+  }
+  if (req.session.rol !== 'profesor') {
+    res.send('no disponible');
+    return;
+  }
+  let conexion = undefined;
+  const datos = {};
+  try {
+    const pool = await db.pool;
+    conexion = await pool.getConnection();
+    const total = (await conexion.query(`SELECT count(*) AS total FROM
+      Servicios WHERE motivo='${req.query.nombre}'`))[0].total;
+    datos['valido'] = (total <= 0);
+    await conexion.release();
+  } catch(err) {
+    logger.error(`Error al trtar /cloud:${motivo}`);
+  }
+  res.send(datos);
+})
+
 // AQUI ///////////////////////////////
 
-
-app.get('/comprobardisponibilidad', function(req,res) {
-  if (req.session.user != undefined) {
-    if (req.session.rol == `profesor`) {
-        pool.getConnection(function(err, connection) {
-          var conexion = connection;
-          conexion.query(`SELECT count(*) AS total FROM Servicios WHERE motivo='${req.query.nombre}'`,function(error, total, fields) {
-              conexion.release();
-              var datos = {};
-              if (total[0].total == 0) {
-                  datos = {`valido` : true};
-                }else{
-                  datos = {`valido` : false};
-                }
-              res.send(datos);
-            });
-      });
-    }else{
-      res.send(`no disponible`);
-    }
-  }
-  else{
-    res.send(`no disponible`);
-  }
-
-})
 
 var quitardominio = new RegExp(/\w*/);
 
