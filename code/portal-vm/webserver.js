@@ -43,7 +43,7 @@ async function getRoll(user) {
 // Funcion añade usuarios a un servicio en las tablas de la BD
 // Recibe conexion con las tablas bloqueadas.
 async function aniadeUsuarioServicio(conexion, usuarios, servicio) {
-  let valores = ususarios;
+  let valores = usuarios;
   if (!(valores instanceof Array)) {
     valores = [ valores ];
   }
@@ -61,6 +61,26 @@ async function aniadeUsuarioServicio(conexion, usuarios, servicio) {
     await conexion.query(`DELETE FROM Eliminar_servicio_usuario
       WHERE usuario='${aux}' AND motivo='${servicio}'`);
   }
+}
+
+// Funcion para mansar parar un usuario-servicio
+// Se pasa conexión y resultado query sobre tabla Asignaciones
+async function mandaParar(conexion, asignacion) {
+  const ipVM = vms.mapIpVMS.get(asignacion.ip_vm);
+  if ( ipVM === undefined) {
+    logger.error(`En 'mandaParar' no hay IP para '${usuario}'-'${nombServi}'`);
+    return;
+  }
+  const socket_vm = vms.getSocketFromIP(ipVM);
+  await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
+    VALUES ('${asignacion.ip_vm}', '${asignacion.motivo}','${asignacion.usuario}', 'down')`);
+  var json = {
+    user: asignacion.usuario,
+    motivo: asignacion.motivo,
+    puerto: asignacion.puerto,
+  };
+  socket_vm.emit('stop', json);
+  logger.info(`Enviado stop ${JSON.stringify(json)} a ${ipVM}`);
 }
 
 app.get('/', async (req, res) => {
@@ -413,9 +433,11 @@ app.post('/eliminarservicio', async (req, res) => {
         await conexion.query(`DELETE FROM Cola WHERE usuario='${usuario}' AND motivo='${nombServi}'`);
         const estaasignado = await conexion.query(`SELECT * FROM Asignaciones as a1
           WHERE motivo='${nombServi}' AND usuario='${usuario}'`);
-        if (estaasignado.length <= 0) { // si no está encendido
+        if (estaasignado.length <= 0) {
+          logger.debug(`Eliminando '${usuario}'-'${nombServi}': no está encendido`);
           vms.compruebaEliminarServicioUsuario(conexion, nombServi, usuario);
         } else {
+          logger.debug(`Eliminando '${usuario}'-'${nombServi}': está encendido`);
           const ipVM = vms.mapIpVMS.get(estaasignado[0].ip_vm);
           if ( ipVM === undefined) {
             logger.warn(`No hay IP para asignación de '${usuario}'-'${nombServi}'`);
@@ -490,305 +512,92 @@ app.post('/aniadirusuarios', async (req, res) => {
   res.redirect('/controlpanel');
 });
 
-// AQUI ///////////////////////////////
 
+app.post('/eliminarusuarios', async (req, res) => {
+  if (req.session.user === undefined) {
+    logger.warn(`No hay user invocando /eliminarusuarios`);
+    return;
+  }
+  if (req.session.rol !== 'profesor') {
+    logger.warn(`No es 'profesor' invocando /eliminarusuarios`);
+    return;
+  }
+  const nombServi = functions.getCleanedString(req.body['nombreservicio']);
+  let conexion = undefined;
+  try {
+    const pool = await db.pool;
+    conexion = await pool.getConnection();
+    await conexion.query(db.bloqueoTablas);
 
-app.post('/eliminarusuarios', function(req,res) {
-  if (req.session.user != undefined) {
-    if (req.session.rol == `profesor`) {
-      pool.getConnection(function(err, conexion) {
-        conexion.query(db.bloqueoTablas,function(error, results, fields) {
-          conexion.query(`SELECT count(*) AS total FROM Servicios as s1 WHERE motivo='${nombServi}' AND usuario='${req.session.user}'`,function(error, total, fields) {
-            if (total[0].total == 1) {
-              conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                if (result[0].total == 0) {
-                var valores = req.body['usuario'];
-                if (valores != undefined) {
-                  if (valores instanceof Array) {
-                    var max = valores.length;
-                    var min = 0;
+    const totServi = (await conexion.query(`SELECT count(*) AS total FROM Servicios as s1
+      WHERE motivo='${nombServi}' AND usuario='${req.session.user}'`))[0].total;
+    if (totServi <= 0) {
+      throw new Condicion(`El servicio ${nombServi} no existe para usuario ${req.session.user}`);
+    }
+    const elimServi = (await conexion.query(`SELECT count(*) AS total
+      FROM Eliminar_servicio as es WHERE motivo='${nombServi}'`))[0].total;
+    if (elimServi > 0) {
+      throw new Condicion(`El servicio ${nombServi} ya se está eliminando`);
+    }
+    const usuarios = req.body['usuario'];
+    if (usuarios === undefined) {
+      throw new Condicion(`No se han indicado usuarios a eliminar`);
+    }
+    let valores = usuarios;
+    if (!(valores instanceof Array)) {
+      valores = [ valores ];
+    }
+    for (const item of valores) {
+      const aux = item.match(palabraInicial);
 
-                    var bucle = function() {
-                      if (min < max) {
-
-
-                        var aux = valores[min];
-                        conexion.query(`SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='${nombServi}' AND usuario='${aux}'`,function(error, total, fields) {
-                          if (total[0].total == 1) {
-                            conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='${nombServi}' AND usuario='${aux}'`,function(error, total, fields) {
-                              if (total[0].total == 0) {
-                            conexion.query(`INSERT INTO Eliminar_servicio_usuario (usuario, motivo) SELECT '${aux}','${nombServi}' FROM dual WHERE NOT EXISTS ( SELECT * FROM Eliminar_servicio_usuario as esu WHERE usuario='${aux}' AND motivo='${nombServi}')`,function(error, result, fields) {
-                              conexion.query(`SELECT count(*) AS total FROM Pendientes as p1 WHERE motivo='${nombServi}' AND usuario='${aux}'`,function(error, total, fields) {
-                                if (total[0].total == 0) {
-                                  conexion.query(`DELETE FROM Cola WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) { //por si acaso
-                                  conexion.query(`SELECT * FROM Asignaciones as a1 WHERE motivo='${nombServi}' AND usuario='${aux}'`,function(error, estaasignado, fields) {
-                                    if (estaasignado.length == 0) {//si no está encendido
-                                      functions.eliminardirectoriosolo(aux, nombServi, function() {
-                                        pool.getConnection(function(err, conexion) {
-                                          conexion.query(db.bloqueoTablas,function(error, results, fields) {
-                                            conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                                              if (result[0].total == 0) {
-                                                conexion.query(`DELETE FROM Eliminar_servicio_usuario WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                  conexion.query(`DELETE FROM Matriculados WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                    conexion.query(`DELETE FROM Ultima_conexion WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                                        conexion.release();
-                                                      });
-                                                    });
-                                                  });
-                                                });
-                                              }
-                                              else{
-                                                conexion.query(`DELETE FROM Eliminar_servicio_usuario WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                  conexion.query(`DELETE FROM Matriculados WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                    conexion.query(`SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                                                      conexion.query(`DELETE FROM Ultima_conexion WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                        if (result[0].total == 0) {
-                                                          functions.eliminardirectoriotodo(nombServi, function() {
-                                                            pool.getConnection(function(err, conexion) {
-                                                              conexion.query(db.bloqueoTablas,function(error, results, fields) {
-                                                                conexion.query(`DELETE FROM Eliminar_servicio WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                                                                  conexion.query(`DELETE FROM Servicios WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                                                                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                                                      conexion.release();
-                                                                    });
-                                                                  });
-                                                                });
-                                                              });
-                                                            });
-                                                          });
-                                                          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                                            conexion.release();
-                                                          });
-                                                        }
-                                                        else{
-                                                          conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                                            conexion.release();
-                                                          });
-                                                        }
-                                                      });
-                                                    });
-                                                  });
-                                                });
-                                              }
-                                          });
-                                        });
-                                      });
-                                    });
-
-                                    min++;
-                                    bucle();
-
-                                    }
-                                    else{ // si está encendido mandamos a apagar
-                                      if (vms.mapIpVMS.get(estaasignado[0].ip_vm) != undefined) {
-                                        var socket_vm = vms.getSocketFromIP(estaasignado[0].ip_vm);
-                                        conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${estaasignado[0].ip_vm}', '${estaasignado[0].motivo}','${aux}', 'down')`,function(error, results2, fields) {
-                                          var json = {`user` : aux, `motivo` : estaasignado[0].motivo, `puerto` : estaasignado[0].puerto};
-                                          socket_vm.emit(`stop`, json);
-                                            logger.info(`enviado stop`);
-                                            min++;
-                                            bucle();
-                                        });
-                                      }
-                                      else{
-                                        min++;
-                                        bucle();
-                                      }
-                                    }
-                                  });
-                                });
-                                }
-                                else{
-                                  min++;
-                                  bucle();
-                                }
-                              });
-                            });
-                          }
-                          else{
-                            min++;
-                            bucle();
-                          }
-                          });
-                          }
-                        else{
-                          min++;
-                          bucle();
-                        }
-                      });
-
-
-
-
-                      }
-                      else{
-                        conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                          conexion.release();
-                          res.redirect('/controlpanel');
-                        });
-                      }
-                    }
-
-                    bucle();
-
-
-                  }
-                  else{
-                    var aux = valores;
-                    conexion.query(`SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='${nombServi}' AND usuario='${aux}'`,function(error, total, fields) {
-                      if (total[0].total == 1) {
-                        conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu WHERE motivo='${nombServi}' AND usuario='${aux}'`,function(error, total, fields) {
-                          if (total[0].total == 0) {
-                        conexion.query(`INSERT INTO Eliminar_servicio_usuario (usuario, motivo) SELECT '${aux}','${nombServi}' FROM dual WHERE NOT EXISTS ( SELECT * FROM Eliminar_servicio_usuario as esu WHERE usuario='${aux}' AND motivo='${nombServi}')`,function(error, result, fields) {
-                          conexion.query(`SELECT count(*) AS total FROM Pendientes as p1 WHERE motivo='${nombServi}' AND usuario='${aux}'`,function(error, total, fields) {
-                            if (total[0].total == 0) {
-                              conexion.query(`DELETE FROM Cola WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) { //por si acaso
-                              conexion.query(`SELECT * FROM Asignaciones as a1 WHERE motivo='${nombServi}' AND usuario='${aux}'`,function(error, estaasignado, fields) {
-                                if (estaasignado.length == 0) {//si no está encendido
-                                  functions.eliminardirectoriosolo(aux, nombServi, function() {
-                                    pool.getConnection(function(err, conexion) {
-                                      conexion.query(db.bloqueoTablas,function(error, results, fields) {
-                                        conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio as es WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                                          if (result[0].total == 0) {
-                                            conexion.query(`DELETE FROM Eliminar_servicio_usuario WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                              conexion.query(`DELETE FROM Matriculados WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                conexion.query(`DELETE FROM Ultima_conexion WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                                    conexion.release();
-                                                  });
-                                                });
-                                              });
-                                            });
-                                          }
-                                          else{
-                                            conexion.query(`DELETE FROM Eliminar_servicio_usuario WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                              conexion.query(`DELETE FROM Matriculados WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                conexion.query(`DELETE FROM Ultima_conexion WHERE usuario='${aux}' AND motivo='${nombServi}'`,function(error, result, fields) {
-                                                  conexion.query(`SELECT count(*) AS total FROM Matriculados as m1 WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                                                    if (result[0].total == 0) {
-                                                      functions.eliminardirectoriotodo(nombServi, function() {
-                                                        pool.getConnection(function(err, conexion) {
-                                                          conexion.query(db.bloqueoTablas,function(error, results, fields) {
-                                                            conexion.query(`DELETE FROM Eliminar_servicio WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                                                              conexion.query(`DELETE FROM Servicios WHERE motivo='${nombServi}'`,function(error, result, fields) {
-                                                                conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                                                  conexion.release();
-                                                                });
-                                                              });
-                                                            });
-                                                          });
-                                                        });
-                                                      });
-                                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                                        conexion.release();
-                                                      });
-                                                    }
-                                                    else{
-                                                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                                        conexion.release();
-                                                      });
-                                                    }
-                                                  });
-                                                });
-                                              });
-                                            });
-                                          }
-                                      });
-                                    });
-                                  });
-                                });
-                                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                    conexion.release();
-                                    res.redirect('/controlpanel');
-                                  });
-                                }
-                                else{ // si está encendido mandamos a apagar
-                                  if (vms.mapIpVMS.get(estaasignado[0].ip_vm) != undefined) {
-                                    var socket_vm = vms.getSocketFromIP(estaasignado[0].ip_vm);
-                                    conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo) VALUES ('${estaasignado[0].ip_vm}', '${estaasignado[0].motivo}','${aux}', 'down')`,function(error, results2, fields) {
-                                      var json = {`user` : aux, `motivo` : estaasignado[0].motivo, `puerto` : estaasignado[0].puerto};
-                                      socket_vm.emit(`stop`, json);
-                                        logger.info(`enviado stop`);
-                                        conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                          conexion.release();
-                                          res.redirect('/controlpanel');
-                                        });
-                                    });
-                                  }
-                                  else{
-                                    conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                        logger.debug(`liberando tablas MySQL`);
-                                      conexion.release();
-                                      res.redirect('/controlpanel');
-                                    });
-                                  }
-                                }
-                              });
-                            });
-                            }
-                            else{
-                              conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                                  logger.debug(`liberando tablas MySQL`);
-                                conexion.release();
-                                res.redirect('/controlpanel');
-                              });
-                            }
-                          });
-                        });
-                      }
-                      else{
-                        conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                            logger.debug(`liberando tablas MySQL`);
-                          conexion.release();
-                          res.redirect('/controlpanel');
-                        });
-                      }
-                      });
-                      }
-                    else{
-                      conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                          logger.debug(`liberando tablas MySQL`);
-                        conexion.release();
-                        res.redirect('/controlpanel');
-                      });
-                    }
-                  });
-                  }
-                }
-                else{
-                  logger.info(`ERROR -> No se han enviado usuarios`);
-                  conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                      logger.debug(`liberando tablas MySQL`);
-                    conexion.release();
-                    res.redirect('/controlpanel');
-                  });
-                }
-              }
-              else{
-                logger.info(`ERROR -> ya se esta eliminando`);
-                conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                    logger.debug(`liberando tablas MySQL`);
-                  conexion.release();
-                  res.redirect('/controlpanel');
-                });
-              }
-              });
+      const estaMat = (await conexion.query(`SELECT count(*) AS total FROM Matriculados as m1
+        WHERE motivo='${nombServi}' AND usuario='${aux}'`))[0].total > 0;
+      if (!estaMat) {
+        logger.info(`El usuario ${aux} pasado para borrar no está matriculado`);
+      } else {
+        const eliminando = (await conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu
+          WHERE motivo='${nombServi}' AND usuario='${aux}'`))[0].total > 0;
+        if (eliminando) {
+          logger.info(`El usuario ${aux} pasado para borrar ya se está eliminando`);
+        } else {
+          await conexion.query(`INSERT INTO Eliminar_servicio_usuario (usuario, motivo)
+            SELECT '${aux}','${nombServi}' FROM dual WHERE NOT EXISTS (
+              SELECT * FROM Eliminar_servicio_usuario as esu
+              WHERE usuario='${aux}' AND motivo='${nombServi}')`);
+          const estaPendiente = (await conexion.query(`SELECT count(*) AS total FROM Pendientes as p1
+            WHERE motivo='${nombServi}' AND usuario='${aux}'`))[0].total > 0;
+          if (!estaPendiente) {
+            await conexion.query(`DELETE FROM Cola WHERE usuario='${aux}' AND motivo='${nombServi}'`);
+            const estaasignado = await conexion.query(`SELECT * FROM Asignaciones as a1
+              WHERE motivo='${nombServi}' AND usuario='${aux}'`);
+            if (estaasignado.length == 0) {
+              logger.debug(`Eliminando '${aux}'-'${nombServi}': no está encendido`);
+              vms.compruebaEliminarServicioUsuario(conexion, nombServi, aux);
+            } else {
+              logger.debug(`Eliminando '${aux}'-'${nombServi}': está encendido`);
+              await mandaParar(conexion, estaasignado[0]);
             }
-            else{
-              logger.info(`ERROR -> no existe en servicios`);
-              conexion.query(`UNLOCK TABLES`,function(error, results, fields) {
-                  logger.debug(`liberando tablas MySQL`);
-                conexion.release();
-                res.redirect('/controlpanel');
-              });
-            }
-          });
-        });
-      });
+          } else {
+            //TODO Faltaría el caso cuando está pendiente ¿?
+          }
+        }
       }
     }
+  } catch (err) {
+    if (err instanceof Condicion) {
+      logger.info(err.msg);
+    } else {
+      logger.warn(`Error en '/eliminarusuarios': ${err}`);
+    }
+  }
+  if (conexion !== undefined) {
+    await conexion.query('UNLOCK TABLES');
+    await conexion.release();
+  }
+  res.redirect('/controlpanel');
 });
+
+// AQUI ///////////////////////////////
 
 
 app.get('*', function(req, res) {
