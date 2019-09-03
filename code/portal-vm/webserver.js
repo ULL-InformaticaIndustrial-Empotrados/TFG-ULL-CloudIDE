@@ -42,7 +42,7 @@ app.get('/', async (req, res) => {
 });
 
 
-app.get('/controlpanel', (req,res) => {
+app.get('/controlpanel', async (req,res) => {
   const ip_origen = functions.cleanAddress(req.connection.remoteAddress);
   if (req.session.user === undefined) {
     res.redirect('/');
@@ -58,27 +58,38 @@ app.get('/controlpanel', (req,res) => {
   try {
     const pool = await db.pool;
     conexion = await pool.getConnection();
+    const upped = await conexion.query(`SELECT * FROM Matriculados
+      NATURAL JOIN Asignaciones WHERE usuario='${user}'
+      AND motivo NOT IN (
+        SELECT motivo FROM Pendientes WHERE tipo='down' AND usuario='${user}')`);
+    const upping = await conexion.query(`SELECT usuario, motivo
+      FROM Matriculados NATURAL JOIN Pendientes WHERE usuario='${user}'
+      AND tipo='up' UNION ALL SELECT usuario, motivo FROM Matriculados
+      NATURAL JOIN Cola WHERE usuario='${user}'`);
+    const dowing = await conexion.query(`SELECT * FROM Matriculados
+      NATURAL JOIN Asignaciones NATURAL JOIN Pendientes
+      WHERE usuario='${user}'`);
+    const rest = await conexion.query(`SELECT * FROM Matriculados
+      WHERE usuario='${user}' AND motivo NOT IN
+      (SELECT motivo FROM Pendientes WHERE usuario='${user}'
+      UNION SELECT motivo FROM Asignaciones WHERE usuario='${user}'
+      UNION SELECT motivo FROM Cola WHERE usuario='${user}')`);
+
+    let destino = 'controlpanelalumno';
+    const data = {
+      ip_server_che: config.ip_server_exterior,
+      user,
+      encendidos: upped,
+      apagandose: dowing,
+      encendiendose: upping,
+      resto : rest
+    };
 
     if (rol === 'profesor') {
-      const upped = await conexion.query(`SELECT * FROM Matriculados
-        NATURAL JOIN Asignaciones WHERE usuario='${user}'
-        AND motivo NOT IN (
-          SELECT motivo FROM Pendientes WHERE tipo='down' AND usuario='${user}')`);
-      const dowing = await conexion.query(`SELECT * FROM Matriculados
-        NATURAL JOIN Asignaciones NATURAL JOIN Pendientes
-        WHERE usuario='${user}'`);
-      const upping = await conexion.query(`SELECT usuario, motivo
-        FROM Matriculados NATURAL JOIN Pendientes WHERE usuario='${user}'
-        AND tipo='up' UNION ALL SELECT usuario, motivo FROM Matriculados
-        NATURAL JOIN Cola WHERE usuario='${user}'`);
-      const rest = await conexion.query(`SELECT * FROM Matriculados
-        WHERE usuario='${user}' AND motivo NOT IN
-        (SELECT motivo FROM Pendientes WHERE usuario='${user}'
-        UNION SELECT motivo FROM Asignaciones WHERE usuario='${user}'
-        UNION SELECT motivo FROM Cola WHERE usuario='${user}')`);
       const motivos = await conexion.query(`SELECT motivo FROM Servicios
         WHERE usuario='${user}' AND motivo NOT IN
         (SELECT motivo FROM Eliminar_servicio)`);
+      logger.info(`Usuario ${user} es profesor con ${motivos.length} servicios`);
       var tservicios = [];
       // var max = motivos.length;
       // var min = 0;
@@ -113,36 +124,15 @@ app.get('/controlpanel', (req,res) => {
         }
         tservicios.push({ motivo, usuarios });
       }
-      await conexion.release();
-      res.render('controlpanelprofesor', {
-        ip_server_che: config.ip_server_exterior,
-        user: req.session.user,
-        encendidos: upped,
-        apagandose: dowing,
-        encendiendose: upping,
-        resto: rest,
-        servicios : tservicios
-      });
-  } else {
-    pool.getConnection(function(err, connection) {
-    var conexion = connection;
-    conexion.query(`SELECT * FROM Matriculados NATURAL JOIN Asignaciones WHERE usuario='${req.session.user}' AND motivo NOT IN ( SELECT motivo FROM Pendientes WHERE tipo='down' AND usuario='${req.session.user}')`,function(error, upped, fields) {
-      conexion.query(`SELECT * FROM Matriculados NATURAL JOIN Asignaciones NATURAL JOIN Pendientes WHERE usuario='${req.session.user}'`,function(error, dowing, fields) {
-        conexion.query(`SELECT usuario, motivo FROM Matriculados NATURAL JOIN Pendientes WHERE usuario='${req.session.user}' AND tipo='up' UNION ALL SELECT usuario, motivo FROM Matriculados NATURAL JOIN Cola WHERE usuario='${req.session.user}'`,function(error, upping, fields) {
-          conexion.query(`SELECT * FROM Matriculados WHERE usuario='${req.session.user}' AND motivo NOT IN (SELECT motivo FROM Pendientes WHERE usuario='${req.session.user}' UNION SELECT motivo FROM Asignaciones WHERE usuario='${req.session.user}' UNION SELECT motivo FROM Cola WHERE usuario='${req.session.user}')`,function(error, rest, fields) {
-            conexion.release();
-            res.render('controlpanelalumno', {ip_server_che: config.ip_server_exterior, user : req.session.user, encendidos : upped, apagandose : dowing, encendiendose : upping, resto : rest});
-          });
-        });
-      });
-    });
-  });
+      destino = 'controlpanelprofesor';
+      data['servicios'] = tservicios;
+    }
+  } catch (err) {
+    logger.error(`Error al tratar /controlpanel: ${err}`);
   }
-}
-
+  await conexion.release();
+  res.render(destino, data);
 });
-
-// FIN de /controlpanel
 
 
 app.get('/cloud/:motivo', function(req,res) {
