@@ -148,21 +148,6 @@ async function compruebaEliminarServicioUsuario(conex, motivo, user) {
 }
 
 
-// Funcion vmfree PARA ELIMINAR
-async function vmfree() {
-  logger.info('Entramos vmfree');
-  const pool = await db.pool;
-  const conexion = await pool.getConnection();
-  await conexion.query(db.bloqueoTablas);
-
-  await miraCola(conexion);
-
-  await conexion.query('UNLOCK TABLES');
-  await conexion.release();
-  vmfree();
-}
-// FIN Funcion vmfree
-
 wsVMs.on('connection', async (socket) => {
   const ipVM = functions.cleanAddress(socket.handshake.address);
   logger.info(`Conexión de "${socket.id}" Con ip "${ipVM}"`);
