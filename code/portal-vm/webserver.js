@@ -244,43 +244,38 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
   }, 3000);
 });
 
+app.get('/logout',cas.logout, async (req, res) => {
+  const ip_origen = functions.cleanAddress(req.connection.remoteAddress);
+
+  await firewall.tcpkillestablished(ip_origen);
+
+  const { user } = req.session;
+
+  req.session.user = undefined;
+  req.session.ip_origen = undefined;
+  req.session.destroy();
+
+  serv.broadcastServers('deletednat', ip_origen);
+  await firewall.deletednat(ip_origen);
+  let conexion = undefined;
+  try {
+    const pool = await db.pool;
+    conexion = await pool.getConnection();
+    await conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ip_origen}'`);
+    conexion.release();
+  } catch (err) {
+    logger.error(`Error al tratar /logout`);
+  }
+  setTimeout(() => {
+    if (mapUserSocket.get(user) !== undefined) {
+      cli.broadcastClient(user, `reload`,``);
+    }
+    res.redirect('/');
+  },4000);
+});
+
 // AQUI ///////////////////////////////
 
-app.get('/logout',cas.logout, function(req,res) {
-
-  var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
-
-  firewall.tcpkillestablished(ip_origen);
-
-    var user = req.session.user;
-
-    req.session.user = undefined;
-    req.session.ip_origen = undefined;
-    req.session.destroy();
-
-
-
-
-    serv.broadcastServers('deletednat', ip_origen);
-    firewall.deletednat(ip_origen, function() {
-      pool.getConnection(function(err, connection) {
-        var conexion = connection;
-        conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ip_origen}'`,function(error, results, fields) {
-          conexion.release();
-          setTimeout(function() {
-            if (mapUserSocket.get(user) != undefined) {
-              cli.broadcastClient(user, `reload`,``);
-            }
-            res.redirect('/');
-          },4000);
-
-        });
-      });
-    });
-
-
-
-})
 
 app.get('/comprobardisponibilidad', function(req,res) {
   if (req.session.user != undefined) {
