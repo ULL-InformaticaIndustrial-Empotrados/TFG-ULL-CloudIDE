@@ -21,21 +21,6 @@ const websrv = require('./webserver.js');
 
 firewall.inicializar(); // borramos iptables anteriores
 
-// Funcion-promesa para determinar rol del usuario
-async function getRoll(user) {
-  const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
-  logger.debug(`Obetemos roll con consulta: "${consulta}"`);
-  try {
-    const pool = await db.pool;
-    const result = await pool.query(consulta);
-    logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 2)}`);
-    if (result[0].total === 1) return 'profesor';
-  } catch (error) {
-    logger.warn(`Error al consultar roll: ${error}`);
-  }
-  return 'alumno';
-}
-
 const n = config.numero_max_serverxuser;
 // const maxusers = config.numero_max_users;
 sesion.createsession(app, cli.wsClient); // creamos la sesion
@@ -66,5 +51,3 @@ firewall.firewall();
 
 
 ////////////////////////////////////////
-
-
