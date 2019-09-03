@@ -113,6 +113,41 @@ async function miraCola(conexion) {
   }
 }
 
+
+// Mira si está pendiente la eliminación de ese motivo y usuario
+// Se le pasa conexion suponiendo tablas bloqueadas
+async function compruebaEliminarServicioUsuario(conex, motivo, user) {
+  const elimServicio = (await conex.query(`SELECT count(*) AS total
+    FROM Eliminar_servicio as es WHERE motivo='${motivo}'`))[0].total > 0;
+  const elimServUser = (await conex.query(`SELECT COUNT(*) AS total
+    FROM 'Eliminar_servicio_usuario' as esu
+      WHERE usuario='${user}' AND motivo='${motivo}'`))[0].total > 0;
+  const totMatMotivo = await conex.query(`SELECT count(*) AS total FROM Matriculados as m1
+    WHERE motivo='${motivo}'`)[0].total;
+  if (elimServicio || elimServUser) {
+    logger.info(`Hay que elimnar servicio ${user}-${motivo}`);
+    await conex.query(`DELETE FROM Matriculados
+      WHERE usuario='${user}' AND motivo='${motivo}'`);
+    await conex.query(`DELETE FROM Ultima_conexion
+      WHERE usuario='${user}' AND motivo='${motivo}'`);
+    // no hace falta que esperar por el borrado
+    functions.eliminardirectoriosolo(user, motivo);
+    if (elimServUser) {
+      await conex.query(`DELETE FROM Eliminar_servicio_usuario
+        WHERE usuario='${user}' AND motivo='${motivo}'`);
+    } else if (totMatMotivo <= 0) {
+      logger.info(`es eliminar servicio ${motivo} y no quedan matriculados`);
+      // no hace falta que esperar por el borrado
+      functions.eliminardirectoriotodo(motivo);
+      await conex.query(`DELETE FROM Eliminar_servicio
+        WHERE motivo='${motivo}'`);
+      await conex.query(`DELETE FROM Servicios
+        WHERE motivo='${motivo}'`);
+    }
+  }
+}
+
+
 // Funcion vmfree PARA ELIMINAR
 async function vmfree() {
   logger.info('Entramos vmfree');
@@ -230,11 +265,11 @@ wsVMs.on('connection', async (socket) => {
         logger.info(`es del usuario "${pen[0].usuario}"`);
         const row = (await conex.query(`SELECT COUNT(*) AS total
           FROM Asignaciones AS a1 WHERE usuario='${pen[0].usuario}'`))[0].total;
-        const firewall1 = await conex.query(`SELECT ip_origen FROM Firewall AS f1
+        const fireUser = await conex.query(`SELECT ip_origen FROM Firewall AS f1
           WHERE usuario='${pen[0].usuario}'`);
-        if ((firewall1.length > 0)) {
+        if ((fireUser.length > 0)) {
           logger.info(`El usuario ${pen[0].usuario} tiene IP en Firewall`);
-          for (const item of firewall1) {
+          for (const item of fireUser) {
             if (row <= 1) {
               serv.broadcastServers('añadircomienzo', { ip_origen: item.ip_origen, ipVM, puerto });
               await firewall.dnatae('añadircomienzo', item.ip_origen, ipVM, 0);
@@ -282,6 +317,7 @@ wsVMs.on('connection', async (socket) => {
   });
 
   socket.on('stopped', async (data) => {
+    // data: { user, motivo, puerto }
     logger.info(`Che server stopped "${JSON.stringify(data)}"`);
     let conex;
     try {
@@ -297,93 +333,48 @@ wsVMs.on('connection', async (socket) => {
     try {
       const asignas = (await conex.query(`SELECT * FROM Asignaciones AS a1
         WHERE ip_vm='${ipVM}' AND motivo='${motivo}' AND usuario='${user}'`));
-      logger.info(`Número asignas para ${motivo}-${user}-${ipVM} = ${asignas.length}`);
+      logger.info(`Número asignas para ${user}-${motivo}-${ipVM} = ${asignas.length}`);
 
-      if (asignas.length > 0) {
-        await conex.query(`DELETE FROM Asignaciones
-          WHERE motivo='${asignas[0].motivo}' AND usuario='${asignas[0].usuario}'`);
-        await conex.query(`DELETE FROM Pendientes
-          WHERE usuario='${user}' AND motivo='${motivo}' AND tipo='down'`);
-        await actulizaVM(conexion);
-
-        const totalAisgUser = (await conex.query(`SELECT COUNT(*) AS total
-          FROM Asignaciones AS a1 WHERE usuario='${user}'`))[0].total;
-        const firewall1 = (await conex.query(`SELECT ip_origen FROM Firewall AS f1
-          WHERE usuario='${user}'`));
-        if (firewall1.length > 0) {
-          for (const item of firewall1) {
-            if (totalAisgUser > 0) {
-              serv.broadcastServers('dnatae-eliminarsolo',
-                { ip_origen: item.ip_origen, ipVM: asignas[0].ip_vm, puerto });
-              firewall.dnatae('eliminarsolo', item.ip_origen, asignas[0].ip_vm, puerto);
-            } else {
-              serv.broadcastServers('deletednat', item.ip_origen);
-              firewall.deletednat(item.ip_origen);
-            }
-          }
-        }
-        if (cli.mapUserSocket.get(user) !== undefined) {
-          cli.broadcastClient(user, 'stop', { motivo });
-        } else {
-          serv.broadcastServers('enviar-stop', { user, motivo });
-        }
+      if (asignas.lenght <= 0) {
+        throw Condicion(`No hay asignación para ${user}-${motivo}-${ipVM}`);
       }
 
-      const eliminarServicio = (await conex.query(`SELECT count(*) AS total
-        FROM Eliminar_servicio as es WHERE motivo='${motivo}'`))[0].total;
-      if (eliminarServicio > 0) {
-        await conex.query(`DELETE FROM Eliminar_servicio_usuario
-          WHERE usuario='${user}' AND motivo='${motivo}'`);
-        await conex.query(`DELETE FROM Matriculados
-          WHERE usuario='${user}' AND motivo='${motivo}'`);
-        await conex.query(`DELETE FROM Ultima_conexion
-          WHERE usuario='${user}' AND motivo='${motivo}'`);
-        const result = await conex.query(`SELECT count(*) AS total FROM Matriculados as m1
-          WHERE motivo='${motivo}'`)[0].total;
-        if (result <= 0) {
-          await functions.eliminardirectoriotodo(motivo);
-          await conex.query(`DELETE FROM Eliminar_servicio
-            WHERE motivo='${motivo}'`);
-          await conex.query(`DELETE FROM Servicios
-            WHERE motivo='${motivo}'`);
-        }
-      } else {
-        const result = (await conex.query(`SELECT COUNT(*) AS total
-          FROM (SELECT motivo FROM 'Eliminar_servicio_usuario' as esu
-            WHERE usuario='${user}' AND motivo='${motivo}'
-            UNION SELECT motivo FROM Eliminar_servicio as es
-            WHERE motivo='${motivo}') AS alias`))[0].total;
-        if (result > 0) {
-          await functions.eliminardirectoriosolo(user, motivo);
-          const eliminarServicio2 = (await conex.query(`SELECT count(*) AS total
-            FROM Eliminar_servicio as es WHERE motivo='${motivo}'`))[0].total;
-          if (eliminarServicio2 <= 0) {
-            await conex.query(`DELETE FROM Eliminar_servicio_usuario
-              WHERE usuario='${user}' AND motivo='${motivo}'`);
-            await conex.query(`DELETE FROM Matriculados
-              WHERE usuario='${user}' AND motivo='${motivo}'`);
-            await conex.query(`DELETE FROM Ultima_conexion
-              WHERE usuario='${user}' AND motivo='${motivo}'`);
+      if (asignas.length > 1) {
+        logger.warn(`Hay más de una asignación para ${user}-${motivo}-${ipVM}`);
+      }
+
+      await conex.query(`DELETE FROM Asignaciones
+        WHERE motivo='${motivo}' AND usuario='${user}'`);
+      await conex.query(`DELETE FROM Pendientes
+        WHERE usuario='${user}' AND motivo='${motivo}' AND tipo='down'`);
+      await actulizaVM(conexion, ipVM);
+
+      const totalAsigUser = (await conex.query(`SELECT COUNT(*) AS total
+        FROM Asignaciones AS a1 WHERE usuario='${user}'`))[0].total;
+      const fireUser = (await conex.query(`SELECT ip_origen FROM Firewall AS f1
+        WHERE usuario='${user}'`));
+      if (fireUser.length > 0) {
+        logger.warn(`El usuaria ${user} tiene más de 1 firewall (${fireUser.length})`);
+        for (const item of fireUser) {
+          if (totalAsigUser > 0) {
+            serv.broadcastServers('dnatae-eliminarsolo',
+              { ip_origen: item.ip_origen, ipVM, puerto });
+            firewall.dnatae('eliminarsolo', item.ip_origen, ipVM, puerto);
           } else {
-            await conex.query(`DELETE FROM Eliminar_servicio_usuario
-              WHERE usuario='${user}' AND motivo='${motivo}'`);
-            await conex.query(`DELETE FROM Matriculados
-              WHERE usuario='${user}' AND motivo='${motivo}'`);
-            await conex.query(`DELETE FROM Ultima_conexion
-              WHERE usuario='${user}' AND motivo='${motivo}'`);
-            const numMat = (await conex.query(`SELECT count(*) AS total
-              FROM Matriculados as m1 WHERE motivo='${motivo}'`))[0].total;
-            if (numMat <= 0) {
-              await functions.eliminardirectoriotodo(motivo);
-              await conex.query(`DELETE FROM Eliminar_servicio
-                WHERE motivo='${motivo}'`);
-              await conex.query(`DELETE FROM Servicios
-                WHERE motivo='${motivo}'`);
-            }
+            serv.broadcastServers('deletednat', item.ip_origen);
+            firewall.deletednat(item.ip_origen);
           }
         }
       }
-      miraCola(conex);
+
+      if (cli.mapUserSocket.get(user) !== undefined) {
+        cli.broadcastClient(user, 'stop', { motivo });
+      } else {
+        serv.broadcastServers('enviar-stop', { user, motivo });
+      }
+
+      await compruebaEliminarServicioUsuario(conex, motivo, user);
+      await miraCola(conex);
     } catch (err) {
       if (err instanceof Condicion) {
         if (cli.mapUserSocket.get(user) !== undefined) {
