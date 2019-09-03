@@ -6,6 +6,7 @@ const logger = require('./logger.js').child({ label: 'websrv' });
 logger.info('Comienza modulo webserver.js');
 
 const functions = require('./functions.js');
+const db = require('./database.js');
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -16,32 +17,29 @@ app.use('/', express.static('./client/views'));
 app.set('views', './client/views'); // Configuramos el directorio de vistas
 app.set('view engine', 'ejs');
 
-/// RUTAS WEB ////////////////////////////
 
-
-app.get('/', function(req,res) {
+app.get('/', async (req, res) => {
   const ip_origen = functions.cleanAddress(req.connection.remoteAddress);
   if (req.session.user === undefined) {
     serv.broadcastServers('deletednat', ip_origen);
-    firewall.deletednat(ip_origen, function() {
-      pool.getConnection(function(err, connection) {
-      var conexion = connection;
-      conexion.query(`DELETE FROM Firewall WHERE ip_origen='${functions.cleanAddress(req.connection.remoteAddress)}'`,function(error, results, fields) {
-        conexion.release();
-        res.render('index', {});
-      });
-    });
-  });
-  }
-  else{
-    if (ip_origen != req.session.ip_origen) { //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-      res.redirect('/logout');
+    await firewall.deletednat(ip_origen);
+    let conexion;
+    try {
+      const pool = await db.pool;
+      conexion = await pool.getConnection();
+      await conexion.query(`DELETE FROM Firewall
+        WHERE ip_origen='${functions.cleanAddress(req.connection.remoteAddress)}'`);
+      await conexion.release();
+    } catch (err) {
+      logger.err(`Al borrar de tabla Firewall: ${err}`);
     }
-    else{
+    res.render('index', {});
+  } else if (ip_origen != req.session.ip_origen) {
+      logger.info(`La ip logueo ${ip_orige} diferente de la de sesión ${req.session.ip_origen}`);
+      res.redirect('/logout');
+  } else {
     res.redirect('/controlpanel');
   }
-  }
-
 });
 
 
@@ -53,7 +51,7 @@ if (req.session.user != undefined) {
     res.redirect('/logout');
   }
   else{
-  logger.info(`Es usuario `${req.session.user}``);
+  logger.info(`Es usuario `${req.session.user}`);
   if (req.session.rol == `profesor`) {
     pool.getConnection(function(err, connection) {
     var conexion = connection;
