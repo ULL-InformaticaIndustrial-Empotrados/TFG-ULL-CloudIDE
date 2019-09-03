@@ -17,7 +17,6 @@ app.use('/', express.static('./client/views'));
 app.set('views', './client/views'); // Configuramos el directorio de vistas
 app.set('view engine', 'ejs');
 
-
 app.get('/', async (req, res) => {
   const ip_origen = functions.cleanAddress(req.connection.remoteAddress);
   if (req.session.user === undefined) {
@@ -35,7 +34,7 @@ app.get('/', async (req, res) => {
     }
     res.render('index', {});
   } else if (ip_origen != req.session.ip_origen) {
-      logger.info(`La ip logueo ${ip_orige} diferente de la de sesión ${req.session.ip_origen}`);
+      logger.info(`IP logueo ${ip_orige} != de la de sesión ${req.session.ip_origen}`);
       res.redirect('/logout');
   } else {
     res.redirect('/controlpanel');
@@ -43,68 +42,88 @@ app.get('/', async (req, res) => {
 });
 
 
-
-app.get('/controlpanel', function(req,res) {
-  var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
-if (req.session.user != undefined) {
-  if (ip_origen != req.session.ip_origen) { //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
+app.get('/controlpanel', (req,res) => {
+  const ip_origen = functions.cleanAddress(req.connection.remoteAddress);
+  if (req.session.user === undefined) {
+    res.redirect('/');
+    return;
+  }
+  if (ip_origen != req.session.ip_origen) {
+    logger.info(`IP logueo ${ip_orige} != de la de sesión ${req.session.ip_origen}`);
     res.redirect('/logout');
+    return;
   }
-  else{
-  logger.info(`Es usuario `${req.session.user}`);
-  if (req.session.rol == `profesor`) {
-    pool.getConnection(function(err, connection) {
-    var conexion = connection;
-    conexion.query(`SELECT * FROM Matriculados NATURAL JOIN Asignaciones WHERE usuario='${req.session.user}' AND motivo NOT IN ( SELECT motivo FROM Pendientes WHERE tipo='down' AND usuario='${req.session.user}')`,function(error, upped, fields) {
-      conexion.query(`SELECT * FROM Matriculados NATURAL JOIN Asignaciones NATURAL JOIN Pendientes WHERE usuario='${req.session.user}'`,function(error, dowing, fields) {
-        conexion.query(`SELECT usuario, motivo FROM Matriculados NATURAL JOIN Pendientes WHERE usuario='${req.session.user}' AND tipo='up' UNION ALL SELECT usuario, motivo FROM Matriculados NATURAL JOIN Cola WHERE usuario='${req.session.user}'`,function(error, upping, fields) {
-          conexion.query(`SELECT * FROM Matriculados WHERE usuario='${req.session.user}' AND motivo NOT IN (SELECT motivo FROM Pendientes WHERE usuario='${req.session.user}' UNION SELECT motivo FROM Asignaciones WHERE usuario='${req.session.user}' UNION SELECT motivo FROM Cola WHERE usuario='${req.session.user}')`,function(error, rest, fields) {
-            conexion.query(`SELECT motivo FROM Servicios WHERE usuario='${req.session.user}' AND motivo NOT IN (SELECT motivo FROM Eliminar_servicio)`,function(error, motivos, fields) {
-              var tservicios = [];
-              var max = motivos.length;
-              var min = 0;
+  const { user, rol } = req.session;
+  logger.info(`El usuario ${user} accede a /controlpanel'`);
+  try {
+    const pool = await db.pool;
+    conexion = await pool.getConnection();
 
-              var bucle = function() {
-                if (min < max) {
-                  conexion.query(`SELECT * FROM Matriculados NATURAL JOIN Ultima_conexion WHERE motivo='${motivos[min].motivo}' AND usuario NOT IN ( SELECT usuario FROM Eliminar_servicio_usuario WHERE motivo='${motivos[min].motivo}')`,function(error, result, fields) {
-                    conexion.query(`SELECT usuario FROM Asignaciones WHERE motivo='${motivos[min].motivo}'`,function(error, result2, fields) {
-                      var set = new Set();
-                      var usuarios = [];
-                      for (var j=0; j<result2.length; j++) {
-                        set.add(result2[j].usuario);
-                      }
-                      for (var i=0; i<result.length; i++) {
-                        if (set.has(result[i].usuario)) {
-                          var a = {`usuario`:result[i].usuario, `estado`:`up`, `fecha` : result[i].fecha}
-                          usuarios.push(a);
-                        }
-                        else{
-                          var a = {`usuario`:result[i].usuario, `estado`:`down`, `fecha` : result[i].fecha}
-                          usuarios.push(a);
-                        }
-                      }
-                      var aux = {`motivo` : motivos[min].motivo, `usuarios` : usuarios};
-                      tservicios.push(aux);
-                      min++;
-                      bucle();
-                    });
-                  });
-                }
-                else{
-                  conexion.release();
-                  res.render('controlpanelprofesor', {ip_server_che: config.ip_server_exterior, user : req.session.user, encendidos : upped, apagandose : dowing, encendiendose : upping, resto : rest, servicios : tservicios});
-                }
-              }
-
-              bucle();
+    if (rol === 'profesor') {
+      const upped = await conexion.query(`SELECT * FROM Matriculados
+        NATURAL JOIN Asignaciones WHERE usuario='${user}'
+        AND motivo NOT IN (
+          SELECT motivo FROM Pendientes WHERE tipo='down' AND usuario='${user}')`);
+      const dowing = await conexion.query(`SELECT * FROM Matriculados
+        NATURAL JOIN Asignaciones NATURAL JOIN Pendientes
+        WHERE usuario='${user}'`);
+      const upping = await conexion.query(`SELECT usuario, motivo
+        FROM Matriculados NATURAL JOIN Pendientes WHERE usuario='${user}'
+        AND tipo='up' UNION ALL SELECT usuario, motivo FROM Matriculados
+        NATURAL JOIN Cola WHERE usuario='${user}'`);
+      const rest = await conexion.query(`SELECT * FROM Matriculados
+        WHERE usuario='${user}' AND motivo NOT IN
+        (SELECT motivo FROM Pendientes WHERE usuario='${user}'
+        UNION SELECT motivo FROM Asignaciones WHERE usuario='${user}'
+        UNION SELECT motivo FROM Cola WHERE usuario='${user}')`);
+      const motivos = await conexion.query(`SELECT motivo FROM Servicios
+        WHERE usuario='${user}' AND motivo NOT IN
+        (SELECT motivo FROM Eliminar_servicio)`);
+      var tservicios = [];
+      // var max = motivos.length;
+      // var min = 0;
+      for (const srvAct of motivos) {
+        const { motivo } = srvAct;
+        const usersMatUp = await conexion.query(`SELECT * FROM Matriculados
+          NATURAL JOIN Ultima_conexion WHERE motivo='${motivo}'
+          AND usuario NOT IN
+          ( SELECT usuario FROM Eliminar_servicio_usuario WHERE motivo='${motivo}')`);
+        const usersMot = await conexion.query(`SELECT usuario FROM Asignaciones
+          WHERE motivo='${motivo}'`);
+        const set = new Set();
+        const usuarios = [];
+        for (const ua of usersMot) {
+          set.add(ua.usuario);
+        }
+        for (const ua of usersMatUp) {
+          if (set.has(ua.usuario)) {
+            usuarios.push({
+              usuario: ua.usuario,
+              estado: 'up',
+              fecha: ua.fecha,
             });
-          });
-        });
+          }
+          else{
+            var a =
+            usuarios.push({
+              usuario: ua.usuario,
+              estado: 'down',
+              fecha : ua.fecha});
+          }
+        }
+        tservicios.push({ motivo, usuarios });
+      }
+      await conexion.release();
+      res.render('controlpanelprofesor', {
+        ip_server_che: config.ip_server_exterior,
+        user: req.session.user,
+        encendidos: upped,
+        apagandose: dowing,
+        encendiendose: upping,
+        resto: rest,
+        servicios : tservicios
       });
-    });
-  });
-  }
-  else{
+  } else {
     pool.getConnection(function(err, connection) {
     var conexion = connection;
     conexion.query(`SELECT * FROM Matriculados NATURAL JOIN Asignaciones WHERE usuario='${req.session.user}' AND motivo NOT IN ( SELECT motivo FROM Pendientes WHERE tipo='down' AND usuario='${req.session.user}')`,function(error, upped, fields) {
@@ -120,11 +139,11 @@ if (req.session.user != undefined) {
   });
   }
 }
-}
-else{
-res.redirect('/');
-}
+
 });
+
+// FIN de /controlpanel
+
 
 app.get('/cloud/:motivo', function(req,res) {
   var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
