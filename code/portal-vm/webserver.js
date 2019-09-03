@@ -404,19 +404,7 @@ app.post('/eliminarservicio', async (req, res) => {
         const estaasignado = await conexion.query(`SELECT * FROM Asignaciones as a1
           WHERE motivo='${nombServi}' AND usuario='${usuario}'`);
         if (estaasignado.length <= 0) { // si no está encendido
-          await conexion.query(`DELETE FROM Eliminar_servicio_usuario
-            WHERE usuario='${usuario}' AND motivo='${nombServi}'`);
-          await conexion.query(`DELETE FROM Matriculados
-            WHERE usuario='${usuario}' AND motivo='${nombServi}'`);
-          await conexion.query(`DELETE FROM Ultima_conexion
-            WHERE usuario='${usuario}' AND motivo='${nombServi}'`);
-          const totMat = (await conexion.query(`SELECT count(*) AS total FROM Matriculados as m1
-            WHERE motivo='${nombServi}'`))[0].total;
-          if (totMat <= 0) {
-            await functions.eliminardirectoriotodo(nombServi);
-            await conexion.query(`DELETE FROM Eliminar_servicio WHERE motivo='${nombServi}'`);
-            await conexion.query(`DELETE FROM Servicios WHERE motivo='${nombServi}'`);
-          }
+          vms.compruebaEliminarServicioUsuario(conexion, nombServi, usuario);
         } else {
           const ipVM = vms.mapIpVMS.get(estaasignado[0].ip_vm);
           if ( ipVM === undefined) {
@@ -431,12 +419,6 @@ app.post('/eliminarservicio', async (req, res) => {
           }
         }
       }
-    }
-    const totMatServi = (await conexion.query(`SELECT count(*) AS total FROM Matriculados as m1
-      WHERE motivo='${nombServi}'`))[0].total;
-    if (totMatServi <= 0) {
-      await conexion.query(`DELETE FROM Eliminar_servicio WHERE motivo='${nombServi}'`);
-      await conexion.query(`DELETE FROM Servicios WHERE motivo='${nombServi}'`);
     }
   } catch (err) {
     if (err instanceof Condicion) {

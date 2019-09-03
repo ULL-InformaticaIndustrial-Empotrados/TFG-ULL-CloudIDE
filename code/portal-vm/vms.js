@@ -377,4 +377,5 @@ wsVMs.on('connection', async (socket) => {
 module.exports = {
   mapIpVMS,
   getSocketFromIP,
+  compruebaEliminarServicioUsuario,
 };
