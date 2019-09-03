@@ -55,6 +55,7 @@ app.get('/controlpanel', async (req,res) => {
   }
   const { user, rol } = req.session;
   logger.info(`El usuario ${user} accede a /controlpanel'`);
+  let conexion = undefined;
   try {
     const pool = await db.pool;
     conexion = await pool.getConnection();
@@ -130,40 +131,52 @@ app.get('/controlpanel', async (req,res) => {
   } catch (err) {
     logger.error(`Error al tratar /controlpanel: ${err}`);
   }
-  await conexion.release();
+  if (conexion) await conexion.release();
   res.render(destino, data);
 });
 
-
-app.get('/cloud/:motivo', function(req,res) {
-  var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
-  if (req.session.user != undefined) {
-    if (ip_origen != req.session.ip_origen) { //si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
-      res.redirect('/logout');
-    }
-    else{
-    pool.getConnection(function(err, connection) {
-      var conexion = connection;
-      conexion.query(`SELECT * FROM Asignaciones WHERE usuario='${req.session.user}' AND motivo='${req.params.motivo}'`, function(err, row) {
-        if (err) throw err;
-        conexion.release();
-        if (row.length != 0) {
-          conexion.query(`UPDATE Ultima_conexion SET fecha='${functions.dateFormat()}' WHERE usuario='${req.session.user}' AND motivo='${req.params.motivo}'`,function(error, result, fields) {
-            res.render('cloud', {user : req.session.user, motivo : req.params.motivo, ip_server_che : config.ip_server_exterior, port_server_che : row[0].puerto});
-          });
-        }
-        else{
-          res.render('error', {});
-        }
-      });
-  });
-}
-  }
-  else{
+app.get('/cloud/:motivo', async (req, res) => {
+  const ip_origen = functions.cleanAddress(req.connection.remoteAddress);
+  if (req.session.user === undefined) {
     res.redirect('/');
+    return;
   }
-
+  if (ip_origen != req.session.ip_origen) {
+    logger.info(`IP logueo ${ip_orige} != de la de sesión ${req.session.ip_origen}`);
+    res.redirect('/logout');
+    return;
+  }
+  const { user } = req.session;
+  const { motivo } = req.params;
+  let destino ='error';
+  let data = {};
+  let conexion = undefined;
+  try {
+    const pool = await db.pool;
+    conexion = await pool.getConnection();
+    const row = await conexion.query(`SELECT * FROM Asignaciones
+      WHERE usuario='${user}' AND motivo='${motivo}'`);
+        // if (err) throw err;
+        // conexion.release();
+    if (row.length > 0) {
+      await conexion.query(`UPDATE Ultima_conexion
+        SET fecha='${functions.dateFormat()}'
+        WHERE usuario='${user}' AND motivo='${motivo}'`);
+      destino = 'cloud';
+      data = {
+        user,
+        motivo,
+        ip_server_che: config.ip_server_exterior,
+        port_server_che: row[0].puerto};
+    }
+  } catch(err) {
+    logger.error(`Error al trtar /cloud:${motivo}`);
+  }
+  if (conexion) await conexion.release();
+  res.render(destino, data);
 });
+
+// FIN de /cloud/:motivo
 
 app.get('/autenticacion', cas.bounce, function(req,res) {
 var ip_origen = functions.cleanAddress(req.connection.remoteAddress);
