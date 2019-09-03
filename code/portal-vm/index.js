@@ -24,17 +24,6 @@ firewall.inicializar(); // borramos iptables anteriores
 const n = config.numero_max_serverxuser;
 // const maxusers = config.numero_max_users;
 sesion.createsession(app, cli.wsClient); // creamos la sesion
-// AUTENTICACION POR CAS ULL
-const CASAuthentication = require('./cas-authentication.js');
-
-// Create a new instance of CASAuthentication.
-const cas = new CASAuthentication({
-  cas_url: 'https://login.ull.es/cas-1',
-  service_url: 'http://cloudide.iaas.ull.es',
-  session_info: 'cas_userinfo',
-  destroy_session: false,
-});
-
 
 // //////////////////"/ Firewall
 
