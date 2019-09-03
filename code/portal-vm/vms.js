@@ -50,25 +50,22 @@ async function actulizaVM(conexion, ipVM) {
   if (numeroUsersVM >= config.numero_max_users) {
     if (existe) {
       await conexion.query(`DELETE FROM VMS WHERE ip_vm='${ipVM}'`);
-      logger.info(`Eliminada VM ${ipVM} de las VMs disponibles`);
+      logger.info(`VM ${ipVM} con máximo de usuaros → eliminamos de disponibles`);
     }
   } else if (numeroUsersVM > 0) {
     if (existe) {
       await conexion.query(`UPDATE VMS SET prioridad=0 WHERE ip_vm='${ipVM}'`);
-      logger.info(`Actulizamos VM ${ipVM} a prioridad 0`);
+      logger.info(`VM ${ipVM} tiene pocos usuarios → a prioridad 0`);
     } else {
       await conexion.query(`INSERT INTO VMS (prioridad, ip_vm) VALUES (0,'${ipVM}')`);
-      logger.info(`Añadimos VM ${ipVM} con prioridad 0`);
+      logger.info(`VM ${ipVM} tiene pocos usuarios → añadimos con prioridad 0`);
     }
+  } else if (existe) {
+    await conexion.query(`UPDATE VMS SET prioridad=1 WHERE ip_vm='${ipVM}'`);
+    logger.info(`VM ${ipVM} sin usuarios → a prioridad 1`);
   } else {
-    // No tiene usuarios
-    if (existe) {
-      await conexion.query(`UPDATE VMS SET prioridad=1 WHERE ip_vm='${ipVM}'`);
-      logger.info(`Actulizamos VM ${ipVM} a prioridad 1`);
-    } else {
-      await conexion.query(`INSERT INTO VMS (prioridad, ip_vm) VALUES (1,'${ipVM}')`);
-      logger.info(`Añadimos VM ${ipVM} con prioridad 1`);
-    }
+    await conexion.query(`INSERT INTO VMS (prioridad, ip_vm) VALUES (1,'${ipVM}')`);
+    logger.info(`VM ${ipVM} sin usuarios → añadimos con prioridad 1`);
   }
 }
 
