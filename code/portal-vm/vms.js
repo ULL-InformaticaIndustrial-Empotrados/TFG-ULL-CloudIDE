@@ -2,7 +2,7 @@ const sio = require('socket.io');
 
 const logger = require('./logger.js').child({ label: 'vms' });
 
-logger.info('Comienza modulo js');
+logger.info('Comienza modulo vms');
 
 const config = require('./config.json');
 const functions = require('./functions.js');
@@ -164,7 +164,7 @@ wsVMs.on('connection', async (socket) => {
     await conexion.query(db.bloqueoTablas);
   } catch (err) {
     const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
-    logger.err(msg);
+    logger.error(msg);
     return;
   }
   try {
@@ -214,7 +214,7 @@ wsVMs.on('connection', async (socket) => {
       await conex.query(db.bloqueoTablas);
     } catch (err) {
       const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
-      logger.err(msg);
+      logger.error(msg);
       return;
     }
     await conex.query(`DELETE FROM VMS WHERE ip_vm='${ipVM}'`);
@@ -232,7 +232,7 @@ wsVMs.on('connection', async (socket) => {
       await conex.query(db.bloqueoTablas);
     } catch (err) {
       const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
-      logger.err(msg);
+      logger.error(msg);
       return;
     }
     const { user, motivo, puerto } = data;
@@ -308,7 +308,7 @@ wsVMs.on('connection', async (socket) => {
       await conex.query(db.bloqueoTablas);
     } catch (err) {
       const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
-      logger.err(msg);
+      logger.error(msg);
       return;
     }
     const { user, motivo, puerto } = data;

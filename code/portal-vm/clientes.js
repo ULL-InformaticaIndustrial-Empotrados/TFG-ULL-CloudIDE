@@ -84,7 +84,7 @@ wsClient.on('connection', (socket) => {
       if (mapUserSocket.get(usuario) !== undefined) {
         socket.emit('data-error', { msg });
       }
-      logger.err(msg);
+      logger.error(msg);
       return;
     }
     try {
@@ -171,7 +171,7 @@ wsClient.on('connection', (socket) => {
       if (mapUserSocket.get(usuario) !== undefined) {
         socket.emit('data-error', { msg });
       }
-      logger.err(msg);
+      logger.error(msg);
       return;
     }
     try {

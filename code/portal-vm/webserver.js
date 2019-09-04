@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const util = require('util');
 
 const logger = require('./logger.js').child({ label: 'websrv' });
 
@@ -102,7 +103,8 @@ async function mandaParar(conexion, asignacion) {
 }
 
 app.get('/', async (req, res) => {
-  const ipOrigen = functions.cleanAddress(req.conexion.remoteAddress);
+  // logger.debug(`GET / req: ${util.inspect(req)}`);
+  const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   if (req.session.user === undefined) {
     serv.broadcastServers('deletednat', ipOrigen);
     await firewall.deletednat(ipOrigen);
@@ -111,10 +113,10 @@ app.get('/', async (req, res) => {
       const pool = await db.pool;
       conexion = await pool.getConnection();
       await conexion.query(`DELETE FROM Firewall
-        WHERE ipOrigen='${functions.cleanAddress(req.conexion.remoteAddress)}'`);
+        WHERE ip_origen='${functions.cleanAddress(req.connection.remoteAddress)}'`);
       await conexion.release();
     } catch (err) {
-      logger.err(`Al borrar de tabla Firewall: ${err}`);
+      logger.error(`Al borrar de tabla Firewall: ${err}`);
     }
     res.render('index', {});
   } else if (ipOrigen !== req.session.ip_origen) {
@@ -127,7 +129,7 @@ app.get('/', async (req, res) => {
 
 
 app.get('/controlpanel', async (req, res) => {
-  const ipOrigen = functions.cleanAddress(req.conexion.remoteAddress);
+  const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   if (req.session.user === undefined) {
     res.redirect('/');
     return;
@@ -220,7 +222,7 @@ app.get('/controlpanel', async (req, res) => {
 });
 
 app.get('/cloud/:motivo', async (req, res) => {
-  const ipOrigen = functions.cleanAddress(req.conexion.remoteAddress);
+  const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   if (req.session.user === undefined) {
     res.redirect('/');
     return;
@@ -260,7 +262,7 @@ app.get('/cloud/:motivo', async (req, res) => {
 });
 
 app.get('/autenticacion', cas.bounce, async (req, res) => {
-  const ipOrigen = functions.cleanAddress(req.conexion.remoteAddress);
+  const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   if (req.session.user === undefined) {
     res.redirect('/');
     return;
@@ -278,7 +280,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
   try {
     const pool = await db.pool;
     conexion = await pool.getConnection();
-    await conexion.query(`DELETE FROM Firewall WHERE ipOrigen='${ipOrigen}'`);
+    await conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ipOrigen}'`);
 
     const user = req.session.cas_userinfo.username;
     req.session.user = user;
@@ -313,7 +315,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
 });
 
 app.get('/logout', cas.logout, async (req, res) => {
-  const ipOrigen = functions.cleanAddress(req.conexion.remoteAddress);
+  const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
 
   await firewall.tcpkillestablished(ipOrigen);
 
@@ -329,7 +331,7 @@ app.get('/logout', cas.logout, async (req, res) => {
   try {
     const pool = await db.pool;
     conexion = await pool.getConnection();
-    await conexion.query(`DELETE FROM Firewall WHERE ipOrigen='${ipOrigen}'`);
+    await conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ipOrigen}'`);
     conexion.release();
   } catch (err) {
     logger.error(`Error al tratar /logout: ${err}`);

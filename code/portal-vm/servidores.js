@@ -5,6 +5,8 @@ const sioC = require('socket.io-client');
 
 const logger = require('./logger.js').child({ label: 'index' });
 
+logger.info('Comienza modulo servidores');
+
 const config = require('./config.json');
 const db = require('./database.js');
 const firewall = require('./firewall.js');
