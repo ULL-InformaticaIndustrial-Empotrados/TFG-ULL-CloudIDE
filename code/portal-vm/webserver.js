@@ -326,7 +326,7 @@ app.get('/logout', cas.logout, async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   logger.debug(`GET /logout desde ${ipOrigen}`);
 
-  await firewall.tcpkillestablished(ipOrigen);
+  firewall.tcpkillestablished(ipOrigen); // No esperamos
 
   const { user } = req.session;
 
@@ -335,7 +335,7 @@ app.get('/logout', cas.logout, async (req, res) => {
   req.session.destroy();
 
   serv.broadcastServers('deletednat', ipOrigen);
-  await firewall.deletednat(ipOrigen);
+  firewall.deletednat(ipOrigen); // No esperamos
   let conexion;
   try {
     const pool = await db.pool;
