@@ -103,8 +103,8 @@ async function mandaParar(conexion, asignacion) {
 }
 
 app.get('/', async (req, res) => {
-  // logger.debug(`GET / req: ${util.inspect(req)}`);
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
+  logger.debug(`GET / desde ${ipOrigen}`);
   if (req.session.user === undefined) {
     serv.broadcastServers('deletednat', ipOrigen);
     await firewall.deletednat(ipOrigen);
@@ -130,6 +130,7 @@ app.get('/', async (req, res) => {
 
 app.get('/controlpanel', async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
+  logger.debug(`GET /controlpanel desde ${ipOrigen}`);
   if (req.session.user === undefined) {
     res.redirect('/');
     return;
@@ -223,6 +224,7 @@ app.get('/controlpanel', async (req, res) => {
 
 app.get('/cloud/:motivo', async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
+  logger.debug(`GET /cloud/:motivo desde ${ipOrigen}`);
   if (req.session.user === undefined) {
     res.redirect('/');
     return;
@@ -263,6 +265,7 @@ app.get('/cloud/:motivo', async (req, res) => {
 
 app.get('/autenticacion', cas.bounce, async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
+  logger.debug(`GET /autenticacion desde ${ipOrigen}`);
   if (req.session.user === undefined) {
     res.redirect('/');
     return;
@@ -273,7 +276,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
     return;
   }
 
-  // borrar iptables de esta ip por si acaso
+  logger.debug(`borrar iptables de esta ip ${ipOrigen} por si acaso`);
   serv.broadcastServers('deletednat', ipOrigen);
   await firewall.deletednat(ipOrigen);
   let conexion;
@@ -282,6 +285,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
     conexion = await pool.getConnection();
     await conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ipOrigen}'`);
 
+    logger.debug(require('util').inspect(req, { depth: null }));
     const user = req.session.cas_userinfo.username;
     req.session.user = user;
     req.session.ip_origen = ipOrigen;
@@ -316,6 +320,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
 
 app.get('/logout', cas.logout, async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
+  logger.debug(`GET /logout desde ${ipOrigen}`);
 
   await firewall.tcpkillestablished(ipOrigen);
 
@@ -345,6 +350,7 @@ app.get('/logout', cas.logout, async (req, res) => {
 });
 
 app.get('/comprobardisponibilidad', async (req, res) => {
+  logger.debug(`GET /comprobardisponibilidad`);
   if (req.session.user === undefined) {
     res.send('no disponible');
     return;
@@ -370,6 +376,7 @@ app.get('/comprobardisponibilidad', async (req, res) => {
 
 
 app.post('/nuevoservicio', async (req, res) => {
+  logger.debug(`GET /nuevoservicio`);
   if (req.session.user === undefined) {
     logger.warn('No hay user invocando /nuevoservicio');
     return;
@@ -414,6 +421,7 @@ app.post('/nuevoservicio', async (req, res) => {
 
 
 app.post('/eliminarservicio', async (req, res) => {
+  logger.debug(`GET /eliminarservicio`);
   if (req.session.user === undefined) {
     logger.warn('No hay user invocando /eliminarservicio');
     return;
@@ -533,6 +541,7 @@ app.post('/aniadirusuarios', async (req, res) => {
 
 
 app.post('/eliminarusuarios', async (req, res) => {
+  logger.debug(`GET /eliminarusuarios`);
   if (req.session.user === undefined) {
     logger.warn('No hay user invocando /eliminarusuarios');
     return;
