@@ -1,5 +1,5 @@
 const mysql = require('promise-mysql');
-const CREDS = require('./creds');
+const CREDS = require('./creds.js');
 const config = require('./config.json');
 const logger = require('./logger.js').child({ label: 'database' });
 
