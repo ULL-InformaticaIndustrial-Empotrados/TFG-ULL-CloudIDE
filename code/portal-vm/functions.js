@@ -25,8 +25,8 @@ module.exports = {
         ${CREDS.password_root} ${1} ${config.path_almacenamiento} \
         ${usuario} ${motivo}`);
       // controlamos el error
-      logger.debug(`eliminardirectoriosolo salida estandar: "${result.stdout}"`);
-      logger.info(`eliminardirectoriosolo se ha eleminado "${usuario}"`);
+      logger.debug(`eliminardirectoriosolo ${usuario}-${motivo} stdout: "${result.stdout}"`);
+      logger.info(`eliminardirectoriosolo se ha eleminado ${usuario}-${motivo}`);
     } catch (error) {
       logger.warn(`Error eliminardirectoriosolo: "${error}"`);
     }
@@ -36,8 +36,8 @@ module.exports = {
     try {
       const result = await exec(`./sh/eliminardirectorio.sh \
         ${CREDS.password_root} ${2} ${config.path_almacenamiento} ${motivo}`);
-      logger.debug(`eliminardirectoriotodo salida estandar: "${result.stdout}"`);
-      logger.info('eliminardirectoriotodo se ha eleminado');
+      logger.debug(`eliminardirectoriotodo ${motivo} stdout: "${result.stdout}"`);
+      logger.info(`eliminardirectoriotodo ${motivo} se ha eleminado`);
     } catch (error) {
       logger.warn(`Error eliminardirectoriotodo: "${error}"`);
     }
