@@ -8,12 +8,24 @@ logger.info('Comienza modulo webserver.js');
 
 const config = require('./config.json');
 const functions = require('./functions.js');
+const firewall = require('./firewall.js');
+const sesion = require('./sesion.js');
 const db = require('./database.js');
 const vms = require('./vms.js');
 const serv = require('./servidores.js');
-const firewall = require('./firewall.js');
 const cli = require('./clientes.js');
-const sesion = require('./sesion.js');
+
+
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use('/cloud', express.static('./client/views'));
+app.use('/', express.static('./client/views'));
+
+app.set('views', './client/views'); // Configuramos el directorio de vistas
+app.set('view engine', 'ejs');
+
+sesion.createsession(app, cli.wsClient); // creamos la sesion
 
 
 // AUTENTICACION POR CAS ULL
@@ -27,17 +39,6 @@ const cas = new CASAuthentication({
   destroy_session: false,
 });
 
-
-const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-app.use('/cloud', express.static('./client/views'));
-app.use('/', express.static('./client/views'));
-
-app.set('views', './client/views'); // Configuramos el directorio de vistas
-app.set('view engine', 'ejs');
-
-sesion.createsession(app, cli.wsClient); // creamos la sesion
 
 const palabraInicial = new RegExp(/\w*/);
 
