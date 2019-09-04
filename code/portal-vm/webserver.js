@@ -267,16 +267,19 @@ app.get('/cloud/:motivo', async (req, res) => {
 app.get('/autenticacion', cas.bounce, async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   logger.debug(`GET /autenticacion desde ${ipOrigen}`);
-  if (req.session.user === undefined) {
-    logger.info('El usuario esta undefined');
-    res.redirect('/');
+  if (req.session.user !== undefined) {
+    logger.info('El usuario esta definido');
+    if (ipOrigen !== req.session.ip_origen) {
+      logger.info(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
+      res.redirect('/logout');
+    } else {
+      logger.info(`Usuario ${req.session.user} ya atenticado`);
+      res.redirect('/');
+    }
     return;
   }
-  if (ipOrigen !== req.session.ip_origen) {
-    logger.info(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
-    res.redirect('/logout');
-    return;
-  }
+  const user = req.session.cas_userinfo.username;
+  logger.info(`Se autentica ${user} desde ${ipOrigen}`);
 
   logger.debug(`borrar iptables de esta ip ${ipOrigen} por si acaso`);
   serv.broadcastServers('deletednat', ipOrigen);
@@ -287,14 +290,13 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
     conexion = await pool.getConnection();
     await conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ipOrigen}'`);
 
-    logger.debug(util.inspect(req, { depth: null }));
-    const user = req.session.cas_userinfo.username;
+    // logger.debug(util.inspect(req, { depth: null }));
     req.session.user = user;
     req.session.ip_origen = ipOrigen;
     const rol = await getRoll(user);
     req.session.rol = rol;
     logger.info(`Usuario ${user} considerado ${rol}`);
-    await conexion.query(`INSERT INTO Firewall (usuario, ipOrigen)
+    await conexion.query(`INSERT INTO Firewall (usuario, ip_origen)
       VALUES ('${user}','${ipOrigen}')`);
 
     // Actualizamos iptables
