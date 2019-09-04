@@ -18,5 +18,4 @@ const websrv = require('./webserver.js');
 
 firewall.inicializar(); // borramos iptables anteriores
 
-
-firewall.firewall();
+firewall.restauraFirewall();

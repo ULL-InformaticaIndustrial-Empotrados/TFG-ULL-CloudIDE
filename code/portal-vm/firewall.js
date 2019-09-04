@@ -74,8 +74,8 @@ module.exports = {
     }
   },
 
-  async firewall() {
-    logger.info('ZONA FIREWALL');
+  async restauraFirewall() {
+    logger.info('Restaurando Firewall');
     try {
       const pool = await db.pool;
       const conexion = await pool.getConnection();
@@ -83,15 +83,16 @@ module.exports = {
       const auxiliar = new Map();
       await conexion.release();
       for (const item of results) {
-        logger.info(`firewall usuario "${item.usuario}"`);
-        if (auxiliar.get({ ip_origen: item.ip_origen, usuario: item.usuario }) === undefined) {
+        const origenUser = { ip_origen: item.ip_origen, usuario: item.usuario };
+        logger.info(`Restaurando firewall "${JSON.stringify(origenUser)}"`);
+        if (auxiliar.get(origenUser) === undefined) {
           await this.dnatae('añadircomienzo', item.ip_origen, item.ip_vm, 0);
-          auxiliar.set({ ip_origen: item.ip_origen, usuario: item.usuario }, true);
+          auxiliar.set(origenUser, true);
         }
         await this.dnatae('añadirsolo', item.ip_origen, item.ip_vm, item.puerto);
       }
     } catch (err) {
-      logger.warn(`Error en Zona Firewall: ${err}`);
+      logger.warn(`Error restaurando Firewall: ${err}`);
     }
   },
 
