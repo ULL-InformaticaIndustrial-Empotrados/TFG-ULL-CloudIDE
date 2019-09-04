@@ -114,32 +114,36 @@ async function miraCola(conexion) {
 // Mira si está pendiente la eliminación de ese motivo y usuario
 // Se le pasa conexion suponiendo tablas bloqueadas
 async function compruebaEliminarServicioUsuario(conex, motivo, user) {
+  logger.debug(`compruebaEliminarServicioUsuario: ${user}-${motivo}`);
   const elimServicio = (await conex.query(`SELECT count(*) AS total
     FROM Eliminar_servicio as es WHERE motivo='${motivo}'`))[0].total > 0;
   const elimServUser = (await conex.query(`SELECT COUNT(*) AS total
-    FROM 'Eliminar_servicio_usuario' as esu
+    FROM Eliminar_servicio_usuario as esu
       WHERE usuario='${user}' AND motivo='${motivo}'`))[0].total > 0;
-  const totMatMotivo = await conex.query(`SELECT count(*) AS total FROM Matriculados as m1
-    WHERE motivo='${motivo}'`)[0].total;
+  logger.debug(`compruebaEliminarServicioUsuario: S${elimServicio} U${elimServUser}`);
   if (elimServicio || elimServUser) {
     logger.info(`Hay que elimnar servicio ${user}-${motivo}`);
     await conex.query(`DELETE FROM Matriculados
       WHERE usuario='${user}' AND motivo='${motivo}'`);
     await conex.query(`DELETE FROM Ultima_conexion
       WHERE usuario='${user}' AND motivo='${motivo}'`);
-    // no hace falta que esperar por el borrado
-    functions.eliminardirectoriosolo(user, motivo);
     if (elimServUser) {
       await conex.query(`DELETE FROM Eliminar_servicio_usuario
         WHERE usuario='${user}' AND motivo='${motivo}'`);
-    } else if (totMatMotivo <= 0) {
-      logger.info(`es eliminar servicio ${motivo} y no quedan matriculados`);
       // no hace falta que esperar por el borrado
-      functions.eliminardirectoriotodo(motivo);
-      await conex.query(`DELETE FROM Eliminar_servicio
-        WHERE motivo='${motivo}'`);
-      await conex.query(`DELETE FROM Servicios
-        WHERE motivo='${motivo}'`);
+      functions.eliminardirectoriosolo(user, motivo);
+    } else {
+      const totMatMotivo = (await conex.query(`SELECT count(*) AS total FROM Matriculados as m1
+        WHERE motivo='${motivo}'`))[0].total;
+      if (totMatMotivo <= 0) {
+        logger.info(`es eliminar servicio ${motivo} y no quedan matriculados`);
+        // no hace falta que esperar por el borrado
+        functions.eliminardirectoriotodo(motivo);
+        await conex.query(`DELETE FROM Eliminar_servicio
+          WHERE motivo='${motivo}'`);
+        await conex.query(`DELETE FROM Servicios
+          WHERE motivo='${motivo}'`);
+      }
     }
   }
 }

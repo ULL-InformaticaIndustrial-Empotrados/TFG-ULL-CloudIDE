@@ -55,7 +55,7 @@ async function getRoll(user) {
   try {
     const pool = await db.pool;
     const result = await pool.query(consulta);
-    logger.debug(`Resultado consulta roll: ${JSON.stringify(result, null, 2)}`);
+    logger.debug(`Resultado consulta roll: ${JSON.stringify(result)}`);
     if (result[0].total === 1) return 'profesor';
   } catch (error) {
     logger.warn(`Error al consultar roll: ${error}`);
@@ -436,6 +436,7 @@ app.post('/eliminarservicio', async (req, res) => {
   }
   const nombServi = functions.getCleanedString(req.body.nombreservicio);
   req.body.nombreservicio = nombServi;
+  logger.info(`Usuario ${req.session.user} solicita borrar servicio ${nombServi}`);
   let conexion;
   try {
     const pool = await db.pool;
@@ -445,7 +446,7 @@ app.post('/eliminarservicio', async (req, res) => {
     const totServi = (await conexion.query(`SELECT count(*) AS total FROM Servicios as s1
       WHERE motivo='${nombServi}' AND usuario='${req.session.user}'`))[0].total;
     if (totServi <= 0) {
-      throw new Condicion(`El servicio ${nombServi} no exist para usuario ${req.session.user}`);
+      throw new Condicion(`El servicio ${nombServi} no existe para usuario ${req.session.user}`);
     }
     const elimServi = (await conexion.query(`SELECT count(*) AS total
       FROM Eliminar_servicio as es WHERE motivo='${nombServi}'`))[0].total;
