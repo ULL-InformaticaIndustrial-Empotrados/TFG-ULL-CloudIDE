@@ -267,6 +267,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   logger.debug(`GET /autenticacion desde ${ipOrigen}`);
   if (req.session.user === undefined) {
+    logger.info('El usuario esta undefined');
     res.redirect('/');
     return;
   }
@@ -285,7 +286,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
     conexion = await pool.getConnection();
     await conexion.query(`DELETE FROM Firewall WHERE ip_origen='${ipOrigen}'`);
 
-    logger.debug(require('util').inspect(req, { depth: null }));
+    logger.debug(util.inspect(req, { depth: null }));
     const user = req.session.cas_userinfo.username;
     req.session.user = user;
     req.session.ip_origen = ipOrigen;
@@ -350,7 +351,7 @@ app.get('/logout', cas.logout, async (req, res) => {
 });
 
 app.get('/comprobardisponibilidad', async (req, res) => {
-  logger.debug(`GET /comprobardisponibilidad`);
+  logger.debug('GET /comprobardisponibilidad');
   if (req.session.user === undefined) {
     res.send('no disponible');
     return;
@@ -376,7 +377,7 @@ app.get('/comprobardisponibilidad', async (req, res) => {
 
 
 app.post('/nuevoservicio', async (req, res) => {
-  logger.debug(`GET /nuevoservicio`);
+  logger.debug('GET /nuevoservicio');
   if (req.session.user === undefined) {
     logger.warn('No hay user invocando /nuevoservicio');
     return;
@@ -421,7 +422,7 @@ app.post('/nuevoservicio', async (req, res) => {
 
 
 app.post('/eliminarservicio', async (req, res) => {
-  logger.debug(`GET /eliminarservicio`);
+  logger.debug('GET /eliminarservicio');
   if (req.session.user === undefined) {
     logger.warn('No hay user invocando /eliminarservicio');
     return;
@@ -541,7 +542,7 @@ app.post('/aniadirusuarios', async (req, res) => {
 
 
 app.post('/eliminarusuarios', async (req, res) => {
-  logger.debug(`GET /eliminarusuarios`);
+  logger.debug('GET /eliminarusuarios');
   if (req.session.user === undefined) {
     logger.warn('No hay user invocando /eliminarusuarios');
     return;
