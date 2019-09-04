@@ -93,7 +93,7 @@ async function mandaUsuarioVM(conexion, usuario, ipVM) {
 // Cicla hasta que no pueda hacer más asignas
 // Se le pasa conexion suponiendo tablas bloqueadas
 async function miraCola(conexion) {
-  while (true) {
+  for (;;) {
     const nEnCola = (await conexion.query(`SELECT COUNT(*)
       AS total FROM Cola AS c1`))[0].total;
     const nVMs = (await conexion.query(`SELECT COUNT(*)

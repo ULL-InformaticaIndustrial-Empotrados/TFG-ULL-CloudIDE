@@ -4,7 +4,7 @@ const { exec } = require('child-process-promise');
 
 const logger = require('./logger.js').child({ label: 'functions' });
 
-const CREDS = require('./creds');
+const CREDS = require('./creds.js');
 
 const config = require('./config.json');
 

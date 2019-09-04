@@ -293,7 +293,7 @@ CASAuthentication.prototype._handleTicket = function handleTicket(req, res) {
     host: this.cas_host,
     port: this.cas_port,
   };
-
+  let postData;
   if (['1.0', '2.0', '3.0'].indexOf(this.cas_version) >= 0) {
     requestOptions.method = 'GET';
     requestOptions.path = url.format({
@@ -305,7 +305,7 @@ CASAuthentication.prototype._handleTicket = function handleTicket(req, res) {
     });
   } else if (this.cas_version === 'saml1.1') {
     const now = new Date();
-    const postData = `<?xml version="1.0" encoding="utf-8"?>
+    postData = `<?xml version="1.0" encoding="utf-8"?>
 <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
   <SOAP-ENV:Header/>
   <SOAP-ENV:Body>

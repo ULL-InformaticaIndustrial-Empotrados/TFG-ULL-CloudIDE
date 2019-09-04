@@ -1,6 +1,4 @@
 
-/* eslint no-await-in-loop: "off" */
-
 const PythonShell = require('python-shell');
 
 
