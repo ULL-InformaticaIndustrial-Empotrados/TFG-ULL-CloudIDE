@@ -72,7 +72,7 @@ async function aniadeUsuarioServicio(conexion, usuarios, servicio) {
   }
   for (const item of valores) {
     const aux = item.match(palabraInicial);
-
+    logger.debug(`Añadiendo usuario '${aux}'`);
     await conexion.query(`INSERT INTO Matriculados (usuario, motivo)
       SELECT '${aux}','${servicio}' FROM dual WHERE NOT EXISTS (
         SELECT * FROM Matriculados as m1 WHERE usuario='${aux}'
@@ -500,12 +500,13 @@ app.post('/eliminarservicio', async (req, res) => {
 
 
 app.post('/aniadirusuarios', async (req, res) => {
+  logger.debug(`GET /aniadirusuarios de usuario ${req.session.user}`);
   if (req.session.user === undefined) {
-    logger.warn('No hay user invocando /eliminarservicio');
+    logger.warn('No hay user invocando /aniadirusuarios');
     return;
   }
   if (req.session.rol !== 'profesor') {
-    logger.warn('No es \'profesor\' invocando /eliminarservicio');
+    logger.warn('No es \'profesor\' invocando /aniadirusuarios');
     return;
   }
   const nombServi = functions.getCleanedString(req.body.nombreservicio);
@@ -529,6 +530,7 @@ app.post('/aniadirusuarios', async (req, res) => {
     if (usuarios === undefined) {
       throw new Condicion('No se han indicado usuarios a añadir');
     }
+    logger.debug(`Usuarios a añadir: ${JSON.stringify(usuarios)}`);
     aniadeUsuarioServicio(conexion, usuarios, nombServi);
   } catch (err) {
     if (err instanceof Condicion) {
