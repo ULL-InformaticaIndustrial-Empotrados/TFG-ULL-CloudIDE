@@ -19,7 +19,7 @@ module.exports = {
   },
 
 
-  async eliminardirectoriosolo(usuario, motivo, callback) {
+  async eliminardirectoriosolo(usuario, motivo) {
     try {
       const result = await exec(`./sh/eliminardirectorio.sh \
         ${CREDS.password_root} ${1} ${config.path_almacenamiento} \
@@ -27,19 +27,17 @@ module.exports = {
       // controlamos el error
       logger.debug(`eliminardirectoriosolo salida estandar: "${result.stdout}"`);
       logger.info(`eliminardirectoriosolo se ha eleminado "${usuario}"`);
-      callback();
     } catch (error) {
       logger.warn(`Error eliminardirectoriosolo: "${error}"`);
     }
   },
 
-  async eliminardirectoriotodo(motivo, callback) {
+  async eliminardirectoriotodo(motivo) {
     try {
       const result = await exec(`./sh/eliminardirectorio.sh \
         ${CREDS.password_root} ${2} ${config.path_almacenamiento} ${motivo}`);
       logger.debug(`eliminardirectoriotodo salida estandar: "${result.stdout}"`);
       logger.info('eliminardirectoriotodo se ha eleminado');
-      callback();
     } catch (error) {
       logger.warn(`Error eliminardirectoriotodo: "${error}"`);
     }
