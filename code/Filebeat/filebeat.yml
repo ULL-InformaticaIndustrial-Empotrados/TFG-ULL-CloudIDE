@@ -1,0 +1,13 @@
+output:
+  logstash:
+    enabled: true
+    hosts:
+      - 10.6.134.254:5044
+    timeout: 30
+
+filebeat:
+  prospectors:
+    -
+      paths:
+        - /var/log/dockerStats.log
+      document_type: syslog
