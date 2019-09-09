@@ -20,6 +20,7 @@ class Ovirt {
     this.pool = undefined;
     this.dbConn = undefined;
     this.bloqueadas = false;
+    this.ajustando = false;
   }
 
   static async addAndStartVm(name, ipAddress) {
@@ -111,7 +112,11 @@ class Ovirt {
       await this.realizaQuery(`INSERT INTO Ovirt_Pendientes_Up_AddStart (Name, ip_vm)
         VALUES ('ULL-CloudIDE-backend-${ipEscogida}', '${ipEscogida}')`);
 
+      // Desbloqueamos las tablas mientras se levanta la máquina
+      await this.desbloqueaTablas();
       await Ovirt.addAndStartVm(`ULL-CloudIDE-backend-${ipEscogida}`, ipEscogida);
+      await this.bloqueaTablas();
+
       await this.realizaQuery(`DELETE FROM Ovirt_Pendientes_Up_AddStart
           WHERE ip_vm='${ipEscogida}'`);
       logger.info(`VM added and started "ULL-CloudIDE-backend-${ipEscogida}"`);
@@ -133,7 +138,11 @@ class Ovirt {
       // const contar_ovp_down = (await this.realizaQuery(`SELECT count(*) as total
       //   FROM Ovirt_Pendientes as ovp WHERE tipo='down'`))[0].total;
 
+      // Desbloqueamos las tablas mientras se baja la máquina
+      await this.desbloqueaTablas();
       await Ovirt.stopAndRemoveVm(`ULL-CloudIDE-backend-${ipBajar}`);
+      await this.bloqueaTablas();
+
       await this.realizaQuery(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ipBajar}'`);
       await this.realizaQuery(`DELETE FROM Ovirt WHERE ip_vm='${ipBajar}'`);
       logger.info(`VM stopped and removed "ULL-CloudIDE-backend-${ipBajar}"`);
@@ -145,6 +154,11 @@ class Ovirt {
 
   async ajustaVMArrancadas() {
     logger.debug('Entramos ajustaVMArrancadas');
+    if (this.ajustando) {
+      logger.info('ajustaVMArrancadas: Ya estamos ajustando. Salimos');
+      return;
+    }
+    this.ajustando = true;
     await this.obtieneConn();
     await this.bloqueaTablas();
     try {
@@ -174,6 +188,7 @@ class Ovirt {
     }
     await this.desbloqueaTablas();
     await this.liberaConn();
+    this.ajustando = false;
   }
 }
 
