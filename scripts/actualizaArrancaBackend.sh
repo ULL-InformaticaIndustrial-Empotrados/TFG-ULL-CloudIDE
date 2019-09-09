@@ -12,14 +12,6 @@ NombreMaq="backend_${NUM_MAQ}"
 echo "Fijando nombre a -$NombreMaq-"
 hostnamectl set-hostname $NombreMaq
 
-echo Instalamos Filebeat y ejecutamos dockerStats ========================
-dpkg -i /mnt/cloudIDE/TFG-ULL-CloudIDE/software/filebeat-6.6.1-amd64.deb
-sleep 10
-cp /mnt/cloudIDE/TFG-ULL-CloudIDE/code/Filebeat/filebeat.yml /etc/filebeat/
-sleep 10
-/etc/init.d/filebeat start
-while sleep 30; do (sh /mnt/cloudIDE/TFG-ULL-CloudIDE/scripts/dockerStats.sh &) ; done &
-
 Actualiza=0
 if ! diff -q $DESTINO/$CARPETA/$BACKEND/package.json \
         $ORIGEN/$CARPETA/$BACKEND/package.json &> /dev/null
@@ -37,6 +29,15 @@ rsync -a -v \
    --exclude code/backend-vm/package-lock.json \
    --exclude scripts/cloudidebackend.service \
    $ORIGEN/$CARPETA $DESTINO/
+
+echo Instalamos Filebeat y ejecutamos dockerStats ========================
+dpkg -i $ORIGEN/filebeat-6.6.1-amd64.deb
+sleep 10
+cp $DESTINO/$CARPETA/code/Filebeat/filebeat.yml /etc/filebeat/
+sleep 10
+/etc/init.d/filebeat start
+while sleep 30; do (sh $DESTINO/$CARPETA/scripts/dockerStats.sh &) ; done &
+
 
 cd $DESTINO/$CARPETA/$BACKEND
 
