@@ -1,4 +1,4 @@
-const sio = require('socket.io');
+const SIO = require('socket.io');
 
 const logger = require('./logger.js').child({ label: 'clientes' });
 
@@ -12,7 +12,7 @@ const ovirt = require('./ovirt.js');
 
 const mapUserSocket = new Map();
 
-const wsClient = sio.listen(config.puerto_wsClients);
+const wsClient = new SIO(config.puerto_wsClients);
 
 
 function broadcastClient(user, evento, data) {

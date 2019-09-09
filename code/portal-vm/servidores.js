@@ -1,6 +1,6 @@
 
 const os = require('os');
-const sio = require('socket.io');
+const SIO = require('socket.io');
 const sioC = require('socket.io-client');
 
 const logger = require('./logger.js').child({ label: 'index' });
@@ -14,7 +14,7 @@ const cli = require('./clientes.js');
 const functions = require('./functions.js');
 
 
-const wsServers = sio.listen(config.puerto_websocket_servers);
+const wsServers = new SIO(config.puerto_websocket_servers);
 
 const mapSockClientServers = new Map();
 

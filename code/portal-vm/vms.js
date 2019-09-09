@@ -1,4 +1,4 @@
-const sio = require('socket.io');
+const SIO = require('socket.io');
 
 const logger = require('./logger.js').child({ label: 'vms' });
 
@@ -12,7 +12,7 @@ const ovirt = require('./ovirt.js');
 const serv = require('./servidores.js');
 const firewall = require('./firewall.js');
 
-const wsVMs = sio(config.puerto_wsVMs, {
+const wsVMs = new SIO(config.puerto_wsVMs, {
   pingTimeout: 3000,
   pingInterval: 3000,
 });
