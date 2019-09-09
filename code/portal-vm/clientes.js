@@ -36,7 +36,7 @@ class Clientes {
         }
         const mapUsu = this.mapUserSocket.get(usuario);
         mapUsu.set(socket.id, socket);
-        logger.info(`tiene conectados a la vez "${mapUsu.size}"`);
+        logger.info(`Usario ${usuario} tiene ${mapUsu.size} sockets conectados`);
       }
 
       socket.on('disconnect', () => {
@@ -146,7 +146,7 @@ class Clientes {
           }
           return;
         }
-        logger.info(`obtenerenlace '${usuario}'- '${motivo}'`);
+        logger.info(`obtenerenlace '${usuario}'-'${motivo}'`);
         // si la ip con la que se logueo es diferente a la que tiene ahora mismo la sesion
         if (functions.cleanAddress(socket.handshake.address) !== socket.session.ip_origen) {
           const msg = 'Está accediendo desde una ip diferente a la inicial';

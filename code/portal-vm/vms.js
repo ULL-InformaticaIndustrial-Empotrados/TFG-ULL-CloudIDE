@@ -48,7 +48,7 @@ class VMs {
 
       this.mapIpVMS.get(ipVM).push(socket);
 
-      logger.info(`mapIpVMS tiene longitud > "${this.mapIpVMS.size}"`);
+      logger.info(`mapIpVMS tiene longitud  ${this.mapIpVMS.size}`);
 
       let conexion;
       try {
@@ -69,7 +69,7 @@ class VMs {
           }
           await conexion.query(`DELETE FROM Ovirt_Pendientes WHERE ip_vm='${ipVM}'`);
         }
-        await this.actualizaVM(conexion, ipVM);
+        await VMs.actualizaVM(conexion, ipVM);
         logger.info(`La VM ${ipVM} ha arrancado`);
         await this.miraCola(conexion);
       } catch (err) {
@@ -222,7 +222,7 @@ class VMs {
             WHERE motivo='${motivo}' AND usuario='${user}'`);
           await conex.query(`DELETE FROM Pendientes
             WHERE usuario='${user}' AND motivo='${motivo}' AND tipo='down'`);
-          await this.actualizaVM(conexion, ipVM);
+          await VMs.actualizaVM(conexion, ipVM);
 
           const totalAsigUser = (await conex.query(`SELECT COUNT(*) AS total
             FROM Asignaciones AS a1 WHERE usuario='${user}'`))[0].total;
@@ -324,7 +324,7 @@ class VMs {
     }
     await conexion.query(`DELETE FROM Cola WHERE usuario='${usuario}'`);
     logger.info(`Usurio ${usuario} enviado a VM ${ipVM} y borrado Cola`);
-    await this.actualizaVM(conexion, ipVM);
+    await VMs.actualizaVM(conexion, ipVM);
   }
 
   // Mira si hay VMs y motivos en cola y asigna los de un usuario

@@ -66,6 +66,7 @@ class Ovirt {
     } else {
       await this.dbConn.release();
       logger.debug('Liberada conexión a DB');
+      this.dbConn = undefined;
     }
   }
 
@@ -153,8 +154,8 @@ class Ovirt {
       const usuariosEnCola = (await this.realizaQuery(`SELECT
         COUNT(DISTINCT usuario) AS total FROM Cola as c1`))[0].total;
 
-      const maqNecesarias = (usuariosEnCola / config.numero_max_users)
-        + config.numero_vm_reserva;
+      const maqNecesarias = Math.ceil((usuariosEnCola / config.numero_max_users)
+        + config.numero_vm_reserva);
       if (maqActivas < maqNecesarias) {
         logger.info(`Hay menos máquinas de las necesarias: ${maqActivas} < ${maqNecesarias}`);
         await this.levantaMaquinas(maqNecesarias - maqActivas);
