@@ -10,7 +10,6 @@ logger.info('Comienza modulo servidores');
 const config = require('./config.json');
 const db = require('./database.js');
 const firewall = require('./firewall.js');
-// const cli = require('./clientes.js');
 const functions = require('./functions.js');
 
 

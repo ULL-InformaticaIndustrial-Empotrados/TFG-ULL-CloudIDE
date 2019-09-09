@@ -1,6 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const util = require('util');
+// const util = require('util');
 
 const logger = require('./logger.js').child({ label: 'websrv' });
 
@@ -11,9 +11,19 @@ const functions = require('./functions.js');
 const firewall = require('./firewall.js');
 const sesion = require('./sesion.js');
 const db = require('./database.js');
-const vms = require('./vms.js');
-const serv = require('./servidores.js');
-const cli = require('./clientes.js');
+
+const VMs = require('./vms.js');
+const Servidores = require('./servidores.js');
+const Clientes = require('./clientes.js');
+
+const vms = new VMs();
+const serv = new Servidores();
+const cli = new Clientes();
+
+vms.setClientes(cli);
+vms.serServidores(serv);
+serv.setClientes(cli);
+cli.serVMs(vms);
 
 
 const app = express();

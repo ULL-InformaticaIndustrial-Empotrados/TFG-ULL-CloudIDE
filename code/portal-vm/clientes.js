@@ -7,7 +7,6 @@ logger.info('Comienza modulo clientes.js');
 const config = require('./config.json');
 const db = require('./database.js');
 const functions = require('./functions.js');
-// const vms = require('./vms.js');
 const ovirt = require('./ovirt.js');
 
 class Condicion {

@@ -7,9 +7,7 @@ logger.info('Comienza modulo vms');
 const config = require('./config.json');
 const functions = require('./functions.js');
 const db = require('./database.js');
-// const cli = require('./clientes.js');
 const ovirt = require('./ovirt.js');
-// const serv = require('./servidores.js');
 const firewall = require('./firewall.js');
 
 // Clase para las excepciones propias
@@ -25,7 +23,7 @@ class VMs {
     this.serv = serv;
   }
 
-  serClientes(cli) {
+  setClientes(cli) {
     this.cli = cli;
   }
 
