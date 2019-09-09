@@ -21,12 +21,12 @@ class Condicion {
 
 
 class VMs {
-  setServidores(_serv) {
-    this.serv = _serv;
+  setServidores(serv) {
+    this.serv = serv;
   }
 
-  serClientes(_cli) {
-    this.cli = _cli;
+  serClientes(cli) {
+    this.cli = cli;
   }
 
   constructor() {
@@ -389,6 +389,4 @@ class VMs {
   }
 }
 
-module.exports = {
-  VMs,
-};
+module.exports = VMs;

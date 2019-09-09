@@ -30,10 +30,14 @@ function getiplocal() {
 }
 
 class Servidores {
-  constructor(cli) {
+  setClientes(cli) {
+    this.cli = cli;
+  }
+
+  constructor() {
     this.wsServers = new SIO(config.puerto_websocket_servers);
     this.mapSockClientServers = new Map();
-    this.cli = cli;
+    this.cli = undefined;
 
     this.wsServers.on('connection', (socket) => {
       logger.info('server conectado');
@@ -211,6 +215,4 @@ class Servidores {
   }
 }
 
-module.exports = {
-  Servidores,
-};
+module.exports = Servidores;
