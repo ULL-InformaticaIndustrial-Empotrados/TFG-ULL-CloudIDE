@@ -24,7 +24,7 @@ class Clientes {
   constructor() {
     this.vms = undefined;
     this.mapUserSocket = new Map();
-    this.wsClient = new SIO(config.puerto_wsClients);
+    this.wsClient = new SIO(config.puerto_websocket_clients);
 
     this.wsClient.on('connection', (socket) => {
       const usuario = socket.session.user;

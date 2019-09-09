@@ -31,7 +31,7 @@ class VMs {
     this.cli = undefined;
     this.serv = undefined;
 
-    this.wsVMs = new SIO(config.puerto_wsVMs, {
+    this.wsVMs = new SIO(config.puerto_websocket_vms, {
       pingTimeout: 3000,
       pingInterval: 3000,
     });

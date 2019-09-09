@@ -21,9 +21,9 @@ const serv = new Servidores();
 const cli = new Clientes();
 
 vms.setClientes(cli);
-vms.serServidores(serv);
+vms.setServidores(serv);
 serv.setClientes(cli);
-cli.serVMs(vms);
+cli.setVMs(vms);
 
 
 const app = express();

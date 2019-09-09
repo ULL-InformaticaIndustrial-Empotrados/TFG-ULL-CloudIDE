@@ -56,7 +56,7 @@ class Servidores {
         await conexion.query('UNLOCK TABLES');
         logger.debug('liberando tablas MySQL');
         await conexion.release();
-        this.comprobarservidor();
+        Servidores.comprobarservidor();
       });
 
       socket.on('prueba', (data) => {
@@ -103,9 +103,9 @@ class Servidores {
       });
     });
 
-    this.comprobarservidor();
+    Servidores.comprobarservidor();
 
-    setInterval(this.comprobarservidor, 600000);
+    setInterval(Servidores.comprobarservidor, 600000);
   }
 
   broadcastServers(evento, data) {
