@@ -248,7 +248,7 @@ class VMs {
             this.serv.broadcastServers('enviar-stop', { user, motivo });
           }
 
-          await this.compruebaEliminarServicioUsuario(conex, motivo, user);
+          await VMs.compruebaEliminarServicioUsuario(conex, motivo, user);
           await this.miraCola(conex);
         } catch (err) {
           if (err instanceof Condicion) {
