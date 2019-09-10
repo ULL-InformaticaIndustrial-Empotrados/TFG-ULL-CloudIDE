@@ -143,7 +143,7 @@ class VMs {
             const fireUser = await conex.query(`SELECT ip_origen FROM Firewall AS f1
               WHERE usuario='${pen[0].usuario}'`);
             if ((fireUser.length > 0)) {
-              logger.info(`El usuario ${pen[0].usuario} tiene IP en Firewall`);
+              logger.info(`El usuario ${pen[0].usuario} tiene IP en Firewall ${fireUser.length}`);
               for (const item of fireUser) {
                 if (row <= 1) {
                   this.serv.broadcastServers('añadircomienzo', { ip_origen: item.ip_origen, ipVM, puerto });
@@ -160,7 +160,7 @@ class VMs {
             }
             await conex.query(`DELETE FROM Pendientes
               WHERE usuario='${pen[0].usuario}' AND motivo='${pen[0].motivo}' AND tipo='up'`);
-            logger.info(`Pendiente ${user}-${motivo}`);
+            logger.info(`Ya no pendiente ${user}-${motivo}`);
           }
 
           // comprobamos si el servicio se está eliminando
@@ -187,8 +187,8 @@ class VMs {
             logger.warn(`Error en 'loaded' '${user}'-'${motivo}': ${err}`);
           }
         }
-        await conexion.query('UNLOCK TABLES');
-        await conexion.release();
+        await conex.query('UNLOCK TABLES');
+        await conex.release();
       });
 
       socket.on('stopped', async (data) => {
