@@ -71,11 +71,15 @@ let errores = [];
 
 // Devuelve promesa para creación de servidor Che
 async function arrancaChe(user, motivo, port) {
-  const comando = `/usr/bin/docker run --rm -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
+  const comando = `/usr/bin/docker run --rm \
+      -e CHE_CONTAINER_PREFIX='ULLcloudIDE' \
       -e CHE_WORKSPACE_AGENT_DEV_INACTIVE__STOP__TIMEOUT__MS=2592000000 \
       -v /var/run/docker.sock:/var/run/docker.sock \
       -v ${config.path_almacenamiento}${user}-${motivo}:/data \
       -e CHE_PORT=${port} \
+      -e CHE_LIMITS_USER_WORKSPACES_COUNT=5 \
+      -e CHE_LIMITS_USER_WORKSPACES_RUN_COUNT=2 \
+      -e CHE_LIMITS_USER_WORKSPACES_RAM=1024 \
       -e CHE_HOST=${addresses[0]} \
       -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
       --restart no \
@@ -200,7 +204,7 @@ async function compruebaAsignacion(row) {
   logger.debug(`Ejecutando comando "${comando}"`);
   try {
     const result = await exec(comando);
-    logger.debug(`Comprobar puerto salida estandar: "${result.stdout}"`);
+    logger.debug(`Comprobar puerto, salida estandar: "${result.stdout}"`);
 
     if (result.stdout === '') {
       logger.info(`El servidor en puerto ${row.puerto} no tiene nada`);
