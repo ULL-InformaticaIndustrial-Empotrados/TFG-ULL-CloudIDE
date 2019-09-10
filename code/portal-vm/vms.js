@@ -272,6 +272,12 @@ class VMs {
     return this.mapIpVMS.get(ip)[this.mapIpVMS.get(ip).length - 1];
   }
 
+  // Devuelve si hay información sobre máquina con esta ip
+  // es decir, si tiene un socket registrado
+  isVMConectedIP(ip) {
+    return this.mapIpVMS.get(ip) !== undefined;
+  }
+
   // Actuliza estado de la VM según el número de usuarios asignados
   // Se le pasa conexion suponiendo tablas bloqueadas
   static async actualizaVM(conexion, ipVM) {
