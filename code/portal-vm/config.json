@@ -12,6 +12,6 @@
   "host_bbdd_mysql" : "10.6.134.50",
   "database_bbdd_mysql" : "cloudIDE",
   "host_redis" : "localhost",
-  "numero_vm_reserva" : 5,
+  "numero_vm_reserva" : 3,
   "path_almacenamiento" : "/mnt/cloudIDE"
 }
