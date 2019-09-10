@@ -265,6 +265,7 @@ class VMs {
         ovirt.ajustaVMArrancadas();
       });
     });
+    ovirt.ajustaVMArrancadas();
   }
 
   getSocketFromIP(ip) {
