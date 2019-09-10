@@ -21,6 +21,8 @@ function getiplocal() {
 }
 
 async function cleandockerimages() {
+  logger.info('cleandockerimages NO borramos nada');
+  return;
   const comando = `/usr/bin/docker images --format "{{.ID}}:{{.Repository}}" \
       | grep -v -f imagenesConservar.lst \
       | cut -d: -f1 \
