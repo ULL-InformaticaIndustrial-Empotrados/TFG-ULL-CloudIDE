@@ -100,8 +100,8 @@ async function aniadeUsuarioServicio(conexion, usuarios, servicio) {
 // Se pasa conexión y resultado query sobre tabla Asignaciones
 async function mandaParar(conexion, asignacion) {
   const { usuario, motivo, puerto } = asignacion;
-  const ipVM = vms.mapIpVMS.get(asignacion.ip_vm);
-  if (ipVM === undefined) {
+  const ipVM = asignacion.ip_vm;
+  if (!vms.isVMConectedIP(ipVM)) {
     logger.error(`En 'mandaParar' no hay IP para '${usuario}'-'${motivo}'`);
     return;
   }
@@ -477,14 +477,14 @@ app.post('/eliminarservicio', async (req, res) => {
           WHERE motivo='${nombServi}' AND usuario='${usuario}'`);
         if (estaasignado.length <= 0) {
           logger.debug(`Eliminando '${usuario}'-'${nombServi}': no está encendido`);
-          vms.compruebaEliminarServicioUsuario(conexion, nombServi, usuario);
+          VMs.compruebaEliminarServicioUsuario(conexion, nombServi, usuario);
         } else {
           logger.debug(`Eliminando '${usuario}'-'${nombServi}': está encendido`);
-          const ipVM = vms.mapIpVMS.get(estaasignado[0].ip_vm);
-          if (ipVM === undefined) {
+          const ipVM = estaasignado[0].ip_vm;
+          if (!vms.isVMConectedIP(ipVM)) {
             logger.warn(`No hay IP para asignación de '${usuario}'-'${nombServi}'`);
           } else {
-            const socketVM = vms.getSocketFromIP(estaasignado[0].ip_vm);
+            const socketVM = vms.getSocketFromIP(ipVM);
             await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
               VALUES ('${estaasignado[0].ip_vm}', '${nombServi}','${usuario}', 'down')`);
             const json = { user: usuario, motivo: nombServi, puerto: estaasignado[0].puerto };
@@ -617,7 +617,7 @@ app.post('/eliminarusuarios', async (req, res) => {
               WHERE motivo='${nombServi}' AND usuario='${aux}'`);
             if (estaasignado.length <= 0) {
               logger.debug(`Eliminando '${aux}'-'${nombServi}': no está encendido`);
-              vms.compruebaEliminarServicioUsuario(conexion, nombServi, aux);
+              VMs.compruebaEliminarServicioUsuario(conexion, nombServi, aux);
             } else {
               logger.debug(`Eliminando '${aux}'-'${nombServi}': está encendido`);
               await mandaParar(conexion, estaasignado[0]);
