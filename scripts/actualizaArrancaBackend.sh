@@ -36,7 +36,8 @@ sleep 10
 cp $DESTINO/$CARPETA/code/Filebeat/filebeat.yml /etc/filebeat/
 sleep 10
 /etc/init.d/filebeat start
-while sleep 30; do (sh $DESTINO/$CARPETA/scripts/dockerStats.sh &) ; done &
+
+$DESTINO/$CARPETA/code/Filebeat/dockerStats.sh &
 
 
 cd $DESTINO/$CARPETA/$BACKEND

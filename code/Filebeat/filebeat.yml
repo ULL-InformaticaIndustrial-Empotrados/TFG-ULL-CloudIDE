@@ -6,8 +6,23 @@ output:
     timeout: 30
 
 filebeat:
-  prospectors:
-    -
-      paths:
-        - /var/log/dockerStats.log
-      document_type: syslog
+    prospectors:
+        -
+            input_type: log
+            paths:
+                - /var/log/dockerStats.log
+            fields: {log_type: dockerStats}
+
+
+        -
+            input_type: log
+            paths:
+                - /var/log/diskUsage.log
+            fields: {log_type: diskUsage}
+
+# filebeat:
+#   prospectors:
+#     -
+#       paths:
+#         - /var/log/dockerStats.log
+#       document_type: syslog
