@@ -10,4 +10,8 @@ do
   LANG=C df -h / | tail -1 \
   | awk '{ print "total:" $2, "used:" $3, "available:" $4, "percent:" $5 }'\
   >> /var/log/diskUsage.log
+
+  LANG=C free -m -w | grep 'Mem:' \
+  | awk '{ print "Memory total:" $2, "used:" $3, "available:" $4,  "percent:" ($3/$2)*100}'\
+  >> /var/log/memUsage.log
 done

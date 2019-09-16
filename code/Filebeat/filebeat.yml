@@ -20,6 +20,12 @@ filebeat:
                 - /var/log/diskUsage.log
             fields: {log_type: diskUsage}
 
+        -
+            input_type: log
+            paths:
+                - /var/log/memUsage.log
+            fields: {log_type: memUsage}
+
 # filebeat:
 #   prospectors:
 #     -
