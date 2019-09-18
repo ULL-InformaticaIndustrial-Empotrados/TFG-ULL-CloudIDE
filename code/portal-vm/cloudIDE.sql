@@ -22,8 +22,174 @@ SET time_zone = "+00:00";
 
 -- --------------------------------------------------------
 
+-- --------------------------------------------------------
+
 --
--- Estructura de tabla para la tabla `Asignaciones`
+-- Contiene los usuarios que son considerados Profesores y tienen
+-- Privilegios. Por ahora se maneja manualmente.
+--
+
+CREATE TABLE `Profesores` (
+  `usuario` varchar(200) CHARACTER SET utf8
+    COLLATE utf8_bin NOT NULL COMMENT 'usuario considerado profesor'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Indices de la tabla `Profesores`
+--
+ALTER TABLE `Profesores`
+  ADD PRIMARY KEY (`usuario`);
+
+-- --------------------------------------------------------
+
+--
+--  Contiene lista de IPs disponibles para máquinas backend
+--  50 - portal, 51 - Template, 254 - ELK
+--  queda rango de 52 a 253
+-- Se gestiona manualmente.
+--
+
+CREATE TABLE `Banco_ip` (
+  `ip` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
+--  Contiene los servicios que tiene un usuario disponible.
+--  Lo gestionan profesores al añadir usuarios a servicios.
+--
+
+CREATE TABLE `Matriculados` (
+  `usuario` varchar(200) NOT NULL,
+  `motivo` varchar(200) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
+--  Contiene los servicios existentes y los profesores que gestionan
+--  el servicio
+--
+
+CREATE TABLE `Servicios` (
+  `motivo` text NOT NULL,
+  `usuario` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
+--  Contiene instante de la última conexión de usuario a servicio
+--  Se muestra a los profesores cuando visitan usuarios asociados a un servicio
+--
+
+CREATE TABLE `Ultima_conexion` (
+  `usuario` text NOT NULL,
+  `motivo` text NOT NULL,
+  `fecha` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+
+-- -----------------------------------------------------------
+-- TABLAS DINÁMICAS INTERNAS A LA GESTIÓN
+-- -----------------------------------------------------------
+
+--
+--  Se apuntan los servidores PORTAL que están funcionando en cada momento
+--  suele haber solo uno.
+--
+
+CREATE TABLE `Servidores` (
+  `ip_server` text
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+-- OVIRT
+--
+-- Máquinas que están encendiéndose o ya encendidas
+--  se elimianan cuando Ovirt termina de apagar la máquina
+--
+
+CREATE TABLE `Ovirt` (
+  `Name` text NOT NULL,
+  `ip_vm` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
+-- Maquinas que Ovirt está levantando ('up') o bajando ('down')
+--  Si subiendo, se eliminan cuando se establece socket con aplicación backend
+--  Si bajando, se elimina cuando Ovirt termina su trabajo.
+--
+
+CREATE TABLE `Ovirt_Pendientes` (
+  `Name` text NOT NULL,
+  `ip_vm` text NOT NULL,
+  `tipo` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
+-- Máquinas que Ovirt está levantando
+--  se eliminan cuando Ovirt termina su trabajo
+--
+
+CREATE TABLE `Ovirt_Pendientes_Up_AddStart` (
+  `Name` text NOT NULL,
+  `ip_vm` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
+-- Contiene lista de máquinas que están listas para ser usadas por
+--   la aplicación (tiene backend funcionando) y tienen sitio para
+--   más usuarios.
+-- Prioridad 0 si tienen algún usuario ya asignado.
+-- Prioridad 1 si no tienen ningún usuario asignado
+--
+
+CREATE TABLE `VMS` (
+  `prioridad` int(11) DEFAULT NULL,
+  `ip_vm` text
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+-- GESTIÓN DE LOS SERVICIOS
+-- --------------------------------------------------------
+--
+-- Se apuntan mientras se está eliminando usuario particular
+--  de un servicio.
+-- Se borrará cundo se pare el Che correspondiente, se borre la
+--   carpeta y sea borrado de Matriculado.
+--
+
+CREATE TABLE `Eliminar_servicio_usuario` (
+  `motivo` text NOT NULL,
+  `usuario` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+--
+-- Apuntar los servicios que se están borrando
+--  se borrará cuando todos los usuarios paren sus servicios,
+--  se borren sus carpetas y
+--  el servicio sea borrado de `Servicios`
+--
+
+CREATE TABLE `Eliminar_servicio` (
+  `motivo` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+-- ASIGNACIONES E CHE
+-- --------------------------------------------------------
+--
+-- Apunta cuando del Che de un usuario-motivo está arrancado, nos
+--  dice en que máquina y con que socket
 --
 
 CREATE TABLE `Asignaciones` (
@@ -33,16 +199,50 @@ CREATE TABLE `Asignaciones` (
   `puerto` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
--- --------------------------------------------------------
-
 --
--- Estructura de tabla para la tabla `Banco_ip`
+-- Apunta cuando se solicita levantar un usuario-motivo
 --
 
-CREATE TABLE `Banco_ip` (
-  `ip` varchar(100) NOT NULL
+CREATE TABLE `Cola` (
+  `motivo` text,
+  `usuario` text
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+
+--
+-- Apunta cuando usuaro-motivo está en proceso de arrancar ('up')
+--   o parar ('down') el Che.
+--  Se elimina cuando la maquina backend avisa que el Che arrancó o paro,
+--
+
+CREATE TABLE `Pendientes` (
+  `ip_vm` text,
+  `motivo` text,
+  `usuario` text,
+  `tipo` text
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+
+ --------------------------------------------------------
+
+--
+-- Apunta la dirección IP desde la que está accediendo el usuario
+--  se elimina cuando hace logout o entra desde otra dirección.
+--
+
+CREATE TABLE `Firewall` (
+  `usuario` text,
+  `ip_origen` text
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+
+
+-- --------------------------------------------------------------
+-- --------------------------------------------------------------
 --
 -- Volcado de datos para la tabla `Banco_ip`
 --
@@ -249,269 +449,26 @@ INSERT INTO `Banco_ip` (`ip`) VALUES
 ('10.6.134.250'),
 ('10.6.134.251'),
 ('10.6.134.252'),
-('10.6.134.253'),
-('10.6.134.254');
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Cola`
---
-
-CREATE TABLE `Cola` (
-  `motivo` text,
-  `usuario` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Eliminar_servicio`
---
-
-CREATE TABLE `Eliminar_servicio` (
-  `motivo` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Eliminar_servicio_usuario`
---
-
-CREATE TABLE `Eliminar_servicio_usuario` (
-  `motivo` text NOT NULL,
-  `usuario` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Firewall`
---
-
-CREATE TABLE `Firewall` (
-  `usuario` text,
-  `ip_origen` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Matriculados`
---
-
-CREATE TABLE `Matriculados` (
-  `usuario` varchar(200) NOT NULL,
-  `motivo` varchar(200) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+('10.6.134.253');
 
 --
 -- Volcado de datos para la tabla `Matriculados`
+-- Desactualizado
 --
 
 INSERT INTO `Matriculados` (`usuario`, `motivo`) VALUES
-('albham', 'InformáticaIndustrial'),
-('albham', 'Empotrados'),
-('alu0100945850', 'pl1718'),
-('alu0100888447', 'pl1718'),
-('alu0100836400', 'pl1718'),
-('alu0100969535', 'pl1718'),
-('alu0100783315', 'pl1718'),
-('alu0100845808', 'pl1718'),
-('alu0100965667', 'pl1718'),
-('alu0100792218', 'pl1718'),
-('alu0100966589', 'pl1718'),
-('alu0100611519', 'pl1718'),
-('alu0100898026', 'pl1718'),
-('alu0100949568', 'pl1718'),
-('alu0100913033', 'pl1718'),
-('alu0100967111', 'pl1718'),
-('alu0100970876', 'pl1718'),
-('alu0100973792', 'pl1718'),
-('alu0100777758', 'pl1718'),
-('alu0100921038', 'pl1718'),
-('alu0100819786', 'pl1718'),
-('alu0100846768', 'pl1718'),
-('alu0100909678', 'pl1718'),
-('alu0100946499', 'pl1718'),
-('alu0100895605', 'pl1718'),
-('alu0100904932', 'pl1718'),
-('alu0100886306', 'pl1718'),
-('alu0100283433', 'pl1718'),
-('alu0100947441', 'pl1718'),
-('alu0100818130', 'pl1718'),
-('alu0100973914', 'pl1718'),
-('sriosr', 'ssi'),
-('vblanco', 'ssi'),
-('crguezl', 'pl1718'),
-('alu0100825510', 'pruebatfg'),
-('albham', 'nuevo01');
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Ovirt`
---
-
-CREATE TABLE `Ovirt` (
-  `Name` text NOT NULL,
-  `ip_vm` varchar(100) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Ovirt_Pendientes`
---
-
-CREATE TABLE `Ovirt_Pendientes` (
-  `Name` text NOT NULL,
-  `ip_vm` text NOT NULL,
-  `tipo` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Ovirt_Pendientes_Up_AddStart`
---
-
-CREATE TABLE `Ovirt_Pendientes_Up_AddStart` (
-  `Name` text NOT NULL,
-  `ip_vm` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Pendientes`
---
-
-CREATE TABLE `Pendientes` (
-  `ip_vm` text,
-  `motivo` text,
-  `usuario` text,
-  `tipo` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Profesores`
---
-
-CREATE TABLE `Profesores` (
-  `usuario` varchar(200) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'usuario considerado profesor'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Servicios`
---
-
-CREATE TABLE `Servicios` (
-  `motivo` text NOT NULL,
-  `usuario` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+('albham', 'InformáticaIndustrial');
 
 --
 -- Volcado de datos para la tabla `Servicios`
+-- Desactualizado
 --
 
 INSERT INTO `Servicios` (`motivo`, `usuario`) VALUES
 ('InformáticaIndustrial', 'albham'),
-('Empotrados', 'albham'),
-('pl1718', 'crguezl'),
-('ssi', 'vblanco'),
-('pruebatfg', 'albpro'),
-('nuevo01', 'albham');
+('Empotrados', 'albham');
 
--- --------------------------------------------------------
 
---
--- Estructura de tabla para la tabla `Servidores`
---
-
-CREATE TABLE `Servidores` (
-  `ip_server` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `Ultima_conexion`
---
-
-CREATE TABLE `Ultima_conexion` (
-  `usuario` text NOT NULL,
-  `motivo` text NOT NULL,
-  `fecha` timestamp NULL DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
---
--- Volcado de datos para la tabla `Ultima_conexion`
---
-
-INSERT INTO `Ultima_conexion` (`usuario`, `motivo`, `fecha`) VALUES
-('albham', 'InformáticaIndustrial', '2018-09-09 10:31:22'),
-('albham', 'Empotrados', '2018-09-08 20:17:10'),
-('alu0100945850', 'pl1718', NULL),
-('alu0100888447', 'pl1718', NULL),
-('alu0100836400', 'pl1718', NULL),
-('alu0100969535', 'pl1718', NULL),
-('alu0100783315', 'pl1718', NULL),
-('alu0100845808', 'pl1718', NULL),
-('alu0100965667', 'pl1718', NULL),
-('alu0100792218', 'pl1718', NULL),
-('alu0100966589', 'pl1718', NULL),
-('alu0100611519', 'pl1718', NULL),
-('alu0100898026', 'pl1718', NULL),
-('alu0100949568', 'pl1718', NULL),
-('alu0100913033', 'pl1718', NULL),
-('alu0100967111', 'pl1718', NULL),
-('alu0100970876', 'pl1718', NULL),
-('alu0100973792', 'pl1718', NULL),
-('alu0100777758', 'pl1718', NULL),
-('alu0100921038', 'pl1718', NULL),
-('alu0100819786', 'pl1718', NULL),
-('alu0100846768', 'pl1718', NULL),
-('alu0100909678', 'pl1718', NULL),
-('alu0100946499', 'pl1718', NULL),
-('alu0100895605', 'pl1718', NULL),
-('alu0100904932', 'pl1718', NULL),
-('alu0100886306', 'pl1718', NULL),
-('alu0100283433', 'pl1718', NULL),
-('alu0100947441', 'pl1718', NULL),
-('alu0100818130', 'pl1718', NULL),
-('alu0100973914', 'pl1718', NULL),
-('sriosr', 'ssi', NULL),
-('vblanco', 'ssi', '2018-06-05 11:50:32'),
-('crguezl', 'pl1718', '2018-06-05 11:49:15'),
-('alu0100825510', 'pruebatfg', '2018-07-12 12:41:26'),
-('albham', 'nuevo01', '2018-09-11 12:44:13');
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `VMS`
---
-
-CREATE TABLE `VMS` (
-  `prioridad` int(11) DEFAULT NULL,
-  `ip_vm` text
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
---
--- Índices para tablas volcadas
---
-
---
--- Indices de la tabla `Profesores`
---
-ALTER TABLE `Profesores`
-  ADD PRIMARY KEY (`usuario`);
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
