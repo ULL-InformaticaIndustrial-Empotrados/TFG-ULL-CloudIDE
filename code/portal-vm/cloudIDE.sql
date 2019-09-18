@@ -201,6 +201,7 @@ CREATE TABLE `Asignaciones` (
 
 --
 -- Apunta cuando se solicita levantar un usuario-motivo
+--  Se elimina cuando petición se asigna y envía a máquina backend
 --
 
 CREATE TABLE `Cola` (
