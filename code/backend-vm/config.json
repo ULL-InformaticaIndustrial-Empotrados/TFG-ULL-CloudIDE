@@ -10,5 +10,5 @@
   "puerto_inicial" : 8082,
   "path_almacenamiento" : "/mnt/cloudIDE/",
   "path_db" : "/var/lib/cloudide/",
-  "cheversion" : "6.12.0"
+  "cheversion" : "6.15.0"
 }
