@@ -222,14 +222,16 @@ class VMs {
             WHERE motivo='${motivo}' AND usuario='${user}'`);
           await conex.query(`DELETE FROM Pendientes
             WHERE usuario='${user}' AND motivo='${motivo}' AND tipo='down'`);
-          await VMs.actualizaVM(conexion, ipVM);
+          logger.debug(`stopping ${user}-${motivo}: borrado de asignaciones y pendientes`);
+
+          await VMs.actualizaVM(conex, ipVM);
 
           const totalAsigUser = (await conex.query(`SELECT COUNT(*) AS total
             FROM Asignaciones AS a1 WHERE usuario='${user}'`))[0].total;
           const fireUser = (await conex.query(`SELECT ip_origen FROM Firewall AS f1
             WHERE usuario='${user}'`));
           if (fireUser.length > 0) {
-            logger.warn(`El usuaria ${user} tiene más de 1 firewall (${fireUser.length})`);
+            logger.warn(`El usuario ${user} tiene más de 1 firewall (${fireUser.length})`);
             for (const item of fireUser) {
               if (totalAsigUser > 0) {
                 this.serv.broadcastServers('dnatae-eliminarsolo',
@@ -262,8 +264,8 @@ class VMs {
             logger.warn(`Error en 'stopenlace' '${user}'- '${motivo}': ${err}`);
           }
         }
-        await conexion.query('UNLOCK TABLES');
-        await conexion.release();
+        await conex.query('UNLOCK TABLES');
+        await conex.release();
         ovirt.ajustaVMArrancadas();
       });
     });
