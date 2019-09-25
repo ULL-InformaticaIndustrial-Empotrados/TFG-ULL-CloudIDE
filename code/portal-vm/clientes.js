@@ -259,9 +259,12 @@ class Clientes {
   broadcastClient(user, evento, data) {
     const socks = this.mapUserSocket.get(user);
     if (socks !== undefined) {
+      logger.debug(`Enviando cliente ${user}-${JSON.stringify(data)} evento ${evento}`);
       socks.forEach((value) => {
         value.emit(evento, data);
       });
+    } else {
+      logger.debug(`No hay socket para cliente ${user}-${JSON.stringify(data)} evento ${evento}`);
     }
   }
 }
