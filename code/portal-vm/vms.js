@@ -243,8 +243,10 @@ class VMs {
           }
 
           if (this.cli.mapUserSocket.get(user) !== undefined) {
+            logger.debug(`Avisamos cliente ${user}-${motivo} STOP`);
             this.cli.broadcastClient(user, 'stop', { motivo });
           } else {
+            logger.debug(`Avisamos a OTRO servidor cliente ${user}-${motivo} STOP`);
             this.serv.broadcastServers('enviar-stop', { user, motivo });
           }
 
