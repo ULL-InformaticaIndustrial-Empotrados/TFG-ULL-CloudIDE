@@ -2,7 +2,7 @@
 const os = require('os');
 const { exec } = require('child-process-promise');
 
-const logger = require('./logger.js').child({ label: 'functions' });
+const logger = require('./logger.js').child({ module: 'functions' });
 
 function getiplocal() {
   const interfaces = os.networkInterfaces();
