@@ -1,8 +1,8 @@
-const logger = require('winston');
 
 const os = require('os');
-
 const { exec } = require('child-process-promise');
+
+const logger = require('./logger.js').child({ label: 'functions' });
 
 function getiplocal() {
   const interfaces = os.networkInterfaces();

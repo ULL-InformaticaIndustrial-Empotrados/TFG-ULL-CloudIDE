@@ -1,25 +1,24 @@
-const logger = require('winston');
+const winston = require('winston');
 
-const myFormat = logger.format.printf(info => `${info.timestamp} [${info.label}] ${info.level}: ${info.message}`);
+const myFormat = winston.format.printf(info => `${info.timestamp} [${info.label}] ${info.level}: ${info.message}`);
 
-logger.configure({
-  format: logger.format.combine(
-    logger.format.colorize(),
-    logger.format.timestamp(),
-    // logger.format.align(),
+const logger = winston.createLogger({
+  format: winston.format.combine(
+    winston.format.colorize(),
+    winston.format.timestamp(),
     myFormat,
   ),
   transports: [
-    new logger.transports.Console({
-      level: 'warn',
+    new winston.transports.Console({
+      level: 'debug', // warn
       silent: false,
     }),
-    new logger.transports.File({
-      filename: '/var/log/cloudidebackend/backend.log',
+    new winston.transports.File({
+      filename: '/var/log/cloudideportal/portal.log',
       level: 'debug',
     }),
   ],
-});
 
+});
 
 module.exports = logger;

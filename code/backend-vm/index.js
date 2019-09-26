@@ -7,7 +7,7 @@ const io = require('socket.io-client');
 const { exec } = require('child-process-promise');
 const CREDS = require('./creds');
 
-const logger = require('./logger.js');
+const logger = require('./logger.js').child({ label: 'index' });
 
 logger.info('Comienza la aplicacion backend');
 
