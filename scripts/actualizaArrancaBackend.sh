@@ -31,8 +31,8 @@ rsync -a -v \
    $ORIGEN/$CARPETA $DESTINO/
 
 echo Activamos Filebeat y ejecutamos dockerStats ========================
+systemctl stop filebeat.service
 cp $DESTINO/$CARPETA/code/Filebeat/filebeat.yml /etc/filebeat/
-
 systemctl start filebeat.service
 
 $DESTINO/$CARPETA/code/Filebeat/dockerStats.sh &
