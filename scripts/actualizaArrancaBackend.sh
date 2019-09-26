@@ -50,7 +50,7 @@ fi
 mkdir -p /var/lib/cloudide
 
 
-$CHE_VERSION=6.15.0
+CHE_VERSION=6.15.0
 echo ==============================
 echo Descargamos las imagenes de che ${CHE_VERSION}
 echo ==============================
@@ -69,4 +69,4 @@ echo ==============================
 echo Comienza node
 echo ==============================
 
-node index.js
+NODE_ENV=production node index.js
