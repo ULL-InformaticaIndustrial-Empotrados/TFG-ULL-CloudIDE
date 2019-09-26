@@ -3,19 +3,37 @@ const winston = require('winston');
 const myFormat = winston.format.printf(info => `${info.timestamp} [${info.label}] ${info.level}: ${info.message}`);
 
 const logger = winston.createLogger({
-  format: winston.format.combine(
-    winston.format.colorize(),
-    winston.format.timestamp(),
-    myFormat,
-  ),
   transports: [
     new winston.transports.Console({
-      level: 'debug', // warn
+      level: (process.env.NODE_ENV !== 'production') ? 'debug' : 'warn',
       silent: false,
+      format: (process.env.NODE_ENV !== 'production') ? winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.colorize(),
+        myFormat,
+      ) : winston.format.combine(
+        winston.format.timestamp(),
+        myFormat,
+      ),
     }),
     new winston.transports.File({
-      filename: '/var/log/cloudideportal/portal.log',
+      filename: '/var/log/cloudidebackend/backend.log',
       level: 'debug',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        myFormat,
+      ),
+    }),
+    new winston.transports.File({
+      filename: '/var/log/winston-backend.log',
+      level: 'info',
+      format: winston.format.combine(
+        // winston.format.label({ mod: 'm1', message: true }),
+        // winston.format.timestamp(),
+        // winston.format.prettyPrint(),
+        winston.format.timestamp(),
+        winston.format.logstash(),
+      ),
     }),
   ],
 

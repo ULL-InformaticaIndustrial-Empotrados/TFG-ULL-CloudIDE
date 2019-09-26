@@ -26,6 +26,17 @@ filebeat:
                 - /var/log/memUsage.log
             fields: {log_type: memUsage}
 
+        -
+            input_type: log
+            paths:
+                - /var/log/winston-backen.log
+            # ver https://www.elastic.co/guide/en/beats/filebeat/5.4/configuration-filebeat-options.html#config-json
+            json.keys_under_root: true
+            #json.message_key: event
+            #overwrite_keys: true
+            json.add_error_key: true
+            fields: {log_type: winston-backend}
+
 # filebeat:
 #   prospectors:
 #     -
