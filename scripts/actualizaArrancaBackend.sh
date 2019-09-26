@@ -31,11 +31,9 @@ rsync -a -v \
    $ORIGEN/$CARPETA $DESTINO/
 
 echo Instalamos Filebeat y ejecutamos dockerStats ========================
-dpkg -i $ORIGEN/filebeat-6.6.1-amd64.deb
-sleep 10
 cp $DESTINO/$CARPETA/code/Filebeat/filebeat.yml /etc/filebeat/
-sleep 10
-/etc/init.d/filebeat start
+
+systemctl start filebeat.service
 
 $DESTINO/$CARPETA/code/Filebeat/dockerStats.sh &
 
@@ -56,7 +54,7 @@ echo ==============================
 echo Descargamos las imagenes de che
 echo ==============================
 
-docker pull eclipse/che:6.12.0 >/dev/null
+docker pull eclipse/che:6.15.0 >/dev/null
 docker pull eclipse/cpp_gcc >/dev/null
 
 echo ==============================
