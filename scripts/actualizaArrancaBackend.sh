@@ -30,7 +30,7 @@ rsync -a -v \
    --exclude scripts/cloudidebackend.service \
    $ORIGEN/$CARPETA $DESTINO/
 
-echo Instalamos Filebeat y ejecutamos dockerStats ========================
+echo Activamos Filebeat y ejecutamos dockerStats ========================
 cp $DESTINO/$CARPETA/code/Filebeat/filebeat.yml /etc/filebeat/
 
 systemctl start filebeat.service
@@ -50,11 +50,19 @@ fi
 mkdir -p /var/lib/cloudide
 
 
+$CHE_VERSION=6.15.0
 echo ==============================
-echo Descargamos las imagenes de che
+echo Descargamos las imagenes de che ${CHE_VERSION}
 echo ==============================
+docker pull eclipse/che:${CHE_VERSION} >/dev/null
+docker pull eclipse/che-action:${CHE_VERSION} >/dev/null
+docker pull eclipse/che-test:${CHE_VERSION} >/dev/null
+docker pull eclipse/che-server:${CHE_VERSION} >/dev/null
+docker pull eclipse/che-dir:${CHE_VERSION} >/dev/null
+docker pull eclipse/che-mount:${CHE_VERSION} >/dev/null
+docker pull eclipse/che-init:${CHE_VERSION} >/dev/null
+docker pull eclipse/che-ip:${CHE_VERSION} >/dev/null
 
-docker pull eclipse/che:6.15.0 >/dev/null
 docker pull eclipse/cpp_gcc >/dev/null
 
 echo ==============================
