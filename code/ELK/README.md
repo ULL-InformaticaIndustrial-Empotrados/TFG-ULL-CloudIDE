@@ -6,6 +6,12 @@ ELK.
 Deben situarse en carpeta `/etc/logstash/conf.d` del docker que
 corre ELK.
 
+Pondemos usar comando
+
+```
+rsync -av $PWD/ root@elk:ELK/logstash_conf.d/
+```
+
 ## Imagen Docker
 
 La imagen docker utilizada es `sebp/elk`.
@@ -74,6 +80,6 @@ supongo que será fundamental para separar los tipos de eventos.
 [2]: https://discuss.elastic.co/t/filter-multiple-different-file-beat-logs-in-logstash/76847/3
 
 Para modificar la configuracíon en la imagen podemos hacer un
-[]`mount bind`](https://docs.docker.com/storage/bind-mounts/)
+[`mount bind`](https://docs.docker.com/storage/bind-mounts/)
 como sugiere en el apartado correspondiente de
 la [documentación de la imagen](https://elk-docker.readthedocs.io/#tweaking-the-image).
