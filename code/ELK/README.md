@@ -20,7 +20,7 @@ docker run -d -p 5601:5601 -p 9200:9200 -p 5044:5044 -it --name elk sebp/elk
 ```
 
 Queremos poder modificar la configuración de `logstash` desde
-maquina anfiriona, para lo que *mount bind* su directorio de configuración
+maquina anfitriona, para lo que *mount bind* su directorio de configuración
 
 Queremos persistir los datos de `elk`, para lo que *mount bind* su
 directorio de datos.
