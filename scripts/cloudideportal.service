@@ -5,6 +5,7 @@ After=syslog.target network.target
 [Service]
 User=root
 # Environment="PATH=/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/usr/local/anaconda3/bin"
+Environment="NODE_ENV=production"
 WorkingDirectory=/mnt/cloudIDE/TFG-ULL-CloudIDE/code/portal-vm
 ExecStart=/usr/bin/node index.js
 Restart=always
