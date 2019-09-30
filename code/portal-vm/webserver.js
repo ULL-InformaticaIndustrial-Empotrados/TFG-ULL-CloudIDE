@@ -110,7 +110,9 @@ async function mandaParar(conexion, asignacion) {
     VALUES ('${asignacion.ip_vm}', '${motivo}','${usuario}', 'down')`);
   const json = { user: usuario, motivo, puerto };
   socketVM.emit('stop', json);
-  logger.info(`Enviado stop ${JSON.stringify(json)} a ${ipVM}`);
+  json.accion = 'stop';
+  json.ipVM = ipVM;
+  logger.info(`Enviado stop ${JSON.stringify(json)} a ${ipVM}`, json);
 }
 
 app.get('/', async (req, res) => {
@@ -383,7 +385,7 @@ app.get('/comprobardisponibilidad', async (req, res) => {
     datos.valido = !existeServicio;
     await conexion.release();
   } catch (err) {
-    logger.error(`Error al trtar /comprobardisponibilidad: ${err}`);
+    logger.error(`Error al tratar /comprobardisponibilidad: ${err}`);
   }
   res.send(datos);
 });
@@ -480,17 +482,7 @@ app.post('/eliminarservicio', async (req, res) => {
           VMs.compruebaEliminarServicioUsuario(conexion, nombServi, usuario);
         } else {
           logger.debug(`Eliminando '${usuario}'-'${nombServi}': está encendido`);
-          const ipVM = estaasignado[0].ip_vm;
-          if (!vms.isVMConectedIP(ipVM)) {
-            logger.warn(`No hay IP para asignación de '${usuario}'-'${nombServi}'`);
-          } else {
-            const socketVM = vms.getSocketFromIP(ipVM);
-            await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
-              VALUES ('${estaasignado[0].ip_vm}', '${nombServi}','${usuario}', 'down')`);
-            const json = { user: usuario, motivo: nombServi, puerto: estaasignado[0].puerto };
-            socketVM.emit('stop', json);
-            logger.info(`Enviado stop ${JSON.stringify(json)} a ${ipVM}`);
-          }
+          mandaParar(conexion, estaasignado[0]);
         }
       }
     }
