@@ -131,7 +131,7 @@ app.get('/', async (req, res) => {
     }
     res.render('index', {});
   } else if (ipOrigen !== req.session.ip_origen) {
-    logger.info(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
+    logger.warn(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
     res.redirect('/logout');
   } else {
     res.redirect('/controlpanel');
@@ -147,7 +147,7 @@ app.get('/controlpanel', async (req, res) => {
     return;
   }
   if (ipOrigen !== req.session.ip_origen) {
-    logger.info(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
+    logger.warn(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
     res.redirect('/logout');
     return;
   }
@@ -241,7 +241,7 @@ app.get('/cloud/:motivo', async (req, res) => {
     return;
   }
   if (ipOrigen !== req.session.ip_origen) {
-    logger.info(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
+    logger.warn(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
     res.redirect('/logout');
     return;
   }
@@ -278,12 +278,12 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   logger.debug(`GET /autenticacion desde ${ipOrigen}`);
   if (req.session.user !== undefined) {
-    logger.info('El usuario esta definido');
+    logger.warn(`El usuario ${req.session.user} esta definido`);
     if (ipOrigen !== req.session.ip_origen) {
-      logger.info(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
+      logger.warn(`IP logueo ${ipOrigen} != de la de sesión ${req.session.ip_origen}`);
       res.redirect('/logout');
     } else {
-      logger.info(`Usuario ${req.session.user} ya atenticado`);
+      logger.warn(`Usuario ${req.session.user} ya atenticado`);
       res.redirect('/');
     }
     return;
@@ -421,9 +421,9 @@ app.post('/nuevoservicio', async (req, res) => {
     }
   } catch (err) {
     if (err instanceof Condicion) {
-      logger.info(err.msg);
+      logger.warn(err.msg);
     } else {
-      logger.warn(`Error en '/nuevoservicio': ${err}`);
+      logger.error(`Error en '/nuevoservicio': ${err}`);
     }
   }
   if (conexion !== undefined) {
@@ -496,9 +496,9 @@ app.post('/eliminarservicio', async (req, res) => {
     }
   } catch (err) {
     if (err instanceof Condicion) {
-      logger.info(err.msg);
+      logger.warn(err.msg);
     } else {
-      logger.warn(`Error en '/eliminarservicio': ${err}`);
+      logger.error(`Error en '/eliminarservicio': ${err}`);
     }
   }
   if (conexion !== undefined) {
@@ -544,9 +544,9 @@ app.post('/aniadirusuarios', async (req, res) => {
     aniadeUsuarioServicio(conexion, usuarios, nombServi);
   } catch (err) {
     if (err instanceof Condicion) {
-      logger.info(err.msg);
+      logger.warn(err.msg);
     } else {
-      logger.warn(`Error en '/aniadirusuarios': ${err}`);
+      logger.error(`Error en '/aniadirusuarios': ${err}`);
     }
   }
   if (conexion !== undefined) {
@@ -598,7 +598,7 @@ app.post('/eliminarusuarios', async (req, res) => {
       const estaMat = (await conexion.query(`SELECT count(*) AS total FROM Matriculados as m1
         WHERE motivo='${nombServi}' AND usuario='${aux}'`))[0].total > 0;
       if (!estaMat) {
-        logger.info(`El usuario ${aux} pasado para borrar no está matriculado`);
+        logger.warn(`El usuario ${aux} pasado para borrar no está matriculado`);
       } else {
         const eliminando = (await conexion.query(`SELECT count(*) AS total FROM Eliminar_servicio_usuario as esu
           WHERE motivo='${nombServi}' AND usuario='${aux}'`))[0].total > 0;
@@ -630,9 +630,9 @@ app.post('/eliminarusuarios', async (req, res) => {
     }
   } catch (err) {
     if (err instanceof Condicion) {
-      logger.info(err.msg);
+      logger.warn(err.msg);
     } else {
-      logger.warn(`Error en '/eliminarusuarios': ${err}`);
+      logger.error(`Error en '/eliminarusuarios': ${err}`);
     }
   }
   if (conexion !== undefined) {
