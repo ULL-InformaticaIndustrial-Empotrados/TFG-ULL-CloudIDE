@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 // const util = require('util');
 
-const logger = require('./logger.js').child({ label: 'websrv' });
+const logger = require('./logger.js').child({ module: 'websrv' });
 
 logger.info('Comienza modulo webserver.js');
 

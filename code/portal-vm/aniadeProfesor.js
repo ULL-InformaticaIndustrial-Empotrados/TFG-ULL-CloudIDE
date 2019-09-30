@@ -1,4 +1,4 @@
-const logger = require('./logger.js').child({ label: 'aniadeProfesor' });
+const logger = require('./logger.js').child({ module: 'aniadeProfesor' });
 
 logger.info('Comienza aniadeProfesor');
 

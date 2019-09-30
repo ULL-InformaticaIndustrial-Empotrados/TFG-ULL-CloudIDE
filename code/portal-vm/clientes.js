@@ -1,6 +1,6 @@
 const SIO = require('socket.io');
 
-const logger = require('./logger.js').child({ label: 'clientes' });
+const logger = require('./logger.js').child({ module: 'clientes' });
 
 logger.info('Comienza modulo clientes.js');
 

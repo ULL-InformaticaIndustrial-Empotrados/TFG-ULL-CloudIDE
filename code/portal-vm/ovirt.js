@@ -2,7 +2,7 @@
 const PythonShell = require('python-shell');
 
 
-const logger = require('./logger.js').child({ label: 'ovirt' });
+const logger = require('./logger.js').child({ module: 'ovirt' });
 const db = require('./database.js');
 const config = require('./config.json');
 

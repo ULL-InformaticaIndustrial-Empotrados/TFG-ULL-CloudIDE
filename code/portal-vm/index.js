@@ -1,5 +1,5 @@
 
-const logger = require('./logger.js').child({ label: 'index' });
+const logger = require('./logger.js').child({ module: 'index' });
 
 logger.info('Comienza la aplicacion portal');
 

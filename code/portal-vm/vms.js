@@ -1,6 +1,6 @@
 const SIO = require('socket.io');
 
-const logger = require('./logger.js').child({ label: 'vms' });
+const logger = require('./logger.js').child({ module: 'vms' });
 
 logger.info('Comienza modulo vms');
 

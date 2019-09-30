@@ -1,4 +1,4 @@
-const logger = require('../logger.js').child({ label: 'pruebaSQL' });
+const logger = require('../logger.js').child({ module: 'pruebaSQL' });
 
 logger.info('Comienza pruebaSQL');
 

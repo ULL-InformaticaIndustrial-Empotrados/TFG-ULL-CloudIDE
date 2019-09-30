@@ -2,7 +2,7 @@
 const moment = require('moment');
 const { exec } = require('child-process-promise');
 
-const logger = require('./logger.js').child({ label: 'functions' });
+const logger = require('./logger.js').child({ module: 'functions' });
 
 const CREDS = require('./creds.js');
 

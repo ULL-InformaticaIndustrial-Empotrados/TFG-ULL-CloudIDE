@@ -3,7 +3,7 @@ const redis = require('redis');
 const socketIOSession = require('socket.io.session');
 const RedisStore = require('connect-redis')(session);
 
-const logger = require('./logger.js').child({ label: 'sesion' });
+const logger = require('./logger.js').child({ module: 'sesion' });
 
 const config = require('./config.json');
 

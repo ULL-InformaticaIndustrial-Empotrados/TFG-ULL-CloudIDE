@@ -3,7 +3,7 @@ const os = require('os');
 const SIO = require('socket.io');
 const sioC = require('socket.io-client');
 
-const logger = require('./logger.js').child({ label: 'index' });
+const logger = require('./logger.js').child({ module: 'index' });
 
 logger.info('Comienza modulo servidores');
 

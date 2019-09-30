@@ -1,4 +1,4 @@
-const logger = require('../logger.js').child({ label: 'prueba_ovirt_1' });
+const logger = require('../logger.js').child({ module: 'prueba_ovirt_1' });
 
 const ovirt = require('../ovirt.js');
 

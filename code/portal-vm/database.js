@@ -1,7 +1,7 @@
 const mysql = require('promise-mysql');
 const CREDS = require('./creds.js');
 const config = require('./config.json');
-const logger = require('./logger.js').child({ label: 'database' });
+const logger = require('./logger.js').child({ module: 'database' });
 
 async function creaPool() {
   const pool = await mysql.createPool({

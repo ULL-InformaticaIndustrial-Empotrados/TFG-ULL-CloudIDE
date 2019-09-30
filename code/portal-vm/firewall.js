@@ -1,6 +1,6 @@
 const { exec } = require('child-process-promise');
 
-const logger = require('./logger.js').child({ label: 'firewall' });
+const logger = require('./logger.js').child({ module: 'firewall' });
 const config = require('./config.json');
 const db = require('./database.js');
 

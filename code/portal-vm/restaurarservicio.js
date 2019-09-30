@@ -1,7 +1,7 @@
 
 const PythonShell = require('python-shell');
 
-const logger = require('./logger.js').child({ label: 'restauraservicio' });
+const logger = require('./logger.js').child({ module: 'restauraservicio' });
 
 logger.info('Comienza restauraservicio');
 

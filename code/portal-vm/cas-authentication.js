@@ -5,7 +5,7 @@ const https = require('https');
 const parseXML = require('xml2js').parseString;
 const XMLprocessors = require('xml2js/lib/processors');
 
-const logger = require('./logger.js').child({ label: 'cas' });
+const logger = require('./logger.js').child({ module: 'cas' });
 
 /**
  * The CAS authentication types.
