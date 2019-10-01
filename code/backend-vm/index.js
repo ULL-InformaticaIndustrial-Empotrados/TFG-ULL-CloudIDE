@@ -229,7 +229,7 @@ async function compruebaAsignacion(row) {
 async function compruebaServidores() {
   logger.debug('Comprobando servidores');
   const servers = await pool.query('SELECT * FROM Servidores AS s1');
-  logger.info(`Hay ${servers.length} servidores...`);
+  logger.debug(`Hay ${servers.length} servidores...`);
   await Promise.all(servers.map(configuraServidor));
   for (const error of errores) {
     for (const [srv, sckt] of socketClientServers) {
