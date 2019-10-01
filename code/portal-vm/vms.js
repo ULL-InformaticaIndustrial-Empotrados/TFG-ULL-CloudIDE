@@ -197,8 +197,10 @@ class VMs {
       });
 
       socket.on('stopped', async (data) => {
-        // data: { user, motivo, puerto }
-        logger.info(`Che server stopped "${JSON.stringify(data)}"`);
+        const json = data;
+        json.accion = 'stopped';
+        json.ipVM = ipVM;
+        logger.info(`Recibido stopped "${JSON.stringify(json)}"`, json);
         let conex;
         try {
           const pool = await db.pool;
@@ -213,7 +215,7 @@ class VMs {
         try {
           const asignas = (await conex.query(`SELECT * FROM Asignaciones AS a1
             WHERE ip_vm='${ipVM}' AND motivo='${motivo}' AND usuario='${user}'`));
-          logger.info(`Número asignas para ${user}-${motivo}-${ipVM} = ${asignas.length}`);
+          logger.debug(`Número asignas para ${user}-${motivo}-${ipVM} = ${asignas.length}`);
 
           if (asignas.lenght <= 0) {
             throw Condicion(`No hay asignación para ${user}-${motivo}-${ipVM}`);
