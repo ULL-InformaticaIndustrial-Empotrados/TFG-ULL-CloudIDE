@@ -1,5 +1,5 @@
 {
-  "numero_max_serverxuser" : 3,
+  "numero_max_serverxuser" : 2,
   "numero_max_users" : 2,
   "interfaz_exterior" : "eth0",
   "ip_server_exterior" : "cloudide.iaas.ull.es",
@@ -12,6 +12,6 @@
   "host_bbdd_mysql" : "10.6.134.50",
   "database_bbdd_mysql" : "cloudIDE",
   "host_redis" : "localhost",
-  "numero_vm_reserva" : 3,
+  "numero_vm_reserva" : 7,
   "path_almacenamiento" : "/mnt/cloudIDE"
 }
