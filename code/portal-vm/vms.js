@@ -117,7 +117,10 @@ class VMs {
 
 
       socket.on('loaded', async (data) => {
-        logger.info(`Che server loaded "${JSON.stringify(data)}"`);
+        const json = data;
+        json.accion = 'loaded';
+        json.ipVM = ipVM;
+        logger.info(`Recibido loaded "${JSON.stringify(json)}"`, json);
         let conex;
         try {
           const pool = await db.pool;
@@ -130,38 +133,43 @@ class VMs {
         }
         const { user, motivo, puerto } = data;
         try {
-          const pen = (await conex.query(`SELECT * FROM Pendientes AS p1
-            WHERE ip_vm='${ipVM}' AND motivo='${motivo}' AND usuario='${user}'`));
+          const pend = (await conex.query(`SELECT * FROM Pendientes AS p1
+            WHERE ip_vm='${ipVM}' AND motivo='${motivo}' AND usuario='${user}'
+              AND tipo='up'`));
 
-          if (pen.length > 0) {
-            await conex.query(`INSERT INTO Asignaciones (ip_vm, usuario, motivo, puerto)
-              VALUES ('${ipVM}','${pen[0].usuario}','${pen[0].motivo}', ${puerto})`);
-
-            logger.info(`es del usuario "${pen[0].usuario}"`);
-            const row = (await conex.query(`SELECT COUNT(*) AS total
-              FROM Asignaciones AS a1 WHERE usuario='${pen[0].usuario}'`))[0].total;
-            const fireUser = await conex.query(`SELECT ip_origen FROM Firewall AS f1
-              WHERE usuario='${pen[0].usuario}'`);
-            if ((fireUser.length > 0)) {
-              logger.info(`El usuario ${pen[0].usuario} tiene IP en Firewall ${fireUser.length}`);
-              for (const item of fireUser) {
-                if (row <= 1) {
-                  this.serv.broadcastServers('añadircomienzo', { ip_origen: item.ip_origen, ipVM, puerto });
-                  await firewall.dnatae('añadircomienzo', item.ip_origen, ipVM, 0);
-                }
-                this.serv.broadcastServers('añadirsolo', { ip_origen: item.ip_origen, ipVM, puerto });
-                await firewall.dnatae('añadirsolo', item.ip_origen, ipVM, puerto);
-              }
-              if (this.cli.mapUserSocket.get(pen[0].usuario) !== undefined) {
-                this.cli.broadcastClient(pen[0].usuario, 'resultado', { motivo });
-              } else {
-                this.serv.broadcastServers('enviar-resultado', { motivo, user });
-              }
-            }
+          if (pend.length > 0) {
             await conex.query(`DELETE FROM Pendientes
-              WHERE usuario='${pen[0].usuario}' AND motivo='${pen[0].motivo}' AND tipo='up'`);
-            logger.info(`Ya no pendiente ${user}-${motivo}`);
+              WHERE usuario='${pend[0].usuario}' AND motivo='${pend[0].motivo}' AND tipo='up'`);
+            logger.debug(`Ya no pendiente ${user}-${motivo}`);
+          } else {
+            logger.warn(`No estaba en pendientes ${JSON.stringify(json)}`);
           }
+
+          // Estubiera o no pendiente lo asignamos
+          await conex.query(`INSERT INTO Asignaciones (ip_vm, usuario, motivo, puerto)
+            VALUES ('${ipVM}','${pend[0].usuario}','${pend[0].motivo}', ${puerto})`);
+
+          const row = (await conex.query(`SELECT COUNT(*) AS total
+            FROM Asignaciones AS a1 WHERE usuario='${pend[0].usuario}'`))[0].total;
+          const fireUser = await conex.query(`SELECT ip_origen FROM Firewall AS f1
+            WHERE usuario='${pend[0].usuario}'`);
+          if ((fireUser.length > 0)) {
+            logger.debug(`El usuario ${pend[0].usuario} tiene IP en Firewall ${fireUser.length}`);
+            for (const item of fireUser) {
+              if (row <= 1) { // es la primera asignación
+                this.serv.broadcastServers('añadircomienzo', { ip_origen: item.ip_origen, ipVM, puerto });
+                await firewall.dnatae('añadircomienzo', item.ip_origen, ipVM, 0);
+              }
+              this.serv.broadcastServers('añadirsolo', { ip_origen: item.ip_origen, ipVM, puerto });
+              await firewall.dnatae('añadirsolo', item.ip_origen, ipVM, puerto);
+            }
+            if (this.cli.mapUserSocket.get(pend[0].usuario) !== undefined) {
+              this.cli.broadcastClient(pend[0].usuario, 'resultado', { motivo });
+            } else {
+              this.serv.broadcastServers('enviar-resultado', { motivo, user });
+            }
+          }
+
 
           // comprobamos si el servicio se está eliminando
           const elimServ = (await conex.query(`SELECT count(*) AS total
