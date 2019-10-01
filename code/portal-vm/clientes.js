@@ -36,7 +36,7 @@ class Clientes {
         }
         const mapUsu = this.mapUserSocket.get(usuario);
         mapUsu.set(socket.id, socket);
-        logger.info(`Usario ${usuario} tiene ${mapUsu.size} sockets conectados`);
+        logger.debug(`Usario ${usuario} tiene ${mapUsu.size} sockets conectados`);
       }
 
       socket.on('disconnect', () => {
@@ -112,26 +112,15 @@ class Clientes {
           if (results.length <= 0) {
             throw new Condicion('No hay asignación para este usuario y servicio');
           }
-          const ipVM = results[0].ip_vm;
-          if (this.vms.mapIpVMS.get(ipVM) === undefined) {
-            throw new Condicion('No hay conexión con el servidor de la asignación');
-          }
-          const socketVM = this.vms.getSocketFromIP(ipVM);
-          await conexion.query(`INSERT INTO Pendientes
-            (ip_vm, motivo, usuario, tipo) VALUES
-            ('${ipVM}', '${motivo}','${usuario}', 'down')`);
-          const json = { user: usuario, motivo, puerto: results[0].puerto };
-          socketVM.emit('stop', json);
-
-          logger.info(`enviado stop a ${ipVM} para ${usuario}-${motivo}`);
+          this.vms.mandaParar(conexion, results[0]);
         } catch (err) {
           if (err instanceof Condicion) {
             if (this.mapUserSocket.get(usuario) !== undefined) {
               socket.emit('data-error', { msg: err.msg });
             }
-            logger.info(err.msg);
+            logger.warn(err.msg);
           } else {
-            logger.warn(`Error en 'stopenlace' '${usuario}'-'${motivo}': ${err}`);
+            logger.error(`Error en 'stopenlace' '${usuario}'-'${motivo}': ${err}`);
           }
         }
         await conexion.query('UNLOCK TABLES');

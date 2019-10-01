@@ -170,21 +170,18 @@ class VMs {
             WHERE usuario='${user}' AND motivo='${motivo}'`))[0].total;
           if ((elimServ + elimServUser) > 0) {
             logger.info(`El servicio ${user}-${motivo} se está eliminando`);
-            if (this.mapIpVMS.get(ipVM) !== undefined) {
-              await conex.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
-                VALUES ('${ipVM}', '${motivo}','${user}', 'down')`);
-              this.getSocketFromIP(ipVM).emit('stop', { user, motivo, puerto });
-              logger.info(`enviado stop para ${user}-${motivo}`);
-            }
+            this.mandaParar(conex, {
+              user, motivo, puerto, ip_vm: ipVM,
+            });
           }
         } catch (err) {
           if (err instanceof Condicion) {
             if (this.cli.mapUserSocket.get(user) !== undefined) {
               socket.emit('data-error', { msg: err.msg });
             }
-            logger.info(err.msg);
+            logger.warn(err.msg);
           } else {
-            logger.warn(`Error en 'loaded' '${user}'-'${motivo}': ${err}`);
+            logger.error(`Error en 'loaded' '${user}'-'${motivo}': ${err}`);
           }
         }
         await conex.query('UNLOCK TABLES');
@@ -395,6 +392,24 @@ class VMs {
         }
       }
     }
+  }
+
+  // Funcion para mansar parar un usuario-servicio
+  // Se pasa conexión y resultado query sobre tabla Asignaciones
+  async mandaParar(conexion, asignacion) {
+    const { usuario, motivo, puerto } = asignacion;
+    const ipVM = asignacion.ip_vm;
+    if (!this.isVMConectedIP(ipVM)) {
+      throw new Condicion(`En 'mandaParar' no hay IP para '${usuario}'-'${motivo}'`);
+    }
+    const socketVM = this.getSocketFromIP(ipVM);
+    await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
+      VALUES ('${asignacion.ip_vm}', '${motivo}','${usuario}', 'down')`);
+    const json = { user: usuario, motivo, puerto };
+    socketVM.emit('stop', json);
+    json.accion = 'stop';
+    json.ipVM = ipVM;
+    logger.info(`Enviado stop ${JSON.stringify(json)} a ${ipVM}`, json);
   }
 }
 

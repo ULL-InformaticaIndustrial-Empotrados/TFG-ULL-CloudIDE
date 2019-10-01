@@ -96,25 +96,6 @@ async function aniadeUsuarioServicio(conexion, usuarios, servicio) {
   }
 }
 
-// Funcion para mansar parar un usuario-servicio
-// Se pasa conexión y resultado query sobre tabla Asignaciones
-async function mandaParar(conexion, asignacion) {
-  const { usuario, motivo, puerto } = asignacion;
-  const ipVM = asignacion.ip_vm;
-  if (!vms.isVMConectedIP(ipVM)) {
-    logger.error(`En 'mandaParar' no hay IP para '${usuario}'-'${motivo}'`);
-    return;
-  }
-  const socketVM = vms.getSocketFromIP(ipVM);
-  await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
-    VALUES ('${asignacion.ip_vm}', '${motivo}','${usuario}', 'down')`);
-  const json = { user: usuario, motivo, puerto };
-  socketVM.emit('stop', json);
-  json.accion = 'stop';
-  json.ipVM = ipVM;
-  logger.info(`Enviado stop ${JSON.stringify(json)} a ${ipVM}`, json);
-}
-
 app.get('/', async (req, res) => {
   const ipOrigen = functions.cleanAddress(req.connection.remoteAddress);
   logger.debug(`GET / desde ${ipOrigen}`);
@@ -482,7 +463,7 @@ app.post('/eliminarservicio', async (req, res) => {
           VMs.compruebaEliminarServicioUsuario(conexion, nombServi, usuario);
         } else {
           logger.debug(`Eliminando '${usuario}'-'${nombServi}': está encendido`);
-          mandaParar(conexion, estaasignado[0]);
+          await vms.mandaParar(conexion, estaasignado[0]);
         }
       }
     }
@@ -612,7 +593,7 @@ app.post('/eliminarusuarios', async (req, res) => {
               VMs.compruebaEliminarServicioUsuario(conexion, nombServi, aux);
             } else {
               logger.debug(`Eliminando '${aux}'-'${nombServi}': está encendido`);
-              await mandaParar(conexion, estaasignado[0]);
+              await vms.mandaParar(conexion, estaasignado[0]);
             }
           } else {
             // TODO Faltaría el caso cuando está pendiente ¿?
