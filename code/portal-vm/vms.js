@@ -343,8 +343,13 @@ class VMs {
       json.accion = 'load';
       json.ipVM = ipVM;
       logger.info(`Enviado 'load' ${JSON.stringify(json)}`, json);
+      await conexion.query(`DELETE FROM Cola
+        WHERE usuario='${usuario}' AND motivo='${item.motivo}'`);
+      json.accion = 'sacarcola';
+      json.ipVM = 'none';
+      logger.info(`Scarcola cola ${JSON.stringify(json)}`, json);
     }
-    await conexion.query(`DELETE FROM Cola WHERE usuario='${usuario}'`);
+
     logger.debug(`Usuario ${usuario} enviado a VM ${ipVM} y borrado Cola`);
     await VMs.actualizaVM(conexion, ipVM);
   }

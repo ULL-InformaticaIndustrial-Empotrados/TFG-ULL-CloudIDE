@@ -173,7 +173,7 @@ class Clientes {
             UNION SELECT motivo FROM Eliminar_servicio as es
             WHERE motivo='${motivo}') AS alias`))[0].total;
           if (eliminando > 0) {
-            throw new Condicion('No se puede parar, se está eliminando servicio (individual o global)');
+            throw new Condicion('No se puede arrancar, se está eliminando servicio (individual o global)');
           }
 
           const motivototal = (await conexion.query(`SELECT COUNT(*) AS total
@@ -202,10 +202,15 @@ class Clientes {
           if ((asignasUser + colasUser + pendientesUserUp) >= config.numero_max_serverxuser) {
             throw new Condicion('Supera el número máximo de servidores');
           }
-          logger.info(`se inserta en la cola ${usuario}-${motivo}`);
           await conexion.query(`INSERT INTO Cola (motivo, usuario)
-            VALUES ('${motivo}','${usuario}')`);
+          VALUES ('${motivo}','${usuario}')`);
+          const json = {
+            user: usuario, motivo, accion: 'metercola', ipVM: 'none',
+          };
+          logger.info(`Inserta cola ${JSON.stringify(json)}`, json);
 
+          // Si el usuario está asignado o pendiente lo mandamos directamente
+          //  a esa máquina
           const pendientesUser = (await conexion.query(`SELECT COUNT(*) AS total
             FROM Pendientes AS p1 WHERE usuario='${usuario}'`))[0].total;
           if ((asignasUser + pendientesUser) > 0) {
@@ -217,7 +222,7 @@ class Clientes {
               ip = (await conexion.query(`SELECT ip_vm FROM Asignaciones AS a1
                 WHERE usuario='${usuario}'`))[0].ip_vm;
             }
-
+            logger.debug(`Usuaraio ${usuario} tiene cosas en máquina ${ip}`);
             if (this.vms.mapIpVMS.get(ip) === undefined) { // si la vm no esta disponible
               await conexion.query(`DELETE FROM Cola WHERE usuario='${usuario}'`);
               throw new Condicion('No se puede obtener el servidor');
@@ -225,7 +230,6 @@ class Clientes {
               await this.vms.mandaUsuarioVM(conexion, usuario, ip);
             }
           } else {
-            logger.info(`todavia ${usuario} no tiene nada asignado`);
             this.vms.miraCola(conexion);
           }
         } catch (err) {
