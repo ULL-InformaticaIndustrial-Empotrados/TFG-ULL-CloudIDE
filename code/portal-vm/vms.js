@@ -316,6 +316,8 @@ class VMs {
     }
   }
 
+  // Manda todos los motivos pendientes del usuaraio a la VM indicada
+  // Se le pasa conexion suponiendo tablas bloqueadas
   async mandaUsuarioVM(conexion, usuario, ipVM) {
     if (this.mapIpVMS.get(ipVM) === undefined) {
       throw new Condicion(`La máquina ${ipVM} en cola no tiene socket`);
@@ -324,14 +326,16 @@ class VMs {
       WHERE usuario='${usuario}'`);
     logger.debug(`La máquina ${ipVM} tiene socket (está activa)`);
     for (const item of motivos) {
-      logger.info(`Asignamos (${usuario}, ${item.motivo}) a máquina ${ipVM}`);
       await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
         VALUES ('${ipVM}', '${item.motivo}', '${usuario}', 'up')`);
       const json = { user: usuario, motivo: item.motivo };
       this.getSocketFromIP(ipVM).emit('load', json);
+      json.accion = 'load';
+      json.ipVM = ipVM;
+      logger.info(`Enviado 'load' ${JSON.stringify(json)}`, json);
     }
     await conexion.query(`DELETE FROM Cola WHERE usuario='${usuario}'`);
-    logger.info(`Usurio ${usuario} enviado a VM ${ipVM} y borrado Cola`);
+    logger.debug(`Usuario ${usuario} enviado a VM ${ipVM} y borrado Cola`);
     await VMs.actualizaVM(conexion, ipVM);
   }
 
@@ -409,7 +413,7 @@ class VMs {
     socketVM.emit('stop', json);
     json.accion = 'stop';
     json.ipVM = ipVM;
-    logger.info(`Enviado stop ${JSON.stringify(json)} a ${ipVM}`, json);
+    logger.info(`Enviado 'stop' ${JSON.stringify(json)}`, json);
   }
 }
 
