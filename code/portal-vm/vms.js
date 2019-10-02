@@ -139,7 +139,7 @@ class VMs {
 
           if (pend.length > 0) {
             await conex.query(`DELETE FROM Pendientes
-              WHERE usuario='${pend[0].usuario}' AND motivo='${pend[0].motivo}' AND tipo='up'`);
+              WHERE usuario='${user}' AND motivo='${motivo}' AND tipo='up'`);
             logger.debug(`Ya no pendiente ${user}-${motivo}`);
           } else {
             logger.warn(`No estaba en pendientes ${JSON.stringify(json)}`);
@@ -147,14 +147,14 @@ class VMs {
 
           // Estubiera o no pendiente lo asignamos
           await conex.query(`INSERT INTO Asignaciones (ip_vm, usuario, motivo, puerto)
-            VALUES ('${ipVM}','${pend[0].usuario}','${pend[0].motivo}', ${puerto})`);
+            VALUES ('${ipVM}','${user}','${motivo}', ${puerto})`);
 
           const row = (await conex.query(`SELECT COUNT(*) AS total
-            FROM Asignaciones AS a1 WHERE usuario='${pend[0].usuario}'`))[0].total;
+            FROM Asignaciones AS a1 WHERE usuario='${user}'`))[0].total;
           const fireUser = await conex.query(`SELECT ip_origen FROM Firewall AS f1
-            WHERE usuario='${pend[0].usuario}'`);
+            WHERE usuario='${user}'`);
           if ((fireUser.length > 0)) {
-            logger.debug(`El usuario ${pend[0].usuario} tiene IP en Firewall ${fireUser.length}`);
+            logger.debug(`El usuario ${user} tiene IP en Firewall ${fireUser.length}`);
             for (const item of fireUser) {
               if (row <= 1) { // es la primera asignación
                 this.serv.broadcastServers('añadircomienzo', { ip_origen: item.ip_origen, ipVM, puerto });
@@ -163,8 +163,8 @@ class VMs {
               this.serv.broadcastServers('añadirsolo', { ip_origen: item.ip_origen, ipVM, puerto });
               await firewall.dnatae('añadirsolo', item.ip_origen, ipVM, puerto);
             }
-            if (this.cli.mapUserSocket.get(pend[0].usuario) !== undefined) {
-              this.cli.broadcastClient(pend[0].usuario, 'resultado', { motivo });
+            if (this.cli.mapUserSocket.get(user) !== undefined) {
+              this.cli.broadcastClient(user, 'resultado', { motivo });
             } else {
               this.serv.broadcastServers('enviar-resultado', { motivo, user });
             }
@@ -238,7 +238,7 @@ class VMs {
           const fireUser = (await conex.query(`SELECT ip_origen FROM Firewall AS f1
             WHERE usuario='${user}'`));
           if (fireUser.length > 0) {
-            logger.warn(`El usuario ${user} tiene más de 1 firewall (${fireUser.length})`);
+            logger.warn(`El usuario ${user} tiene 1 firewall o más (${fireUser.length})`);
             for (const item of fireUser) {
               if (totalAsigUser > 0) {
                 this.serv.broadcastServers('dnatae-eliminarsolo',
