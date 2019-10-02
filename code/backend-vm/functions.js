@@ -1,6 +1,6 @@
 
 const os = require('os');
-const { exec } = require('child-process-promise');
+// const { exec } = require('child-process-promise');
 
 const logger = require('./logger.js').child({ module: 'functions' });
 
@@ -21,27 +21,27 @@ function getiplocal() {
 }
 
 async function cleandockerimages() {
-  logger.info('cleandockerimages NO borramos nada');
-  return;
-  const comando = `/usr/bin/docker images --format "{{.ID}}:{{.Repository}}" \
-      | grep -v -f imagenesConservar.lst \
-      | cut -d: -f1 \
-      | uniq \
-      | tr '\n' ' ' \
-  `;
-  logger.debug(`cleandockerimages comando: "${comando}"`);
-  try {
-    const result = await exec(comando);
-    if (result.stdout.length <= 0) {
-      logger.debug('No hay imagenes que borrar');
-      return;
-    }
-    logger.debug(`Borrando imagenes docker "${result.stdout}"`);
-    const resultRmi = await exec(`/usr/bin/docker rmi ${result.stdout}`);
-    logger.debug(`Borrando imagenes salida : "${resultRmi.stdout}"`);
-  } catch (error) {
-    logger.warn(`Error borrando images: "${error}"`);
-  }
+  logger.debug('cleandockerimages NO borramos nada');
+
+  // const comando = `/usr/bin/docker images --format "{{.ID}}:{{.Repository}}" \
+  //     | grep -v -f imagenesConservar.lst \
+  //     | cut -d: -f1 \
+  //     | uniq \
+  //     | tr '\n' ' ' \
+  // `;
+  // logger.debug(`cleandockerimages comando: "${comando}"`);
+  // try {
+  //   const result = await exec(comando);
+  //   if (result.stdout.length <= 0) {
+  //     logger.debug('No hay imagenes que borrar');
+  //     return;
+  //   }
+  //   logger.debug(`Borrando imagenes docker "${result.stdout}"`);
+  //   const resultRmi = await exec(`/usr/bin/docker rmi ${result.stdout}`);
+  //   logger.debug(`Borrando imagenes salida : "${resultRmi.stdout}"`);
+  // } catch (error) {
+  //   logger.warn(`Error borrando images: "${error}"`);
+  // }
 }
 
 module.exports.cleandockerimages = cleandockerimages;

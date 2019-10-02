@@ -21,7 +21,7 @@ function getiplocal() {
       const { address, family, internal } = interfaces[k][addrAct];
       if (family === 'IPv4' && !internal) {
         addresses.push(address);
-        logger.info(`IP local encontrada: "${address}"`);
+        logger.debug(`IP local encontrada: "${address}"`);
       }
     }
   }
@@ -121,7 +121,7 @@ class Servidores {
 
   static async comprobarservidor() {
     // INSERTAR SERVIDOR EN BBDD
-    logger.info('Comprobando servidor...');
+    logger.debug('Comprobando servidor...');
     try {
       const pool = await db.pool;
       const addresses = getiplocal();
