@@ -20,7 +20,8 @@ let db3; // Contendrá la BD una vez abierta
 const socketClientServers = new Map();
 
 const addresses = functions.getiplocal();
-logger.debug(`Dirección: "${addresses[0]}"`);
+const ipVM = addresses[0];
+logger.debug(`Dirección: "${ipVM}"`);
 
 functions.cleandockerimages();
 
@@ -80,7 +81,7 @@ async function arrancaChe(user, motivo, port) {
       -e CHE_LIMITS_USER_WORKSPACES_COUNT=5 \
       -e CHE_LIMITS_USER_WORKSPACES_RUN_COUNT=2 \
       -e CHE_LIMITS_USER_WORKSPACES_RAM=1024 \
-      -e CHE_HOST=${addresses[0]} \
+      -e CHE_HOST=${ipVM} \
       -e CHE_DOCKER_IP_EXTERNAL=${config.ip_server_exterior} \
       --restart no \
       eclipse/che:${config.cheversion} start \
@@ -91,7 +92,9 @@ async function arrancaChe(user, motivo, port) {
     const result = await exec(comando);
     logger.debug(`Arranque contenedor salida estandar: "${result.stdout}"`);
   } catch (error) {
-    logger.warn(`Error Arranque contenedor: "${error}"`);
+    logger.warn(`Error Arranque contenedor: "${error}"`, {
+      user, motivo, ipVM, port,
+    });
   }
 }
 
