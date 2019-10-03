@@ -1,6 +1,6 @@
 const winston = require('winston');
 
-const myFormat = winston.format.printf(info => `${info.timestamp} [${info.label}] ${info.level}: ${info.message}`);
+const myFormat = winston.format.printf(info => `${info.timestamp} [${info.module}] ${info.level}: ${info.message}`);
 
 const logger = winston.createLogger({
   transports: [
