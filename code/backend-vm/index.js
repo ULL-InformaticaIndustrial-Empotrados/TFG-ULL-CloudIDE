@@ -88,14 +88,17 @@ async function arrancaChe(user, motivo, port) {
       --skip:preflight \
       `;
   logger.debug(`Preparamos: "${comando}"`);
+  let correcto = false;
   try {
     const result = await exec(comando);
     logger.debug(`Arranque contenedor salida estandar: "${result.stdout}"`);
+    correcto = true;
   } catch (error) {
     logger.warn(`Error Arranque contenedor: "${error}"`, {
       user, motivo, ipVM, port,
     });
   }
+  return correcto;
 }
 
 
@@ -150,20 +153,31 @@ async function configuraServidor(item) {
 
     colaLoad = colaLoad.then(async () => {
       logger.info(`Ejecutando load "${JSON.stringify(data)}"`);
-      await arrancaChe(data.user, data.motivo, port);
-      logger.debug(`Arrancado docker para ${data.user}-${data.motivo}`);
-      await functions.cleandockerimages();
-      logger.debug(`Informamos al servidor ${ipServer}`);
-      const json = { user: data.user, motivo: data.motivo, puerto: port };
-      socketClientServers.get(ipServer).emit('loaded', json);
-      const consulta = `INSERT INTO Asignaciones(usuario, motivo, puerto)
-        VALUES('${data.user}', '${data.motivo}', ${port})`;
-      logger.debug(`Guardamos en Asignaciones con "${consulta}"`);
-      try {
-        await db3.run(consulta);
-        logger.debug(`Guardado en Asignaciones (${data.user},${data.motivo}, ${port})`);
-      } catch (error) {
-        logger.warn(`Error al insertar en Asiganciones: "${error}"`);
+      if (await arrancaChe(data.user, data.motivo, port)) {
+        // Arrancó correctamente
+        logger.debug(`Arrancado docker para ${data.user}-${data.motivo}`);
+        await functions.cleandockerimages();
+        const json = { user: data.user, motivo: data.motivo, puerto: port, ok: true };
+        logger.debug(`Informamos arranque OK ${ipServer} ${JSON.stringify(json)}`);
+        socketClientServers.get(ipServer).emit('loaded', json);
+        const consulta = `INSERT INTO Asignaciones(usuario, motivo, puerto)
+          VALUES('${data.user}', '${data.motivo}', ${port})`;
+        logger.debug(`Guardamos en Asignaciones con "${consulta}"`);
+        try {
+          await db3.run(consulta);
+          logger.debug(`Guardado en Asignaciones (${data.user},${data.motivo}, ${port})`);
+        } catch (error) {
+          logger.warn(`Error al insertar en Asiganciones: "${error}"`);
+        }
+      } else {
+        // no se arrancó bien
+        const json = { user: data.user, motivo: data.motivo, puerto: port, ok: false };
+        logger.debug(`Informamos arranque FAIL ${ipServer} ${JSON.stringify(json)}`);
+        socketClientServers.get(ipServer).emit('loaded', json);
+        await paraChe(port);
+        logger.debug(`Parado docker ${port}`);
+        await functions.cleandockerimages();
+        puertosUsados.delete(port);
       }
     });
   }); // de on load

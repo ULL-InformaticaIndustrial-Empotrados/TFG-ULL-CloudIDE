@@ -131,7 +131,7 @@ class VMs {
           logger.error(msg);
           return;
         }
-        const { user, motivo, puerto } = data;
+        const { user, motivo, puerto, ok } = data;
         try {
           const pend = (await conex.query(`SELECT * FROM Pendientes AS p1
             WHERE ip_vm='${ipVM}' AND motivo='${motivo}' AND usuario='${user}'
@@ -145,31 +145,40 @@ class VMs {
             logger.warn(`No estaba en pendientes ${JSON.stringify(json)}`);
           }
 
-          // Estubiera o no pendiente lo asignamos
-          await conex.query(`INSERT INTO Asignaciones (ip_vm, usuario, motivo, puerto)
-            VALUES ('${ipVM}','${user}','${motivo}', ${puerto})`);
+          if (ok) { // se arrancó bien
+            // Estuviera o no pendiente, lo asignamos
+            await conex.query(`INSERT INTO Asignaciones (ip_vm, usuario, motivo, puerto)
+              VALUES ('${ipVM}','${user}','${motivo}', ${puerto})`);
 
-          const row = (await conex.query(`SELECT COUNT(*) AS total
-            FROM Asignaciones AS a1 WHERE usuario='${user}'`))[0].total;
-          const fireUser = await conex.query(`SELECT ip_origen FROM Firewall AS f1
-            WHERE usuario='${user}'`);
-          if ((fireUser.length > 0)) {
-            logger.debug(`El usuario ${user} tiene IP en Firewall ${fireUser.length}`);
-            for (const item of fireUser) {
-              if (row <= 1) { // es la primera asignación
-                this.serv.broadcastServers('añadircomienzo', { ip_origen: item.ip_origen, ipVM, puerto });
-                await firewall.dnatae('añadircomienzo', item.ip_origen, ipVM, 0);
+            const row = (await conex.query(`SELECT COUNT(*) AS total
+              FROM Asignaciones AS a1 WHERE usuario='${user}'`))[0].total;
+            const fireUser = await conex.query(`SELECT ip_origen FROM Firewall AS f1
+              WHERE usuario='${user}'`);
+            if ((fireUser.length > 0)) {
+              logger.debug(`El usuario ${user} tiene IP en Firewall ${fireUser.length}`);
+              for (const item of fireUser) {
+                if (row <= 1) { // es la primera asignación
+                  this.serv.broadcastServers('añadircomienzo', { ip_origen: item.ip_origen, ipVM, puerto });
+                  await firewall.dnatae('añadircomienzo', item.ip_origen, ipVM, 0);
+                }
+                this.serv.broadcastServers('añadirsolo', { ip_origen: item.ip_origen, ipVM, puerto });
+                await firewall.dnatae('añadirsolo', item.ip_origen, ipVM, puerto);
               }
-              this.serv.broadcastServers('añadirsolo', { ip_origen: item.ip_origen, ipVM, puerto });
-              await firewall.dnatae('añadirsolo', item.ip_origen, ipVM, puerto);
+              if (this.cli.mapUserSocket.get(user) !== undefined) {
+                this.cli.broadcastClient(user, 'resultado', { motivo });
+              } else {
+                this.serv.broadcastServers('enviar-resultado', { motivo, user });
+              }
             }
+          } else { // se arrancó mal
+            logger.debug('Che no arrancó bien. Mandamos stop cliente');
             if (this.cli.mapUserSocket.get(user) !== undefined) {
-              this.cli.broadcastClient(user, 'resultado', { motivo });
+              this.cli.broadcastClient(user, 'stop', { motivo });
             } else {
-              this.serv.broadcastServers('enviar-resultado', { motivo, user });
+              this.serv.broadcastServers('enviar-stop', { motivo, user });
             }
+            throw new Condicion('El servidor no se arranco de manera correcta. Vuelve a intentarlo');
           }
-
 
           // comprobamos si el servicio se está eliminando
           const elimServ = (await conex.query(`SELECT count(*) AS total
@@ -178,9 +187,7 @@ class VMs {
             WHERE usuario='${user}' AND motivo='${motivo}'`))[0].total;
           if ((elimServ + elimServUser) > 0) {
             logger.info(`El servicio ${user}-${motivo} se está eliminando`);
-            this.mandaParar(conex, {
-              user, motivo, puerto, ip_vm: ipVM,
-            });
+            this.mandaParar(conex, { user, motivo, puerto, ip_vm: ipVM });
           }
         } catch (err) {
           if (err instanceof Condicion) {
@@ -346,7 +353,6 @@ class VMs {
       await conexion.query(`DELETE FROM Cola
         WHERE usuario='${usuario}' AND motivo='${item.motivo}'`);
       json.accion = 'sacarcola';
-      json.ipVM = 'none';
       logger.info(`Scarcola cola ${JSON.stringify(json)}`, json);
     }
 
