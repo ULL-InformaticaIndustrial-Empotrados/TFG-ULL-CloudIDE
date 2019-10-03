@@ -346,14 +346,16 @@ class VMs {
       await conexion.query(`INSERT INTO Pendientes (ip_vm, motivo, usuario, tipo)
         VALUES ('${ipVM}', '${item.motivo}', '${usuario}', 'up')`);
       const json = { user: usuario, motivo: item.motivo };
+
+      await conexion.query(`DELETE FROM Cola
+        WHERE usuario='${usuario}' AND motivo='${item.motivo}'`);
+      json.accion = 'sacarcola';
+      logger.info(`Sacarcola cola ${JSON.stringify(json)}`, json);
+
       this.getSocketFromIP(ipVM).emit('load', json);
       json.accion = 'load';
       json.ipVM = ipVM;
       logger.info(`Enviado 'load' ${JSON.stringify(json)}`, json);
-      await conexion.query(`DELETE FROM Cola
-        WHERE usuario='${usuario}' AND motivo='${item.motivo}'`);
-      json.accion = 'sacarcola';
-      logger.info(`Scarcola cola ${JSON.stringify(json)}`, json);
     }
 
     logger.debug(`Usuario ${usuario} enviado a VM ${ipVM} y borrado Cola`);

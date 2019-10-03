@@ -215,9 +215,7 @@ class Clientes {
           }
           await conexion.query(`INSERT INTO Cola (motivo, usuario)
           VALUES ('${motivo}','${user}')`);
-          const json = {
-            user, motivo, accion: 'metercola', ipVM: 'none',
-          };
+          const json = { user, motivo, accion: 'metercola' };
           logger.info(`Inserta cola ${JSON.stringify(json)}`, json);
 
 
