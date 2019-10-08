@@ -38,11 +38,20 @@ docker run -d \
   -p 5601:5601 -p 9200:9200 -p 5044:5044  \
   -v /root/ELK/logstash_conf.d:/etc/logstash/conf.d \
   -v /root/ELK/elk_data:/var/lib/elasticsearch \
+  --restart unless-stopped \
   -it --name elk \
   sebp/elk
 
 ```
 
+Si el contenedor ya existes (pero no está arrancado),
+basta con hacer `docker start elk`.
+
+Para cambiar su política de rearranque podemos ejecutar
+
+```
+docker update  --restart=unless-stopped elk
+```
 
 ## Acceso al contenedor
 
