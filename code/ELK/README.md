@@ -92,3 +92,13 @@ Para modificar la configuracíon en la imagen podemos hacer un
 [`mount bind`](https://docs.docker.com/storage/bind-mounts/)
 como sugiere en el apartado correspondiente de
 la [documentación de la imagen](https://elk-docker.readthedocs.io/#tweaking-the-image).
+
+## Gestión del espacio
+
+Parece que en la configuración actual, ES no controla su espacio.
+
+En [esta respuesta](https://discuss.elastic.co/t/full-disk-cleanup/9570)
+se dan algunas ideas que aplicar.
+
+Si se llena el disco se bloquean los indices y hay que
+aplicar [esta solución](https://discuss.elastic.co/t/forbidden-12-index-read-only-allow-delete-api/126067/12)
