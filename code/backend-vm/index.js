@@ -94,9 +94,8 @@ async function arrancaChe(user, motivo, port) {
     logger.debug(`Arranque contenedor salida estandar: "${result.stdout}"`);
     correcto = true;
   } catch (error) {
-    logger.warn(`Error Arranque contenedor: "${error}"`, {
-      user, motivo, ipVM, port,
-    });
+    logger.warn(`Error Arranque contenedor: "${error}"`,
+      { user, motivo, ipVM, port });
   }
   return correcto;
 }
