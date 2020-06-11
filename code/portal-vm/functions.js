@@ -73,4 +73,19 @@ module.exports = {
     return cadena;
   },
 
+  // Funcion asíncrona para determinar rol del usuario
+  async getRoll(user, db) {
+    const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
+    logger.debug(`Obetemos roll con consulta: "${consulta}"`);
+    try {
+      const pool = await db.pool;
+      const result = await pool.query(consulta);
+      logger.debug(`Resultado consulta roll: ${JSON.stringify(result)}`);
+      if (result[0].total === 1) return 'profesor';
+    } catch (error) {
+      logger.warn(`Error al consultar roll: ${error}`);
+    }
+    return 'alumno';
+  },
+
 };

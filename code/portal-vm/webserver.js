@@ -58,21 +58,6 @@ class Condicion {
   }
 }
 
-// Funcion asíncrona para determinar rol del usuario
-async function getRoll(user) {
-  const consulta = `SELECT count(*) as total FROM Profesores WHERE usuario='${user}'`;
-  logger.debug(`Obetemos roll con consulta: "${consulta}"`);
-  try {
-    const pool = await db.pool;
-    const result = await pool.query(consulta);
-    logger.debug(`Resultado consulta roll: ${JSON.stringify(result)}`);
-    if (result[0].total === 1) return 'profesor';
-  } catch (error) {
-    logger.warn(`Error al consultar roll: ${error}`);
-  }
-  return 'alumno';
-}
-
 // Funcion añade usuarios a un servicio en las tablas de la BD
 // Recibe conexion con las tablas bloqueadas.
 async function aniadeUsuarioServicio(conexion, usuarios, servicio) {
@@ -286,7 +271,7 @@ app.get('/autenticacion', cas.bounce, async (req, res) => {
     // logger.debug(util.inspect(req, { depth: null }));
     req.session.user = user;
     req.session.ip_origen = ipOrigen;
-    const rol = await getRoll(user);
+    const rol = await functions.getRoll(user, db);
     req.session.rol = rol;
     logger.info(`Usuario ${user} considerado ${rol}`);
     await conexion.query(`INSERT INTO Firewall (usuario, ip_origen)

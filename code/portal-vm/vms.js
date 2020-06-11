@@ -352,6 +352,8 @@ class VMs {
       json.accion = 'sacarcola';
       logger.info(`Sacarcola cola ${JSON.stringify(json)}`, json);
 
+      json.rol = await functions.getRoll(usuario, db);
+
       this.getSocketFromIP(ipVM).emit('load', json);
       json.accion = 'load';
       json.ipVM = ipVM;
