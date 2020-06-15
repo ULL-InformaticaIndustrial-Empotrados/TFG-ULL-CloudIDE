@@ -4,6 +4,8 @@ const sqlite3 = require('sqlite-async');
 
 const io = require('socket.io-client');
 
+const fetch = require('node-fetch');
+
 const { exec } = require('child-process-promise');
 const CREDS = require('./creds');
 
@@ -16,6 +18,9 @@ const functions = require('./functions.js');
 
 let db3; // Contendrá la BD una vez abierta
 
+const sleepProm = (ms) => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
 
 const socketClientServers = new Map();
 
@@ -100,6 +105,46 @@ async function arrancaChe(user, motivo, port) {
   return correcto;
 }
 
+async function arrancaWS(motivo, puerto) {
+  logger.debug(`Se nos pide arrancar WS '${motivo}' en puerto ${puerto}`);
+  try {
+    const uriWS = `http://localhost:${puerto}/api/workspace/che%3A${motivo}?includeInternalServers=false`;
+    logger.debug(`Uri WS:'${uriWS}'`);
+    const responseWS = await fetch(uriWS);
+    const jsonWS = await responseWS.json();
+    logger.debug(`Respuesta: ${JSON.stringify(jsonWS, null, 2)}`);
+
+    const { id } = jsonWS;
+    if (id === undefined) {
+      logger.warn(`No se consiguió id del WS '${motivo}'`);
+      return false;
+    }
+
+    let espera = 0;
+    let intentos = 100;
+    let running = false;
+
+    /* eslint-disable no-await-in-loop */
+    do {
+      await sleepProm(espera);
+      espera = 3000; // TODO no depender del número de iteraciones
+      intentos -= 1;
+      const uriArr = `http://localhost:${puerto}/api/workspace/${id}/runtime`;
+      logger.debug(`Uri arranque:'${uriArr}'`);
+      const responseArr = await fetch(uriArr, { method: 'POST' });
+      const jsonArr = await responseArr.json();
+      logger.debug(`Respuesta: ${JSON.stringify(jsonArr, null, 2)}`);
+      running = (responseArr.status === 'RUNNING');
+      logger.debug(`Esta running: ${running}`);
+    } while (!running && intentos > 0);
+    /* eslint-enable no-await-in-loop */
+    logger.debug(`Salimos espera arranque WS con running = ${running}`);
+    return running;
+  } catch (error) {
+    logger.error(error.response.body);
+    return false;
+  }
+}
 
 // Devuelve promesa para la parada del servidor Che
 async function paraChe(port) {
@@ -152,10 +197,10 @@ async function configuraServidor(item) {
 
     colaLoad = colaLoad.then(async () => {
       logger.info(`Ejecutando load "${JSON.stringify(data)}"`);
-      if (await arrancaChe(data.user, data.motivo, port)) {
+      if (await arrancaChe(data.user, data.motivo, port)
+        && (data.rol === 'profesor' || await arrancaWS(data.motivo, port))) {
         // Arrancó correctamente
         logger.debug(`Arrancado docker para ${data.user}-${data.motivo}`);
-        await functions.cleandockerimages();
         const json = { user: data.user, motivo: data.motivo, puerto: port, ok: true };
         logger.debug(`Informamos arranque OK ${ipServer} ${JSON.stringify(json)}`);
         socketClientServers.get(ipServer).emit('loaded', json);
@@ -175,9 +220,9 @@ async function configuraServidor(item) {
         socketClientServers.get(ipServer).emit('loaded', json);
         await paraChe(port);
         logger.debug(`Parado docker ${port}`);
-        await functions.cleandockerimages();
         puertosUsados.delete(port);
       }
+      await functions.cleandockerimages();
     });
   }); // de on load
 
