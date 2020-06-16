@@ -108,6 +108,16 @@ async function arrancaChe(user, motivo, port) {
 async function arrancaWS(motivo, puerto) {
   logger.debug(`Se nos pide arrancar WS '${motivo}' en puerto ${puerto}`);
   try {
+    logger.debug(`Se nos pide arrancar WS '${motivo}' en puerto ${puerto}`);
+    const uriLista = `http://localhost:${puerto}/api/workspace?skipCount=0&maxItems=30`;
+    logger.debug(`Uri Lista:'${uriLista}'`);
+    const responseLista = await fetch(uriLista);
+    const jsonLista = await responseLista.json();
+    logger.debug(`Respuesta: ${JSON.stringify(jsonLista, null, 2)}`);
+    for (const wsa of jsonLista) {
+      logger.debug(`Encontrado WS: ${wsa.config.name} → ${wsa.id}`);
+    }
+
     const uriWS = `http://localhost:${puerto}/api/workspace/che%3A${motivo}?includeInternalServers=false`;
     logger.debug(`Uri WS:'${uriWS}'`);
     const responseWS = await fetch(uriWS);
@@ -120,22 +130,29 @@ async function arrancaWS(motivo, puerto) {
       return false;
     }
 
-    let espera = 0;
+    const uriArr = `http://localhost:${puerto}/api/workspace/${id}/runtime`;
+    logger.debug(`Uri arranque:'${uriArr}'`);
+    const responseArr = await fetch(uriArr, { method: 'POST' });
+    const jsonArr = await responseArr.json();
+    logger.debug(`Respuesta: ${JSON.stringify(jsonArr, null, 2)}`);
+
+    const espera = 20000;
     let intentos = 100;
     let running = false;
 
+    const uriRUN = `http://localhost:${puerto}/api/workspace/${id}`;
+    logger.debug(`uriRUN:'${uriRUN}'`);
     /* eslint-disable no-await-in-loop */
     do {
       await sleepProm(espera);
-      espera = 3000; // TODO no depender del número de iteraciones
       intentos -= 1;
-      const uriArr = `http://localhost:${puerto}/api/workspace/${id}/runtime`;
-      logger.debug(`Uri arranque:'${uriArr}'`);
-      const responseArr = await fetch(uriArr, { method: 'POST' });
-      const jsonArr = await responseArr.json();
-      logger.debug(`Respuesta: ${JSON.stringify(jsonArr, null, 2)}`);
-      running = (responseArr.status === 'RUNNING');
-      logger.debug(`Esta running: ${running}`);
+
+      const responseRUN = await fetch(uriRUN);
+      const jsonRUN = await responseRUN.json();
+      logger.debug(`Respuesta: ${JSON.stringify(jsonRUN, null, 2)}`);
+
+      running = (jsonRUN.status === 'RUNNING');
+      logger.debug(`Estado '${jsonRUN.status}' running: ${running} intento ${intentos}`);
     } while (!running && intentos > 0);
     /* eslint-enable no-await-in-loop */
     logger.debug(`Salimos espera arranque WS con running = ${running}`);
