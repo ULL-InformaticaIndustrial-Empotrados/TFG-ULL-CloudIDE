@@ -2,6 +2,9 @@
 
 <head>
   <title><%= motivo %> - ULL-CloudIDE</title>
+  <% if (alumno) { %>
+    <meta http-equiv="refresh" content="0; url='http://<%= ip_server_che %>:<%= port_server_che %>/che/<%= motivo %>'" />
+  <%} %>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
@@ -107,7 +110,7 @@ margin-top : 100%;
 
 <div id="main">
   <img style="cursor:pointer;position:absolute;z-index:1000; top:70%; height:120px;width:180px;" id="iconnav" onclick="opencloseNav()" src="images/cloudderecha.png"></img>
-  <iframe name="window" src="http://<%= ip_server_che %>:<%= port_server_che %>/che/<%= motivo %>/" width="100%" height="100%" scrolling="yes" frameborder="0" id="che"></iframe>
+  <iframe name="window" src="http://<%= ip_server_che %>:<%= port_server_che %>/" width="100%" height="100%" scrolling="yes" frameborder="0" id="che"></iframe>
 </div>
 
 

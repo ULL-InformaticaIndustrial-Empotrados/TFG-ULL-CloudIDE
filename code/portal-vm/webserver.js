@@ -213,7 +213,7 @@ app.get('/cloud/:motivo', async (req, res) => {
     res.redirect('/logout');
     return;
   }
-  const { user } = req.session;
+  const { user, rol } = req.session;
   const { motivo } = req.params;
   let destino = 'error';
   let data = {};
@@ -230,6 +230,7 @@ app.get('/cloud/:motivo', async (req, res) => {
       destino = 'cloud';
       data = {
         user,
+        alumno: (rol === 'alumno'),
         motivo,
         ip_server_che: config.ip_server_exterior,
         port_server_che: row[0].puerto,
