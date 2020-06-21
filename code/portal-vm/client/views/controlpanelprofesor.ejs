@@ -215,9 +215,11 @@
                                                 <th scope="row"><center><%= j %></center></th>
                                                 <td><center><%= servicios[i].usuarios[j].usuario %></center></td>
                                                 <% if(servicios[i].usuarios[j].estado == "up") {%>
-                                                  <td><center><label class="glyphicon glyphicon-arrow-up" style="color: green"></center></td>
+                                                  <td><center><label class="glyphicon glyphicon-arrow-up" style="color: green" ></center></td>
                                                 <% } else {%>
-                                                  <td><center><label class="glyphicon glyphicon-arrow-down" style="color: red"></center></td>
+                                                  <td><center><label class="glyphicon glyphicon-arrow-down" style="color: red"
+                                                    onclick="encenderUsuario('<%= servicios[i].usuarios[j].usuario %>', '<%= servicios[i].motivo %>')">
+                                                  </center></td>
                                                 <% }%>
                                                 <td><center><%= servicios[i].usuarios[j].fecha %></center></td>
                                               </tr>

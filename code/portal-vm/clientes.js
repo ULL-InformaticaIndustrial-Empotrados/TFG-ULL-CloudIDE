@@ -157,106 +157,118 @@ class Clientes {
         logger.info(`Cliente obtenerenlace '${user}-${motivo}'`, {
           user, socketId, ip, accion: 'client_obtenerenlace', motivo,
         });
+        this.arranca(user, motivo, socket);
+      });
 
-        let conexion;
-        try {
-          const pool = await db.pool;
-          conexion = await pool.getConnection();
-          await conexion.query(db.bloqueoTablas);
-        } catch (err) {
-          const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
-          if (this.mapUserSocket.get(user) !== undefined) {
-            socket.emit('data-error', { msg });
-          }
-          logger.error(msg);
-          return;
-        }
-        try {
-          const existeMatriculados = (await conexion.query(`SELECT COUNT(*) AS total
-            FROM Matriculados AS m1
-            WHERE usuario='${user}' AND motivo='${motivo}'`))[0].total;
-          if (existeMatriculados <= 0) {
-            throw new Condicion('No está matriculado de este servidor');
-          }
-
-          const eliminando = (await conexion.query(`SELECT COUNT(*) AS total
-            FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu
-            WHERE usuario='${user}' AND motivo='${motivo}'
-            UNION SELECT motivo FROM Eliminar_servicio as es
-            WHERE motivo='${motivo}') AS alias`))[0].total;
-          if (eliminando > 0) {
-            throw new Condicion('No se puede arrancar, se está eliminando servicio (individual o global)');
-          }
-
-          const motivototal = (await conexion.query(`SELECT COUNT(*) AS total
-            FROM Asignaciones AS a1 WHERE usuario='${user}' AND motivo='${motivo}'`))[0].total;
-          if (motivototal > 0) {
-            throw new Condicion('Servicio ya asignado');
-          }
-          const pendientes1 = (await conexion.query(`SELECT COUNT(*) AS total
-            FROM Pendientes AS p1 WHERE usuario='${user}' AND motivo='${motivo}'`))[0].total;
-          if (pendientes1 > 0) {
-            throw new Condicion('Servicio ya pendiente');
-          }
-          const userEnCola = (await conexion.query(`SELECT COUNT(*) AS total
-            FROM Cola AS c1 WHERE usuario='${user}' AND motivo='${motivo}'`))[0].total;
-          if (userEnCola > 0) {
-            throw new Condicion('El servicio ya está en cola');
-          }
-          const asignasUser = (await conexion.query(`SELECT COUNT(*) AS total
-            FROM Asignaciones AS a1 WHERE usuario='${user}'`))[0].total;
-          const colasUser = (await conexion.query(`SELECT COUNT(*) AS total
-              FROM Cola AS c1 WHERE usuario='${user}'`))[0].total;
-          const pendientesUserUp = (await conexion.query(`SELECT COUNT(*) AS total
-            FROM Pendientes AS p1 WHERE usuario='${user}' AND tipo='up'`))[0].total;
-
-          if ((asignasUser + colasUser + pendientesUserUp) >= config.numero_max_serverxuser) {
-            throw new Condicion('Supera el número máximo de servidores');
-          }
-          await conexion.query(`INSERT INTO Cola (motivo, usuario)
-          VALUES ('${motivo}','${user}')`);
-          const json = { user, motivo, accion: 'metercola' };
-          logger.info(`Inserta cola ${JSON.stringify(json)}`, json);
-
-
-          // Si el usuario está asignado o pendiente lo mandamos directamente
-          //  a esa máquina
-          const pendientesUser = (await conexion.query(`SELECT COUNT(*) AS total
-            FROM Pendientes AS p1 WHERE usuario='${user}'`))[0].total;
-          if ((asignasUser + pendientesUser) > 0) {
-            const pip = (await conexion.query(`SELECT ip_vm FROM Pendientes AS p1
-                WHERE usuario='${user}'`));
-            let ipVM = 0;
-            if (pip.length > 0) ipVM = pip[0].ip_vm;
-            else {
-              ipVM = (await conexion.query(`SELECT ip_vm FROM Asignaciones AS a1
-                WHERE usuario='${user}'`))[0].ip_vm;
-            }
-            logger.debug(`Usuaraio ${user} tiene cosas en máquina ${ipVM}`);
-            if (this.vms.mapIpVMS.get(ipVM) === undefined) { // si la vm no esta disponible
-              await conexion.query(`DELETE FROM Cola WHERE user='${user}'`);
-              throw new Condicion('No se puede obtener el servidor');
-            } else {
-              await this.vms.mandaUsuarioVM(conexion, user, ipVM);
-            }
-          } else {
-            this.vms.miraCola(conexion);
-          }
-        } catch (err) {
-          if (err instanceof Condicion) {
-            if (this.mapUserSocket.get(user) !== undefined) {
-              socket.emit('data-error', { msg: err.msg });
-            }
-            logger.warn(err.msg);
-          } else {
-            logger.error(`Error en 'obtenerenlace' '${user}-${motivo}': ${err}`);
-          }
-        }
-        await conexion.query('UNLOCK TABLES');
-        await conexion.release();
-        ovirt.ajustaVMArrancadas();
+      socket.on('arranca', async (datos) => {
+        const { usuario, motivo } = datos;
+        logger.info(`Cliente arranca '${usuario}-${motivo}'`, {
+          usuario, socketId, ip, accion: 'client_arranca', motivo,
+        });
+        this.arranca(usuario, motivo, socket);
       });
     });
+  }
+
+  async arranca(usuario, motivo, socket) {
+    logger.info(`Invocada arranca para '${usuario}-${motivo}'`);
+    let conexion;
+    try {
+      const pool = await db.pool;
+      conexion = await pool.getConnection();
+      await conexion.query(db.bloqueoTablas);
+    } catch (err) {
+      const msg = `Al obtener pool, conexion o bloquear tablas: ${err}`;
+      if (this.mapUserSocket.get(usuario) !== undefined) {
+        socket.emit('data-error', { msg });
+      }
+      logger.error(msg);
+      return;
+    }
+    try {
+      const existeMatriculados = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Matriculados AS m1
+        WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
+      if (existeMatriculados <= 0) {
+        throw new Condicion('No está matriculado de este servidor');
+      }
+
+      const eliminando = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM (SELECT motivo FROM Eliminar_servicio_usuario as esu
+        WHERE usuario='${usuario}' AND motivo='${motivo}'
+        UNION SELECT motivo FROM Eliminar_servicio as es
+        WHERE motivo='${motivo}') AS alias`))[0].total;
+      if (eliminando > 0) {
+        throw new Condicion('No se puede arrancar, se está eliminando servicio (individual o global)');
+      }
+
+      const motivototal = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Asignaciones AS a1 WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
+      if (motivototal > 0) {
+        throw new Condicion('Servicio ya asignado');
+      }
+      const pendientes1 = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Pendientes AS p1 WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
+      if (pendientes1 > 0) {
+        throw new Condicion('Servicio ya pendiente');
+      }
+      const userEnCola = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Cola AS c1 WHERE usuario='${usuario}' AND motivo='${motivo}'`))[0].total;
+      if (userEnCola > 0) {
+        throw new Condicion('El servicio ya está en cola');
+      }
+      const asignasUser = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Asignaciones AS a1 WHERE usuario='${usuario}'`))[0].total;
+      const colasUser = (await conexion.query(`SELECT COUNT(*) AS total
+          FROM Cola AS c1 WHERE usuario='${usuario}'`))[0].total;
+      const pendientesUserUp = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Pendientes AS p1 WHERE usuario='${usuario}' AND tipo='up'`))[0].total;
+
+      if ((asignasUser + colasUser + pendientesUserUp) >= config.numero_max_serverxuser) {
+        throw new Condicion('Supera el número máximo de servidores');
+      }
+      await conexion.query(`INSERT INTO Cola (motivo, usuario)
+      VALUES ('${motivo}','${usuario}')`);
+      const json = { usuario, motivo, accion: 'metercola' };
+      logger.info(`Inserta cola ${JSON.stringify(json)}`, json);
+
+
+      // Si el usuario está asignado o pendiente lo mandamos directamente
+      //  a esa máquina
+      const pendientesUser = (await conexion.query(`SELECT COUNT(*) AS total
+        FROM Pendientes AS p1 WHERE usuario='${usuario}'`))[0].total;
+      if ((asignasUser + pendientesUser) > 0) {
+        const pip = (await conexion.query(`SELECT ip_vm FROM Pendientes AS p1
+            WHERE usuario='${usuario}'`));
+        let ipVM = 0;
+        if (pip.length > 0) ipVM = pip[0].ip_vm;
+        else {
+          ipVM = (await conexion.query(`SELECT ip_vm FROM Asignaciones AS a1
+            WHERE usuario='${usuario}'`))[0].ip_vm;
+        }
+        logger.debug(`Usuaraio ${usuario} tiene cosas en máquina ${ipVM}`);
+        if (this.vms.mapIpVMS.get(ipVM) === undefined) { // si la vm no esta disponible
+          await conexion.query(`DELETE FROM Cola WHERE user='${usuario}'`);
+          throw new Condicion('No se puede obtener el servidor');
+        } else {
+          await this.vms.mandaUsuarioVM(conexion, usuario, ipVM);
+        }
+      } else {
+        this.vms.miraCola(conexion);
+      }
+    } catch (err) {
+      if (err instanceof Condicion) {
+        if (this.mapUserSocket.get(usuario) !== undefined) {
+          socket.emit('data-error', { msg: err.msg });
+        }
+        logger.warn(err.msg);
+      } else {
+        logger.error(`Error en 'arranca' '${usuario}-${motivo}': ${err}`);
+      }
+    }
+    await conexion.query('UNLOCK TABLES');
+    await conexion.release();
+    ovirt.ajustaVMArrancadas();
   }
 
   broadcastClient(user, evento, data) {

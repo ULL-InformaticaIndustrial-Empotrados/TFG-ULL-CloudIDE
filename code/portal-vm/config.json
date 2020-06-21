@@ -13,6 +13,6 @@
   "database_bbdd_mysql" : "cloudIDE",
   "host_redis" : "localhost",
   "_comment": "Eran 7, bajamos a 1 para las pruebas",
-  "numero_vm_reserva" : 1,
+  "numero_vm_reserva" : 7,
   "path_almacenamiento" : "/mnt/cloudIDE"
 }

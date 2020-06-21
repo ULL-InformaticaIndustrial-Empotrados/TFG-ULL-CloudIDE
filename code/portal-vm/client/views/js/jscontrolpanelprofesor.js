@@ -48,6 +48,11 @@ document.getElementById("progressencender-"+id).style.display = "block";
 
 }
 
+function encenderUsuario(user, motivo) {
+  console.log(`Se pide arrancar: ${user}-${motivo}`);
+  socket.emit("arranca", { usuario: user, motivo });
+}
+
 function apagar(idd){
   var id = idd.replace("botonapagar-","");
 
