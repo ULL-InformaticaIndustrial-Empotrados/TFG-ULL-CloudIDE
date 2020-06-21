@@ -53,6 +53,12 @@ function encenderUsuario(user, motivo) {
   socket.emit("arranca", { usuario: user, motivo });
 }
 
+function apagarUsuario(user, motivo) {
+  console.log(`Se pide apagar: ${user}-${motivo}`);
+  socket.emit("apagar", { usuario: user, motivo });
+}
+
+
 function apagar(idd){
   var id = idd.replace("botonapagar-","");
 
