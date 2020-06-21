@@ -2,11 +2,11 @@
 
 CMD="mysql -c -t -u usuario --password=usuario cloudIDE"
 echo "Asignaciones ===================="
-$CMD -e 'select * from Asignaciones;' 2>/dev/null
+$CMD -e 'select motivo, usuario, ip_vm, puerto from Asignaciones order by motivo, usuario, ip_vm, puerto;' 2>/dev/null
 echo "Cola ============================"
 $CMD -e 'select * from Cola;' 2>/dev/null
 echo "Pendientes ======================"
-$CMD -e 'select * from Pendientes;' 2>/dev/null
+$CMD -e 'select motivo, usuario, ip_vm, tipo from Pendientes order by motivo, usuario, ip_vm;' 2>/dev/null
 echo "Ovirt ==========================="
 $CMD -e 'select * from Ovirt;' 2>/dev/null
 echo "VMS ============================"
