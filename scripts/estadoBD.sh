@@ -1,6 +1,9 @@
 #!/bin/bash
 
 CMD="mysql -c -t -u usuario --password=usuario cloudIDE"
+
+echo "Ultima conexion ===================="
+$CMD -e 'select motivo, usuario, fecha from Ultima_conexion order by motivo, usuario, fecha;' 2>/dev/null
 echo "Asignaciones ===================="
 $CMD -e 'select motivo, usuario, ip_vm, puerto from Asignaciones order by motivo, usuario, ip_vm, puerto;' 2>/dev/null
 echo "Cola ============================"
