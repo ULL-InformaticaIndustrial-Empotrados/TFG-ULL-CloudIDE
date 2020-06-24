@@ -151,6 +151,7 @@ app.get('/controlpanel', async (req, res) => {
       apagandose: dowing,
       encendiendose: upping,
       resto: rest,
+      cerradoalumnos: config.cerradoalumnos,
     };
 
     if (rol === 'profesor') {

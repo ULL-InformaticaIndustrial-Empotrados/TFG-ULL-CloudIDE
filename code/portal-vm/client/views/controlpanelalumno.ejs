@@ -41,7 +41,9 @@
 </h1>
 
 
-
+<% if (cerradoalumnos) { %>
+<p class="nodisponible">Servicio no disponible para el alumnado en este momento</p>
+<% } else { %>
 
 
 <div class="container" style="margin-bottom:100px;">
@@ -158,6 +160,7 @@
   </div>
 </div>
 
+<% } %>
 
 
 <div class="modal fade" id="myModal" role="dialog">
